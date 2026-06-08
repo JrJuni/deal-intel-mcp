@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -298,7 +299,7 @@ def test_period_win_rate_uses_actual_close_date_without_silent_fallback() -> Non
 
 def test_create_deal_applies_default_close_date_and_records_source() -> None:
     mongo = FakeMongo()
-    before = datetime.now(UTC).date()
+    before = datetime.now(ZoneInfo("Asia/Seoul")).date()
 
     result = create_deal.handle(
         mongo=mongo,
@@ -307,7 +308,7 @@ def test_create_deal_applies_default_close_date_and_records_source() -> None:
         industry="스타트업",
         deal_size_krw=None,
     )
-    after = datetime.now(UTC).date()
+    after = datetime.now(ZoneInfo("Asia/Seoul")).date()
 
     assert result["expected_close_date"] in {
         (before + timedelta(days=7)).isoformat(),
@@ -348,7 +349,7 @@ def test_mcp_create_deal_uses_industry_override(monkeypatch) -> None:
             }
         },
     )
-    before = datetime.now(UTC).date()
+    before = datetime.now(ZoneInfo("Asia/Seoul")).date()
 
     result = mcp_server.create_deal("Public Co", industry="공공")
 
@@ -358,7 +359,7 @@ def test_mcp_create_deal_uses_industry_override(monkeypatch) -> None:
 
 
 def test_list_deals_surfaces_timing_and_attention_fields() -> None:
-    today = datetime.now(UTC).date()
+    today = datetime.now(ZoneInfo("Asia/Seoul")).date()
     deal = _active_deal(
         entered_at=(today - timedelta(days=7)).isoformat(),
         expected_close_date=(today - timedelta(days=1)).isoformat(),
@@ -382,7 +383,7 @@ def test_list_deals_surfaces_timing_and_attention_fields() -> None:
 
 
 def test_mcp_list_deals_surfaces_part_c_fields(monkeypatch) -> None:
-    today = datetime.now(UTC).date()
+    today = datetime.now(ZoneInfo("Asia/Seoul")).date()
     deal = _active_deal(
         entered_at=(today - timedelta(days=7)).isoformat(),
         expected_close_date=(today - timedelta(days=1)).isoformat(),

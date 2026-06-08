@@ -8,6 +8,9 @@ mongodb:
   database: deal_intel
   vector_search: python_cosine   # python_cosine | atlas (atlas requires M10+ cluster)
 
+reporting:
+  timezone: Asia/Seoul
+
 # MEDDPICC health score 계산 가중치.
 # health_pct = sum(score_i * weight_i) / sum(5 * weight_i) * 100
 # ML 자동조정 시 이 섹션만 ~/.deal-intel/config.yaml로 override.

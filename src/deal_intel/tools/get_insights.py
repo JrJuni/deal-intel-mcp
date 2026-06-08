@@ -4,7 +4,7 @@ from collections import defaultdict
 from datetime import datetime
 
 from deal_intel.errors import ErrorCode, MCPError, Stage
-from deal_intel.schema.metrics import WinRateSettings
+from deal_intel.schema.metrics import ReportingContext, WinRateSettings
 from deal_intel.storage.mongodb import MongoDBClient
 
 _DIMS = [
@@ -257,7 +257,13 @@ _HANDLERS = {
 }
 
 
-def handle(mongo: MongoDBClient, cfg: dict, *, query_type: str) -> dict:
+def handle(
+    mongo: MongoDBClient,
+    cfg: dict,
+    *,
+    query_type: str,
+    as_of: str | None = None,
+) -> dict:
     if query_type not in VALID_QUERY_TYPES:
         raise MCPError(
             error_code=ErrorCode.INVALID_INPUT,
@@ -268,9 +274,15 @@ def handle(mongo: MongoDBClient, cfg: dict, *, query_type: str) -> dict:
         )
     try:
         win_rate_settings = WinRateSettings.from_config(cfg)
+        reporting = ReportingContext.from_config(cfg, as_of=as_of)
     except ValueError as exc:
+        error_code = (
+            ErrorCode.INVALID_INPUT
+            if str(exc).startswith("as_of")
+            else ErrorCode.CONFIG_ERROR
+        )
         raise MCPError(
-            error_code=ErrorCode.CONFIG_ERROR,
+            error_code=error_code,
             stage=Stage.PREFLIGHT,
             message=str(exc),
             retryable=False,
@@ -281,7 +293,12 @@ def handle(mongo: MongoDBClient, cfg: dict, *, query_type: str) -> dict:
             result = _industry_benchmark(col, win_rate_settings)
         else:
             result = _HANDLERS[query_type](col)
-        return {"ok": True, "query_type": query_type, **result}
+        return {
+            "ok": True,
+            "query_type": query_type,
+            **reporting.to_dict(),
+            **result,
+        }
     except MCPError:
         raise
     except Exception as exc:

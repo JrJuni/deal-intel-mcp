@@ -131,10 +131,14 @@ pipeline:
     days_by_industry:
       공공: 60
       대기업: 28
+
+reporting:
+  timezone: Asia/Seoul
 ```
 
 업종 override는 자유 형식 `industry` 값과 대소문자를 무시하고 정확히 일치할
-때 적용된다.
+때 적용된다. 자동 날짜는 reporting timezone의 업무 날짜를 사용하며, 저장되는
+감사 timestamp는 UTC를 유지한다.
 
 ---
 
@@ -236,8 +240,11 @@ discovery → qualification → proposal → negotiation → won / lost / stalle
 - `is_overdue` / `overdue_days` — Open 딜이 예상 종료일을 넘겼는지
 - `attention_reasons` — `stalled`, `overdue`, `stuck`, `at_risk` 복수 사유
 - `days_in_stage` — 현재 단계에서 머문 일수
+- `data_quality` — 딜별 누락·무효·추정 필드와 전체 coverage
+- `as_of`, `timezone`, `generated_at` — 보고 기준일과 생성 시각
 
-stuck 딜이 상위에 정렬되어 나온다.
+`as_of="YYYY-MM-DD"`를 지정하면 날짜 기반 계산을 같은 기준일로 다시 실행할
+수 있다. stuck 딜이 상위에 정렬되어 나온다.
 
 ---
 
@@ -260,6 +267,10 @@ stuck 딜이 상위에 정렬되어 나온다.
 ### 7. `get_insights` — 파이프라인 BI 분석
 
 **언제 쓰나**: 전체 딜 데이터를 집계해서 패턴을 파악할 때. 월간 리뷰, 성공/실패 패턴 학습에 활용.
+
+`as_of`를 지정할 수 있으며 응답에는 `timezone`과 UTC `generated_at`이 함께
+포함된다. 현재 컬렉션의 스냅샷을 표시하는 값이며 과거 문서 상태를 복원하지는
+않는다.
 
 **7가지 분석 유형**:
 

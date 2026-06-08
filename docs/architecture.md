@@ -282,8 +282,13 @@ metrics:
     grace_days: 0
   win_rate:
     minimum_closed_sample: 10
+
+reporting:
+  timezone: Asia/Seoul
 ```
 
 `list_deals` 결과에서 `is_stuck: true` 딜이 상위 정렬되며 overdue와
 attention reason도 함께 반환한다. expected close를 직접 입력하지 않은 새 딜은
-기본 7일 또는 업종 override를 적용한다.
+기본 7일 또는 업종 override를 적용한다. `list_deals`와 `get_insights`는
+`as_of`, `timezone`, UTC `generated_at`을 반환한다. 명시적 `as_of`는 현재
+컬렉션을 해당 날짜 기준으로 계산하며 과거 문서 상태를 복원하지 않는다.

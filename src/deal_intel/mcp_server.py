@@ -105,10 +105,11 @@ def get_deal(deal_id: str) -> dict:
 
 
 @app.tool()
-def list_deals(stage: str = "", limit: int = 20) -> dict:
+def list_deals(stage: str = "", limit: int = 20, as_of: str = "") -> dict:
     """List deals with health, stuck, overdue, and attention reasons.
 
     Optionally filter by stage (discovery/qualification/proposal/negotiation/won/lost/stalled).
+    as_of accepts YYYY-MM-DD for reproducible date-based calculations.
     Results are sorted: stuck deals first, then by health_pct descending.
     """
     try:
@@ -120,14 +121,19 @@ def list_deals(stage: str = "", limit: int = 20) -> dict:
             cfg=_context.config(),
             stage=stage or None,
             limit=limit,
+            as_of=as_of or None,
         )
     except Exception as exc:
         return envelope_from_exception(exc, stage=Stage.STORAGE)
 
 
 @app.tool()
-def get_insights(query_type: str) -> dict:
+def get_insights(query_type: str, as_of: str = "") -> dict:
     """Run a BI aggregation query across all deals.
+
+    as_of accepts YYYY-MM-DD and is returned with the reporting timezone and
+    generation timestamp. It labels the current collection snapshot rather
+    than reconstructing historical database state.
 
     query_type options:
     - pipeline_overview   : stage별 딜 수·평균 health·총 딜 사이즈
@@ -146,6 +152,7 @@ def get_insights(query_type: str) -> dict:
             mongo=_context.mongo(),
             cfg=_context.config(),
             query_type=query_type,
+            as_of=as_of or None,
         )
     except Exception as exc:
         return envelope_from_exception(exc, stage=Stage.STORAGE)

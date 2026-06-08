@@ -3,14 +3,19 @@ from __future__ import annotations
 import math
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from enum import StrEnum
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 ACTIVE_STAGES = frozenset({"discovery", "qualification", "proposal", "negotiation"})
 STALLED_STAGES = frozenset({"stalled"})
 OPEN_STAGES = ACTIVE_STAGES | STALLED_STAGES
 TERMINAL_STAGES = frozenset({"won", "lost"})
+VALID_STAGES = ACTIVE_STAGES | STALLED_STAGES | TERMINAL_STAGES
+QUALIFIED_OR_LATER_STAGES = frozenset(
+    {"qualification", "proposal", "negotiation", "won", "lost"}
+)
 
 
 class HealthBand(StrEnum):
@@ -38,6 +43,14 @@ class StuckStatus(StrEnum):
 class CloseDateStatus(StrEnum):
     OVERDUE = "overdue"
     ON_TRACK = "on_track"
+    MISSING = "missing"
+    INVALID = "invalid"
+    NOT_APPLICABLE = "not_applicable"
+
+
+class DataQualityStatus(StrEnum):
+    VALID = "valid"
+    ESTIMATED = "estimated"
     MISSING = "missing"
     INVALID = "invalid"
     NOT_APPLICABLE = "not_applicable"
@@ -201,6 +214,101 @@ class PipelineTimingAssessment:
     close_date_status: CloseDateStatus
     is_overdue: bool | None
     overdue_days: int | None
+
+
+@dataclass(frozen=True)
+class ReportingContext:
+    timezone: str
+    as_of: date
+    generated_at: datetime
+
+    @classmethod
+    def from_config(
+        cls,
+        cfg: dict,
+        *,
+        as_of: str | date | None = None,
+        generated_at: datetime | None = None,
+    ) -> ReportingContext:
+        reporting = _as_mapping(cfg.get("reporting", {}), "reporting")
+        timezone_name = reporting.get("timezone", "Asia/Seoul")
+        if not isinstance(timezone_name, str) or not timezone_name.strip():
+            raise ValueError("reporting.timezone must be a non-empty IANA timezone")
+        timezone_name = timezone_name.strip()
+        try:
+            timezone = ZoneInfo(timezone_name)
+        except ZoneInfoNotFoundError as exc:
+            raise ValueError(
+                "reporting.timezone must be a valid IANA timezone"
+            ) from exc
+
+        generated = generated_at or datetime.now(UTC)
+        if generated.tzinfo is None or generated.utcoffset() is None:
+            raise ValueError("generated_at must be timezone-aware")
+        generated = generated.astimezone(UTC)
+
+        if as_of is None:
+            resolved_as_of = generated.astimezone(timezone).date()
+        elif isinstance(as_of, date) and not isinstance(as_of, datetime):
+            resolved_as_of = as_of
+        elif isinstance(as_of, str):
+            try:
+                resolved_as_of = date.fromisoformat(as_of)
+            except ValueError as exc:
+                raise ValueError("as_of must use ISO format YYYY-MM-DD") from exc
+        else:
+            raise ValueError("as_of must use ISO format YYYY-MM-DD")
+
+        return cls(
+            timezone=timezone_name,
+            as_of=resolved_as_of,
+            generated_at=generated,
+        )
+
+    def to_dict(self) -> dict:
+        return {
+            "as_of": self.as_of.isoformat(),
+            "timezone": self.timezone,
+            "generated_at": self.generated_at.isoformat(),
+        }
+
+
+@dataclass(frozen=True)
+class DataQualityAssessment:
+    field_statuses: dict[str, DataQualityStatus]
+    applicable_field_count: int
+    usable_field_count: int
+    confirmed_field_count: int
+    coverage_pct: float | None
+    confirmed_coverage_pct: float | None
+    is_complete: bool
+    is_confirmed_complete: bool
+
+    def to_dict(self) -> dict:
+        return {
+            "field_statuses": {
+                field: status.value for field, status in self.field_statuses.items()
+            },
+            "applicable_field_count": self.applicable_field_count,
+            "usable_field_count": self.usable_field_count,
+            "confirmed_field_count": self.confirmed_field_count,
+            "coverage_pct": self.coverage_pct,
+            "confirmed_coverage_pct": self.confirmed_coverage_pct,
+            "is_complete": self.is_complete,
+            "is_confirmed_complete": self.is_confirmed_complete,
+            "missing_fields": _fields_with_status(
+                self.field_statuses,
+                DataQualityStatus.MISSING,
+            ),
+            "invalid_fields": _fields_with_status(
+                self.field_statuses,
+                DataQualityStatus.INVALID,
+            ),
+            "estimated_fields": _fields_with_status(
+                self.field_statuses,
+                DataQualityStatus.ESTIMATED,
+            ),
+        }
 
 
 def _as_finite_number(value: Any) -> float:
@@ -588,6 +696,254 @@ def summarize_win_rate(
         "invalid_actual_close_date_count": invalid_close_date_count,
         "warnings": warnings,
     }
+
+
+def assess_deal_data_quality(deal: dict) -> DataQualityAssessment:
+    stage = deal.get("deal_stage")
+    statuses = {
+        "company": _required_text_status(deal.get("company")),
+        "industry": _required_text_status(deal.get("industry")),
+        "deal_stage": _stage_status(stage),
+        "stage_history": _stage_history_status(deal),
+        "expected_close_date": _expected_close_quality_status(deal),
+        "deal_value": _deal_value_quality_status(deal),
+        "meetings": _meeting_quality_status(deal),
+        "health_assessment": _health_quality_status(deal),
+        "actual_close_date": _actual_close_quality_status(deal),
+        "close_reason": _close_reason_quality_status(deal),
+    }
+    applicable = [
+        status
+        for status in statuses.values()
+        if status != DataQualityStatus.NOT_APPLICABLE
+    ]
+    usable_count = sum(
+        status in {DataQualityStatus.VALID, DataQualityStatus.ESTIMATED}
+        for status in applicable
+    )
+    confirmed_count = sum(status == DataQualityStatus.VALID for status in applicable)
+    applicable_count = len(applicable)
+    return DataQualityAssessment(
+        field_statuses=statuses,
+        applicable_field_count=applicable_count,
+        usable_field_count=usable_count,
+        confirmed_field_count=confirmed_count,
+        coverage_pct=(
+            round(usable_count / applicable_count * 100, 1)
+            if applicable_count
+            else None
+        ),
+        confirmed_coverage_pct=(
+            round(confirmed_count / applicable_count * 100, 1)
+            if applicable_count
+            else None
+        ),
+        is_complete=all(
+            status in {DataQualityStatus.VALID, DataQualityStatus.ESTIMATED}
+            for status in applicable
+        ),
+        is_confirmed_complete=all(
+            status == DataQualityStatus.VALID for status in applicable
+        ),
+    )
+
+
+def summarize_data_quality(deals: Iterable[dict]) -> dict:
+    assessments = [assess_deal_data_quality(deal) for deal in deals]
+    field_names = (
+        list(assessments[0].field_statuses)
+        if assessments
+        else [
+            "company",
+            "industry",
+            "deal_stage",
+            "stage_history",
+            "expected_close_date",
+            "deal_value",
+            "meetings",
+            "health_assessment",
+            "actual_close_date",
+            "close_reason",
+        ]
+    )
+    field_coverage = {}
+    total_status_counts = {status.value: 0 for status in DataQualityStatus}
+    for field in field_names:
+        statuses = [assessment.field_statuses[field] for assessment in assessments]
+        counts = {
+            status.value: sum(item == status for item in statuses)
+            for status in DataQualityStatus
+        }
+        for status, count in counts.items():
+            total_status_counts[status] += count
+        applicable_count = len(statuses) - counts[DataQualityStatus.NOT_APPLICABLE.value]
+        usable_count = (
+            counts[DataQualityStatus.VALID.value]
+            + counts[DataQualityStatus.ESTIMATED.value]
+        )
+        field_coverage[field] = {
+            **counts,
+            "applicable_count": applicable_count,
+            "coverage_pct": (
+                round(usable_count / applicable_count * 100, 1)
+                if applicable_count
+                else None
+            ),
+            "confirmed_coverage_pct": (
+                round(
+                    counts[DataQualityStatus.VALID.value]
+                    / applicable_count
+                    * 100,
+                    1,
+                )
+                if applicable_count
+                else None
+            ),
+        }
+
+    deal_count = len(assessments)
+    complete_count = sum(item.is_complete for item in assessments)
+    confirmed_complete_count = sum(item.is_confirmed_complete for item in assessments)
+    return {
+        "deal_count": deal_count,
+        "complete_deal_count": complete_count,
+        "complete_deal_pct": (
+            round(complete_count / deal_count * 100, 1) if deal_count else None
+        ),
+        "confirmed_complete_deal_count": confirmed_complete_count,
+        "confirmed_complete_deal_pct": (
+            round(confirmed_complete_count / deal_count * 100, 1)
+            if deal_count
+            else None
+        ),
+        "status_counts": total_status_counts,
+        "field_coverage": field_coverage,
+    }
+
+
+def _required_text_status(value: Any) -> DataQualityStatus:
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return DataQualityStatus.MISSING
+    if not isinstance(value, str):
+        return DataQualityStatus.INVALID
+    return DataQualityStatus.VALID
+
+
+def _stage_status(stage: Any) -> DataQualityStatus:
+    if stage is None or stage == "":
+        return DataQualityStatus.MISSING
+    if not isinstance(stage, str) or stage not in VALID_STAGES:
+        return DataQualityStatus.INVALID
+    return DataQualityStatus.VALID
+
+
+def _stage_history_status(deal: dict) -> DataQualityStatus:
+    history = deal.get("stage_history")
+    if history is None or history == []:
+        return DataQualityStatus.MISSING
+    if not isinstance(history, list):
+        return DataQualityStatus.INVALID
+    previous_entered_at = None
+    for entry in history:
+        if not isinstance(entry, dict) or entry.get("stage") not in VALID_STAGES:
+            return DataQualityStatus.INVALID
+        try:
+            entered_at = datetime.fromisoformat(str(entry["entered_at"]))
+        except (KeyError, TypeError, ValueError):
+            return DataQualityStatus.INVALID
+        if entered_at.tzinfo is None or entered_at.utcoffset() is None:
+            return DataQualityStatus.INVALID
+        if previous_entered_at is not None and entered_at < previous_entered_at:
+            return DataQualityStatus.INVALID
+        previous_entered_at = entered_at
+    if history[-1].get("stage") != deal.get("deal_stage"):
+        return DataQualityStatus.INVALID
+    return DataQualityStatus.VALID
+
+
+def _expected_close_quality_status(deal: dict) -> DataQualityStatus:
+    if deal.get("deal_stage") not in OPEN_STAGES:
+        return DataQualityStatus.NOT_APPLICABLE
+    raw_date = deal.get("expected_close_date")
+    if raw_date is None or raw_date == "":
+        return DataQualityStatus.MISSING
+    try:
+        date.fromisoformat(str(raw_date))
+    except ValueError:
+        return DataQualityStatus.INVALID
+    source = deal.get("expected_close_date_source")
+    if source in {"config_default", "config_industry"}:
+        return DataQualityStatus.ESTIMATED
+    if source not in {None, "", "user_provided"}:
+        return DataQualityStatus.INVALID
+    return DataQualityStatus.VALID
+
+
+def _deal_value_quality_status(deal: dict) -> DataQualityStatus:
+    if deal.get("deal_stage") not in OPEN_STAGES:
+        return DataQualityStatus.NOT_APPLICABLE
+    assessment = assess_deal_value(deal)
+    if not assessment.is_valid:
+        return DataQualityStatus.INVALID
+    if assessment.status is None:
+        return (
+            DataQualityStatus.MISSING
+            if assessment.amount_krw is None
+            else DataQualityStatus.INVALID
+        )
+    if assessment.status == DealValueStatus.ROUGH_ESTIMATE:
+        return DataQualityStatus.ESTIMATED
+    return DataQualityStatus.VALID
+
+
+def _meeting_quality_status(deal: dict) -> DataQualityStatus:
+    if deal.get("deal_stage") not in QUALIFIED_OR_LATER_STAGES:
+        return DataQualityStatus.NOT_APPLICABLE
+    meetings = deal.get("meetings")
+    if meetings is None or meetings == []:
+        return DataQualityStatus.MISSING
+    if not isinstance(meetings, list) or any(
+        not isinstance(meeting, dict) for meeting in meetings
+    ):
+        return DataQualityStatus.INVALID
+    return DataQualityStatus.VALID
+
+
+def _health_quality_status(deal: dict) -> DataQualityStatus:
+    if deal.get("deal_stage") not in QUALIFIED_OR_LATER_STAGES:
+        return DataQualityStatus.NOT_APPLICABLE
+    snapshot = deal.get("meddpicc_latest")
+    if snapshot is None or snapshot == {}:
+        return DataQualityStatus.MISSING
+    if not isinstance(snapshot, dict) or not is_health_assessed(snapshot):
+        return DataQualityStatus.INVALID
+    return DataQualityStatus.VALID
+
+
+def _actual_close_quality_status(deal: dict) -> DataQualityStatus:
+    if deal.get("deal_stage") not in TERMINAL_STAGES:
+        return DataQualityStatus.NOT_APPLICABLE
+    raw_date = deal.get("actual_close_date")
+    if raw_date is None or raw_date == "":
+        return DataQualityStatus.MISSING
+    try:
+        date.fromisoformat(str(raw_date))
+    except ValueError:
+        return DataQualityStatus.INVALID
+    return DataQualityStatus.VALID
+
+
+def _close_reason_quality_status(deal: dict) -> DataQualityStatus:
+    if deal.get("deal_stage") != "lost":
+        return DataQualityStatus.NOT_APPLICABLE
+    return _required_text_status(deal.get("close_reason"))
+
+
+def _fields_with_status(
+    statuses: dict[str, DataQualityStatus],
+    target: DataQualityStatus,
+) -> list[str]:
+    return [field for field, status in statuses.items() if status == target]
 
 
 def is_active_stage(stage: str | None) -> bool:

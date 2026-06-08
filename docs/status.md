@@ -63,8 +63,19 @@
 - 실제 Atlas read smoke: 10개 중 overdue 3개, 산업별 closed-only 승률 확인
 - create write smoke는 운영 Atlas 데이터 오염을 피하기 위해 생략
 
+### BI Reporting Milestone 1.1 Part D 완료
+
+- 필드 품질을 `valid`, `estimated`, `missing`, `invalid`,
+  `not_applicable`로 분리
+- 딜별 및 전체 usable coverage와 confirmed coverage 추가
+- `reporting.timezone` 기본값을 `Asia/Seoul`로 설정
+- `list_deals`, `get_insights`에 재현 가능한 `as_of`, `timezone`,
+  UTC `generated_at` 메타데이터 추가
+- 예상 종료일과 실제 종료일의 자동 기본값은 업무 시간대를 사용하고 감사
+  timestamp는 UTC 유지
+
 ## 다음 스텝
 
-1. Milestone 1.1 Part D: 데이터 누락률과 reporting timezone/`as_of` 결정
-2. Milestone 1.1 전체 계약 회귀 검토
-3. 전체 metric 계약 완료 후 공통 계산 모듈 구현
+1. Milestone 1.1 전체 계약 회귀 검토
+2. Milestone 1.2 공통 metric 계산 모듈 구현
+3. `get_metrics(pipeline_health)` MCP 도구 구현

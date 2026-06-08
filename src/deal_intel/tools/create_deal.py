@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from deal_intel.errors import ErrorCode, MCPError, Stage
 from deal_intel.schema.metrics import (
     ExpectedCloseSettings,
+    ReportingContext,
     resolve_expected_close_date,
 )
 from deal_intel.storage.mongodb import MongoDBClient
@@ -31,6 +32,7 @@ def handle(
     now = now_dt.isoformat()
     try:
         expected_close_settings = ExpectedCloseSettings.from_config(cfg)
+        reporting = ReportingContext.from_config(cfg, generated_at=now_dt)
     except ValueError as exc:
         raise MCPError(
             error_code=ErrorCode.CONFIG_ERROR,
@@ -42,7 +44,7 @@ def handle(
         resolved_close_date, close_date_source = resolve_expected_close_date(
             provided=expected_close_date,
             industry=industry,
-            created_on=now_dt.date(),
+            created_on=reporting.as_of,
             settings=expected_close_settings,
         )
     except ValueError as exc:

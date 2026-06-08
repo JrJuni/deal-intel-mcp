@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from datetime import UTC, datetime
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -61,7 +62,7 @@ def test_terminal_stage_stores_explicit_actual_close_date() -> None:
 
 def test_terminal_stage_defaults_actual_close_date_to_processing_day() -> None:
     mongo = FakeMongo(_deal())
-    dates_around_call = {datetime.now(UTC).date().isoformat()}
+    dates_around_call = {datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat()}
 
     result = update_stage.handle(
         mongo=mongo,
@@ -69,7 +70,7 @@ def test_terminal_stage_defaults_actual_close_date_to_processing_day() -> None:
         deal_id="deal-1",
         new_stage="lost",
     )
-    dates_around_call.add(datetime.now(UTC).date().isoformat())
+    dates_around_call.add(datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat())
 
     assert result["actual_close_date"] in dates_around_call
     assert mongo.saved is not None

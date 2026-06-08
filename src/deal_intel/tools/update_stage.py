@@ -4,7 +4,11 @@ from datetime import UTC, date, datetime
 
 from deal_intel.errors import ErrorCode, MCPError, Stage
 from deal_intel.schema.meddpicc import VALID_STAGES, compute_meddpicc_latest
-from deal_intel.schema.metrics import ACTIVE_STAGES, PipelineTimingSettings
+from deal_intel.schema.metrics import (
+    ACTIVE_STAGES,
+    PipelineTimingSettings,
+    ReportingContext,
+)
 from deal_intel.storage.mongodb import MongoDBClient
 
 
@@ -24,6 +28,19 @@ def handle(
             hint={"valid_stages": sorted(VALID_STAGES)},
             retryable=False,
         )
+
+    now_dt = datetime.now(UTC)
+    now = now_dt.isoformat()
+    try:
+        timing_settings = PipelineTimingSettings.from_config(cfg)
+        reporting = ReportingContext.from_config(cfg, generated_at=now_dt)
+    except ValueError as exc:
+        raise MCPError(
+            error_code=ErrorCode.CONFIG_ERROR,
+            stage=Stage.PREFLIGHT,
+            message=str(exc),
+            retryable=False,
+        ) from exc
 
     parsed_close_date = None
     if actual_close_date is not None:
@@ -54,11 +71,10 @@ def handle(
         )
 
     old_stage = deal.get("deal_stage", "discovery")
-    now = datetime.now(UTC).isoformat()
 
     deal["deal_stage"] = new_stage
     if new_stage in {"won", "lost"}:
-        deal["actual_close_date"] = parsed_close_date or datetime.now(UTC).date().isoformat()
+        deal["actual_close_date"] = parsed_close_date or reporting.as_of.isoformat()
     else:
         deal["actual_close_date"] = None
     deal["updated_at"] = now
@@ -101,15 +117,6 @@ def handle(
         except Exception:
             pass
 
-    try:
-        timing_settings = PipelineTimingSettings.from_config(cfg)
-    except ValueError as exc:
-        raise MCPError(
-            error_code=ErrorCode.CONFIG_ERROR,
-            stage=Stage.PREFLIGHT,
-            message=str(exc),
-            retryable=False,
-        ) from exc
     threshold = (
         timing_settings.stuck_threshold_for(new_stage)
         if new_stage in ACTIVE_STAGES

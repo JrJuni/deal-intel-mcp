@@ -225,11 +225,54 @@ stalled -> overdue -> stuck -> at_risk
 Reason counts may overlap. A future total attention-deal KPI must count unique
 deals rather than summing reason counts.
 
-## Pending Decisions
+## Part D - Data Quality and Reporting Context
 
-Parts A through C intentionally do not define:
+### Field quality states
 
-- Required fields and data-quality coverage
-- Reporting timezone and reproducible `as_of` behavior
+Each governed field has one of five states:
 
-These decisions must be completed before the common metric aggregation module.
+| State | Meaning |
+|---|---|
+| `valid` | Present, structurally valid, and confirmed |
+| `estimated` | Present and usable, but derived from an operating assumption |
+| `missing` | Required for the deal's current lifecycle stage but absent |
+| `invalid` | Present but contradictory, malformed, or unclassified |
+| `not_applicable` | Not required for the deal's current lifecycle stage |
+
+Coverage counts both `valid` and `estimated` fields as usable. Confirmed
+coverage counts only `valid` fields. Reports must expose both values so an
+estimate is never presented as customer-confirmed data.
+
+### Lifecycle requirements
+
+The universal fields are company, industry, deal stage, and stage history.
+
+- Open deals also require an expected close date and classified deal value.
+- Qualification and later stages require at least one meeting and a valid
+  MEDDPICC health assessment.
+- Won and Lost deals require `actual_close_date`.
+- Lost deals additionally require `close_reason`.
+
+Config-derived expected close dates and `rough_estimate` amounts are
+`estimated`. User-provided close dates and classified customer budget, quote,
+unknown, or strategic-zero values are `valid`.
+
+### Reporting context
+
+```yaml
+reporting:
+  timezone: Asia/Seoul
+```
+
+- Stored system timestamps remain timezone-aware UTC.
+- Business-date defaults use the configured IANA timezone.
+- Responses that represent a report snapshot expose `as_of`, `timezone`, and
+  UTC `generated_at`.
+- Callers may supply `as_of` as `YYYY-MM-DD` for reproducible date arithmetic.
+- An explicit `as_of` evaluates the current collection using that date. It
+  does not reconstruct historical document state; trend reporting requires
+  the future analytics snapshot milestone.
+- Invalid timezones fail as configuration errors. Invalid `as_of` values fail
+  as input errors.
+
+Parts A through D complete the Milestone 1.1 metric contract.

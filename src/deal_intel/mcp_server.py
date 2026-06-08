@@ -159,6 +159,37 @@ def get_insights(query_type: str, as_of: str = "") -> dict:
 
 
 @app.tool()
+def get_metrics(
+    metric_type: str = "pipeline_health",
+    stage: str = "",
+    industry: str = "",
+    as_of: str = "",
+) -> dict:
+    """Return shared BI metrics for direct assistant answers.
+
+    First supported metric_type: pipeline_health.
+    Optional filters:
+    - stage: exact pipeline stage match
+    - industry: exact stored industry match
+    - as_of: YYYY-MM-DD business date for stuck/overdue calculations
+    """
+    try:
+        from deal_intel import _context
+        from deal_intel.tools import get_metrics as _t
+
+        return _t.handle(
+            mongo=_context.mongo(),
+            cfg=_context.config(),
+            metric_type=metric_type,
+            stage=stage or None,
+            industry=industry or None,
+            as_of=as_of or None,
+        )
+    except Exception as exc:
+        return envelope_from_exception(exc, stage=Stage.STORAGE)
+
+
+@app.tool()
 def get_customer_themes(
     dimension: str = "all",
     stage: str = "active",

@@ -4,6 +4,23 @@
 
 ## 현재 (2026-06-09)
 
+### BI Reporting Milestone 1.3 완료
+
+- `get_metrics(metric_type="pipeline_health")` MCP 도구 추가
+- stage·industry exact-match 필터 지원
+- `as_of`, `timezone`, UTC `generated_at` reporting context 반환
+- KPI, stage breakdown, health bands, attention reasons, pipeline values, win rate, data quality, warnings 반환
+- `get_metrics`는 1.2 공통 계산기와 metric read projection을 그대로 사용
+- targeted test: `5 passed`
+- targeted regression set: `24 passed`
+- full pytest: `107 passed`
+- Ruff: `ruff check .` 통과
+- FastMCP 등록 smoke: 10 tools
+- Atlas read smoke: `2026-06-09` 기준 10건, Open value `453000000`, raw notes/contact/vector 미노출 확인
+- Atlas write smoke 없음: 1.3은 read-only metric view
+
+다음 단계: Milestone 2.1 `weekly_pipeline` 보고서 행 생성기
+
 ### BI Reporting Milestone 1.2 완료
 
 - `build_pipeline_health_summary` 공통 계산 모듈 추가
@@ -17,8 +34,6 @@
 - FastMCP 등록 smoke: 9 tools 유지
 - Atlas read smoke: `2026-06-09` 기준 10건, Open value `453000000`, raw notes/contact/vector 미노출 확인
 - Atlas write smoke 없음: 1.2는 read-only BI 계산 작업
-
-다음 단계: `get_metrics(pipeline_health)` MCP 도구 구현
 
 ## 이전 (2026-06-08)
 
@@ -94,6 +109,6 @@
 
 ## 다음 스텝
 
-1. Milestone 1.1 전체 계약 회귀 검토
-2. Milestone 1.2 공통 metric 계산 모듈 구현
-3. `get_metrics(pipeline_health)` MCP 도구 구현
+1. Milestone 2.1 `weekly_pipeline` 보고서 행 생성기
+2. Milestone 2.2 UTF-8 BOM CSV 저장과 formula injection 방어
+3. Milestone 2.3 LLM 없는 Markdown 요약

@@ -6,7 +6,7 @@
 [Claude Desktop / Codex — 자연어 입력]
          │ stdio JSON-RPC (FastMCP)
          ▼
-[deal-intel-mcp 서버  9 tools]
+[deal-intel-mcp 서버  10 tools]
          │
          ├─ LLM Provider ──────────────────────────────────────────────────
          │    add_meeting: MEDDPICC + customer_themes 추출 (구조화 JSON)
@@ -33,7 +33,7 @@
                    deal_summary_vector     : summary_embedding cosine 384d
 ```
 
-## 9개 MCP 도구
+## 10개 MCP 도구
 
 | 도구 | LLM 호출 | Embedding | 주요 기능 |
 |---|---|---|---|
@@ -42,7 +42,8 @@
 | `get_deal` | 없음 | 없음 | 딜 전체 조회 |
 | `update_stage` | 없음 | 없음 | stage_history 및 actual_close_date 기록, MEDDPICC 재계산 |
 | `list_deals` | 없음 | 없음 | health, stuck, overdue, attention 사유 집계 |
-| `get_insights` | 없음 | 없음 | 7가지 MongoDB aggregation BI |
+| `get_metrics` | 없음 | 없음 | pipeline_health KPI, stage 집계, warning 반환 |
+| `get_insights` | 없음 | 없음 | 7가지 BI 집계와 legacy insight query |
 | `get_customer_themes` | 없음 | 없음 | 고객 고민 주제별 고유 딜 수·근거 집계 |
 | `analyze_deal` | 1회 (전략) | 없음 | 갭 분석 + BD 전략 생성 |
 | `search_deals` | 없음 | query embed | Python cosine 기본, M10+에서 `$vectorSearch` 선택 |
@@ -125,7 +126,7 @@
 
 ```
 src/deal_intel/
-  mcp_server.py         FastMCP 진입점 — 9개 tool 등록
+  mcp_server.py         FastMCP 진입점 — 10개 tool 등록
                         native ML runtime은 main thread pre-import
                         embedding warmup + Mongo index 생성은 background 실행
   cli.py                typer CLI — login-chatgpt / backfill-customer-themes
@@ -166,6 +167,7 @@ src/deal_intel/
     get_deal.py         단순 조회
     update_stage.py     VALID_STAGES 검증 → stage_history append → meddpicc_latest 재계산
     list_deals.py       _days_in_current_stage() → is_stuck → stuck 우선 / health_pct 역순 정렬
+    get_metrics.py      pipeline_health MCP metric view
     get_insights.py     7가지 aggregation: pipeline_overview / win_patterns / loss_patterns /
                         compare_won_lost / gap_frequency / industry_benchmark / stage_velocity
     analyze_deal.py     MEDDPICC 집계 텍스트 → LLM → 갭 분석 + BD 전략
@@ -289,6 +291,6 @@ reporting:
 
 `list_deals` 결과에서 `is_stuck: true` 딜이 상위 정렬되며 overdue와
 attention reason도 함께 반환한다. expected close를 직접 입력하지 않은 새 딜은
-기본 7일 또는 업종 override를 적용한다. `list_deals`와 `get_insights`는
+기본 7일 또는 업종 override를 적용한다. `list_deals`, `get_metrics`, `get_insights`는
 `as_of`, `timezone`, UTC `generated_at`을 반환한다. 명시적 `as_of`는 현재
 컬렉션을 해당 날짜 기준으로 계산하며 과거 문서 상태를 복원하지 않는다.

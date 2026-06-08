@@ -52,7 +52,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Claude Desktop (stdio JSON-RPC)
    │
    ▼
-deal_intel.mcp_server (FastMCP) — 9 tools
+deal_intel.mcp_server (FastMCP) — 10 tools
    │
    ├─ create_deal          — 신규 딜 생성 (MongoDB upsert)
    ├─ add_meeting          — 회의록 추가 + MEDDPICC 자동 추출 (LLM)
@@ -61,6 +61,7 @@ deal_intel.mcp_server (FastMCP) — 9 tools
    ├─ get_deal             — 딜 전체 조회 (회의록 + MEDDPICC 포함)
    ├─ list_deals           — 딜 목록 (stage 필터, health_pct·gaps·stuck 정렬)
    ├─ get_insights         — 7가지 BI aggregation (win/loss 패턴, stage velocity 등)
+   ├─ get_metrics          — pipeline_health KPI·stage 집계·warning 반환
    ├─ get_customer_themes  — 고객 고민·선정 기준 빈도 (고유 딜 수 기준 + evidence)
    ├─ search_deals         — 시맨틱 유사 딜 검색 (M0: Python cosine, M10+: Atlas 선택)
    └─ analyze_deal         — MEDDPICC 갭 분석 + BD 전략 생성 (LLM)
@@ -71,7 +72,7 @@ MongoDB Atlas M0 (MONGODB_URI env)
                         + summary_embedding (M0에서는 앱에서 cosine 계산)
 ```
 
-> 도구별 상세 사용법·파라미터·예시 대화는 `README.md`의 "사용 가이드 (9개 도구)" 참조.
+> 도구별 상세 사용법·파라미터·예시 대화는 `README.md`의 "사용 가이드 (10개 도구)" 참조.
 
 ### 3-tier config (event-intel-mcp와 동일 패턴)
 

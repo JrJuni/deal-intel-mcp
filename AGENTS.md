@@ -52,7 +52,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 Codex Desktop (stdio JSON-RPC)
    │
    ▼
-deal_intel.mcp_server (FastMCP) — 9 tools
+deal_intel.mcp_server (FastMCP) — 10 tools
    │
    ├─ create_deal          — 신규 딜 생성 (MongoDB upsert)
    ├─ add_meeting          — 회의록 + MEDDPICC/customer themes 추출 (LLM)
@@ -60,6 +60,7 @@ deal_intel.mcp_server (FastMCP) — 9 tools
    ├─ get_deal             — 딜 전체 조회
    ├─ list_deals           — 딜 목록, health/gaps/stuck 표시
    ├─ get_insights         — 파이프라인 BI 집계
+   ├─ get_metrics          — pipeline_health KPI·stage 집계·warning 반환
    ├─ get_customer_themes  — 고객 고민/선정 기준 빈도 집계
    ├─ search_deals         — 유사 딜 검색 (M0: Python cosine, M10+: Atlas 선택)
    └─ analyze_deal         — MEDDPICC 갭 분석 + BD 전략 생성 (LLM)

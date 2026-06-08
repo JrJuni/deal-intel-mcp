@@ -312,3 +312,7 @@ legacy aliases remain available:
 `total_size_krw` now follows the Part B contract and equals
 `pipeline_values.open.pipeline_value_krw`, not a sum of every terminal and open
 deal amount.
+
+`get_metrics(metric_type="pipeline_health")` is the direct MCP metric view over
+the same calculator. It supports exact `stage` and `industry` filters and
+returns the full summary surface without LLM or embedding work.

@@ -45,10 +45,19 @@ All MCP boundaries return structured errors with:
 | `update_stage` | `deal_id`, `new_stage` | `actual_close_date` | `ok`, `deal_id`, `old_stage`, `new_stage`, `actual_close_date`, `days_in_previous_stage`, `stuck_threshold_days` | Appends stage history, records the actual terminal date, recalculates stage-aware MEDDPICC gaps, and upserts the deal |
 | `get_deal` | `deal_id` | None | `ok`, `deal` | Read only; includes full meeting history and raw notes |
 | `list_deals` | None | `stage`, `limit`, `as_of` | `ok`, `as_of`, `timezone`, `generated_at`, `deals`, `count`, `data_quality` | Read only; returns health, timing, attention, and field-quality results while excluding meeting raw notes |
+| `get_metrics` | None | `metric_type`, `stage`, `industry`, `as_of` | `ok`, `metric_type`, `as_of`, `timezone`, `generated_at`, `filters`, `kpis`, `stage_breakdown`, `health_bands`, `attention_reasons`, `pipeline_values`, `win_rate`, `data_quality`, `warnings` | Read only; uses the shared metric calculator and restricted metric projection |
 | `get_insights` | `query_type` | `as_of` | `ok`, `query_type`, `as_of`, `timezone`, `generated_at`, query-specific aggregate fields | Read only over the current collection snapshot |
 | `get_customer_themes` | None | `dimension`, `stage`, `industry`, `top_k` | `ok`, `filters`, `coverage`, `themes` | Read-only MongoDB counts and aggregation |
 | `search_deals` | `query` | `limit` | `ok`, `query`, `result_count`, `results` | Generates a local query embedding and reads deal embeddings; may return a structured warmup response before search |
 | `analyze_deal` | `deal_id` | None | `ok`, `deal_id`, `analysis`, `usage` | Calls LLM and attempts to persist `bd_strategy`; analysis still returns if that save fails |
+
+`get_metrics.metric_type` currently supports:
+
+- `pipeline_health`
+
+`get_metrics` accepts exact-match `stage` and `industry` filters. Invalid
+metric types, invalid stages, invalid `as_of`, and invalid metric config fail
+before MongoDB storage access.
 
 `get_insights.query_type` currently supports:
 
@@ -126,10 +135,10 @@ Milestone 0.1 최초 측정 결과는 28개 기존 finding이었다.
 Milestone 1 시작 전에 28개 finding을 모두 해결했다. 현재 gate는 다음과 같다.
 
 ```text
-pytest -> 34 passed
+pytest -> 107 passed
 ruff check . -> All checks passed
 wheel build -> passed
-FastMCP runtime registration -> 9 tools
+FastMCP runtime registration -> 10 tools
 MongoDB Atlas read smoke -> passed
 ```
 

@@ -24,12 +24,13 @@ Milestone 1.2 상태:
 
 - 완료: `build_pipeline_health_summary`를 BI/CSV/Atlas 공통 계산기로 추가
 - 완료: `get_insights("pipeline_overview")`가 공통 계산기를 사용하도록 전환
-- 다음: `get_metrics(pipeline_health)` MCP 도구 구현
+- 완료: `get_metrics(pipeline_health)` MCP 도구 구현
+- 다음: Weekly Pipeline 보고서 행 생성기
 
 ### #2 `get_metrics` MCP 도구
 
-첫 view는 `pipeline_health`만 지원한다. stage·industry 필터, KPI, stage별 집계,
-coverage와 warning을 반환한다.
+완료. 첫 view는 `pipeline_health`만 지원한다. stage·industry 필터, KPI, stage별 집계,
+coverage와 warning을 반환한다. LLM과 embedding은 사용하지 않는다.
 
 ### #3 Weekly Pipeline 보고서
 

@@ -3,7 +3,7 @@
 ## 전체 흐름
 
 ```
-[Claude Desktop — 자연어 입력]
+[Claude Desktop / Codex — 자연어 입력]
          │ stdio JSON-RPC (FastMCP)
          ▼
 [deal-intel-mcp 서버  9 tools]

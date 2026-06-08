@@ -82,7 +82,7 @@ Result:
 
 The warning is an external OpenTelemetry `SelectableGroups` deprecation warning.
 
-### Ruff Baseline
+### Historical Ruff Baseline
 
 Command:
 
@@ -90,7 +90,7 @@ Command:
 & "$HOME\miniconda3\envs\event-intel\python.exe" -m ruff check .
 ```
 
-Result: failed with 28 pre-existing findings, 22 marked auto-fixable.
+Milestone 0.1 최초 측정 결과는 28개 기존 finding이었다.
 
 | Area | Findings |
 |---|---:|
@@ -104,20 +104,19 @@ Result: failed with 28 pre-existing findings, 22 marked auto-fixable.
 | `src/deal_intel/tools/list_deals.py` | 1 |
 | `src/deal_intel/tools/update_stage.py` | 1 |
 
-These findings are baseline debt, not failures introduced by BI reporting work.
-Future subtasks must either leave the count unchanged or explicitly own and
-verify the findings they modify.
+#### Current Quality Gate
 
-#### Cleanup Result
-
-The 28 findings were resolved before Milestone 1 work began. The current quality
-gate is:
+Milestone 1 시작 전에 28개 finding을 모두 해결했다. 현재 gate는 다음과 같다.
 
 ```text
+pytest -> 17 passed
 ruff check . -> All checks passed
+wheel build -> passed
+FastMCP runtime registration -> 9 tools
+MongoDB Atlas read smoke -> passed
 ```
 
-Future subtasks must keep the repository-wide Ruff check passing.
+이후 서브 태스크는 이 gate를 유지해야 한다.
 
 ### Privacy and Scope
 

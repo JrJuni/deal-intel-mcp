@@ -6,9 +6,10 @@ This folder builds `deal-intel-mcp.mcpb`, a [Claude Desktop MCP Bundle](https://
 
 The bundle ships the manifest + user-config schema. When the user double-clicks `deal-intel-mcp-{version}.mcpb`, Claude Desktop prompts for the required paths/keys via a UI form instead of asking the user to hand-edit JSON.
 
-This bundle is **lightweight** (~2 KB) — it does NOT bundle the Python source or deps. Instead, the manifest takes two required fields:
+This bundle does not include the Python package or dependencies. Install the
+project into Python first, then provide these required fields:
 
-- **`python_path`** — the Python interpreter that already ran `pip install -e .` (pre-filled with `${HOME}/miniconda3/envs/event-intel/python.exe`). The editable install makes `deal_intel` importable without `PYTHONPATH`.
+- **`python_path`** — select the Python interpreter that already ran `pip install -e ".[embedding]"`. The editable install makes `deal_intel` importable without `PYTHONPATH`.
 - **`mongodb_uri`** — MongoDB Atlas connection string (M0 free tier works).
 
 API keys are optional in the form — the server also loads them from the repo's `.env` as a fallback.
@@ -31,7 +32,7 @@ The `.mcpb` output is gitignored (build artifact, version-stamped in filename).
 1. Open Claude Desktop → Settings → Extensions
 2. Drag `deal-intel-mcp-{version}.mcpb` onto the Extensions pane (or click "Install from file")
 3. Fill the user_config form:
-   - **Python interpreter path** — pre-filled with conda env path; confirm or adjust
+   - **Python interpreter path** — select the conda environment's `python.exe`
    - **MongoDB Atlas URI** — required; format: `mongodb+srv://<user>:<pass>@<cluster>.mongodb.net/`
    - **Use ChatGPT Plus/Pro** — checked by default; run `deal-intel login-chatgpt` once in a terminal after install to authenticate
    - **Anthropic API key** — leave blank if using ChatGPT OAuth

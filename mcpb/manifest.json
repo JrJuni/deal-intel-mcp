@@ -3,7 +3,7 @@
   "name": "deal-intel-mcp",
   "display_name": "Deal Intelligence MCP",
   "version": "0.1.5",
-  "description": "Turn meeting notes into MEDDPICC-structured deal intelligence. 9 MCP tools, MongoDB Atlas storage, Vector Search, Claude or ChatGPT LLM backend.",
+  "description": "Turn meeting notes into MEDDPICC-structured deal intelligence. 9 MCP tools, MongoDB Atlas storage, semantic deal search, Claude or ChatGPT LLM backend.",
   "long_description": "deal-intel-mcp captures consultation records and meeting notes, extracts MEDDPICC qualification signals and customer concern themes via LLM, and stores them in MongoDB Atlas. Tools: create_deal, add_meeting, get_deal, update_stage, list_deals, analyze_deal, get_insights, get_customer_themes, search_deals. Supports Anthropic Claude or ChatGPT Plus OAuth as LLM backends.",
   "author": {
     "name": "JrJuni",
@@ -26,7 +26,7 @@
     {"name": "get_customer_themes", "description": "Rank recurring customer concerns by unique deal count, with coverage and evidence samples."},
     {"name": "list_deals",    "description": "List deals with health_pct, gaps, and stuck flag, optionally filtered by stage."},
     {"name": "analyze_deal",  "description": "Analyze MEDDPICC gaps and generate BD strategy recommendations."},
-    {"name": "search_deals",  "description": "Semantic Vector Search — find deals similar to a natural language query (e.g. '비용 절감 이슈를 가진 딜', '현대정밀과 유사한 패턴')."}
+    {"name": "search_deals",  "description": "Semantic search — find deals similar to a natural language query (M0 uses local Python cosine; Atlas search is optional on M10+)."}
   ],
   "user_config": {
     "python_path": {

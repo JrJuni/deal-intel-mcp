@@ -14,11 +14,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # Option A: event-intel 환경 재사용 (의존성 대부분 겹침)
-~/miniconda3/envs/event-intel/python.exe -m pip install -e ".[dev]"
+~/miniconda3/envs/event-intel/python.exe -m pip install -e ".[dev,embedding]"
 
 # Option B: 신규 환경
 ~/miniconda3/Scripts/conda.exe create -n deal-intel python=3.11 -y
-~/miniconda3/envs/deal-intel/python.exe -m pip install -e ".[dev]"
+~/miniconda3/envs/deal-intel/python.exe -m pip install -e ".[dev,embedding]"
 ```
 
 항상 conda env의 Python을 직접 사용 — bare `python` / `py` 금지 (Windows Store stub).
@@ -27,7 +27,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # 패키지 설치
-~/miniconda3/envs/event-intel/python.exe -m pip install -e ".[dev]"
+~/miniconda3/envs/event-intel/python.exe -m pip install -e ".[dev,embedding]"
 
 # ChatGPT OAuth 로그인 (최초 1회, 브라우저 열림)
 ~/miniconda3/envs/event-intel/python.exe -m deal_intel.cli login-chatgpt
@@ -37,6 +37,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 # 테스트
 ~/miniconda3/envs/event-intel/python.exe -m pytest
+
+# 정적 검사
+~/miniconda3/envs/event-intel/python.exe -m ruff check .
+
+# 기존 미팅의 customer themes 확인 후 반영
+~/miniconda3/envs/event-intel/python.exe -m deal_intel.cli backfill-customer-themes
+~/miniconda3/envs/event-intel/python.exe -m deal_intel.cli backfill-customer-themes --apply
 ```
 
 ## Architecture
@@ -55,13 +62,13 @@ deal_intel.mcp_server (FastMCP) — 9 tools
    ├─ list_deals           — 딜 목록 (stage 필터, health_pct·gaps·stuck 정렬)
    ├─ get_insights         — 7가지 BI aggregation (win/loss 패턴, stage velocity 등)
    ├─ get_customer_themes  — 고객 고민·선정 기준 빈도 (고유 딜 수 기준 + evidence)
-   ├─ search_deals         — 시맨틱 유사 딜 검색 (로컬 임베딩, $vectorSearch)
+   ├─ search_deals         — 시맨틱 유사 딜 검색 (M0: Python cosine, M10+: Atlas 선택)
    └─ analyze_deal         — MEDDPICC 갭 분석 + BD 전략 생성 (LLM)
    │
    ▼
 MongoDB Atlas M0 (MONGODB_URI env)
    └─ deals collection: 딜 + 회의록 + MEDDPICC + customer_themes + BD 전략
-                        + summary_embedding (vector index)
+                        + summary_embedding (M0에서는 앱에서 cosine 계산)
 ```
 
 > 도구별 상세 사용법·파라미터·예시 대화는 `README.md`의 "사용 가이드 (9개 도구)" 참조.
@@ -83,7 +90,8 @@ ChatGPT OAuth 구현 당시 누적된 5가지 함정은 `docs/lesson-learned.md`
 
 ## DO NOT
 
-- **pymongo import는 `storage/mongodb.py` 내부에서만.** `mcp_server.py` 모듈 top에서 pymongo import 금지 (cold-start 가드).
+- **pymongo import는 `storage/mongodb.py` 내부에서만.** 메인 스레드 선행 import는
+  `storage.mongodb.preload_driver()`를 사용할 것.
 - **Tool 핸들러는 `_context.py`의 싱글톤을 통해서만 LLM/MongoDB에 접근.** 직접 인스턴스화 금지.
 - **`make_llm_provider(config)`를 쓸 것.** `AnthropicProvider()`나 `ChatGPTOAuthProvider()`를 직접 호출하지 말 것 — config 라우팅을 우회함.
 - **MCP tool handler는 동기 블로킹 작업을 tool 호출 안에서 수행할 때 FastMCP worker thread 제약 인지.** 무거운 import는 `mcp_server.py::main()`에서 pre-import.
@@ -94,4 +102,5 @@ ChatGPT OAuth 구현 당시 누적된 5가지 함정은 `docs/lesson-learned.md`
 - `docs/status.md` — 지금 진행 중 / 직전 완료
 - `docs/backlog.md` — 장기 계획 / 미구현 / defer 항목
 - `docs/architecture.md` — 아키텍처 상세
+- `docs/baseline.md` — MCP 계약 / 테스트 / 실 DB 검증 기준선
 - `docs/lesson-learned.md` — 실패 로그 (append-only, failures only)

@@ -14,11 +14,11 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ```bash
 # Option A: event-intel 환경 재사용 (의존성 대부분 겹침)
-~/miniconda3/envs/event-intel/python.exe -m pip install -e ".[dev]"
+~/miniconda3/envs/event-intel/python.exe -m pip install -e ".[dev,embedding]"
 
 # Option B: 신규 환경
 ~/miniconda3/Scripts/conda.exe create -n deal-intel python=3.11 -y
-~/miniconda3/envs/deal-intel/python.exe -m pip install -e ".[dev]"
+~/miniconda3/envs/deal-intel/python.exe -m pip install -e ".[dev,embedding]"
 ```
 
 항상 conda env의 Python을 직접 사용 — bare `python` / `py` 금지 (Windows Store stub).
@@ -27,7 +27,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ```bash
 # 패키지 설치
-~/miniconda3/envs/event-intel/python.exe -m pip install -e ".[dev]"
+~/miniconda3/envs/event-intel/python.exe -m pip install -e ".[dev,embedding]"
 
 # ChatGPT OAuth 로그인 (최초 1회, 브라우저 열림)
 ~/miniconda3/envs/event-intel/python.exe -m deal_intel.cli login-chatgpt
@@ -37,6 +37,13 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 # 테스트
 ~/miniconda3/envs/event-intel/python.exe -m pytest
+
+# 정적 검사
+~/miniconda3/envs/event-intel/python.exe -m ruff check .
+
+# 기존 미팅 customer themes backfill (기본 dry-run)
+~/miniconda3/envs/event-intel/python.exe -m deal_intel.cli backfill-customer-themes
+~/miniconda3/envs/event-intel/python.exe -m deal_intel.cli backfill-customer-themes --apply
 ```
 
 ## Architecture
@@ -54,7 +61,7 @@ deal_intel.mcp_server (FastMCP) — 9 tools
    ├─ list_deals           — 딜 목록, health/gaps/stuck 표시
    ├─ get_insights         — 파이프라인 BI 집계
    ├─ get_customer_themes  — 고객 고민/선정 기준 빈도 집계
-   ├─ search_deals         — 유사 딜 검색
+   ├─ search_deals         — 유사 딜 검색 (M0: Python cosine, M10+: Atlas 선택)
    └─ analyze_deal         — MEDDPICC 갭 분석 + BD 전략 생성 (LLM)
    │
    ▼
@@ -92,4 +99,5 @@ ChatGPT OAuth 구현 당시 누적된 5가지 함정은 `docs/lesson-learned.md`
 - `docs/status.md` — 지금 진행 중 / 직전 완료
 - `docs/backlog.md` — 장기 계획 / 미구현 / defer 항목
 - `docs/architecture.md` — 아키텍처 상세
+- `docs/baseline.md` — MCP 계약 / 테스트 / 실 DB 검증 기준선
 - `docs/lesson-learned.md` — 실패 로그 (append-only, failures only)

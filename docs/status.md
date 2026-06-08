@@ -2,6 +2,21 @@
 
 ## Latest Update - 2026-06-09
 
+### BI Reporting Milestone 2.3 완료
+
+- `build_weekly_pipeline_markdown` Markdown 요약 생성기 추가
+- 입력은 M2.1 `weekly_pipeline` row report만 허용
+- LLM, embedding, MongoDB, 파일 쓰기 없이 deterministic Markdown body 생성
+- KPI, 위험 딜, 데이터 품질 warning table 포함
+- CSV와 같은 row surface에서 숫자를 계산하도록 고정
+- CSV 저장 결과를 다시 읽어 Markdown metrics와 row count, pipeline value, attention deal count가 일치하는 테스트 추가
+- Targeted test: `16 passed`
+- Full pytest: `123 passed`
+- Ruff: `ruff check .` 통과
+- Atlas read/write smoke 없음: 2.3은 pure renderer 작업
+
+다음 단계: Milestone 2.4 `export_report(report_type="weekly_pipeline")` MCP 도구
+
 ### BI Reporting Milestone 2.2 완료
 
 - `save_report_csv` CSV 저장 모듈 추가
@@ -16,8 +31,6 @@
 - Full pytest: `119 passed`
 - Ruff: `ruff check .` 통과
 - Atlas write smoke 없음: 2.2는 로컬 CSV 파일 저장만 수행하고 DB를 변경하지 않음
-
-다음 단계: Milestone 2.3 LLM 없는 Markdown 요약
 
 ### BI Reporting Milestone 2.1 완료
 

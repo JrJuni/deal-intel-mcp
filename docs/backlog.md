@@ -27,7 +27,8 @@ Milestone 1.2 상태:
 - 완료: `get_metrics(pipeline_health)` MCP 도구 구현
 - 완료: Weekly Pipeline 보고서 행 생성기
 - 완료: UTF-8 BOM CSV 저장과 formula injection 방어
-- 다음: LLM 없는 Markdown 요약
+- 완료: LLM 없는 Markdown 요약
+- 다음: `export_report(report_type="weekly_pipeline")` MCP 도구
 
 ### #2 `get_metrics` MCP 도구
 
@@ -38,8 +39,8 @@ coverage와 warning을 반환한다. LLM과 embedding은 사용하지 않는다.
 
 1. 완료: 보고서 row 생성기
 2. 완료: UTF-8 BOM CSV와 formula injection 방어
-3. 다음: LLM 없는 Markdown 요약
-4. `export_report(report_type="weekly_pipeline")` MCP 도구
+3. 완료: LLM 없는 Markdown 요약
+4. 다음: `export_report(report_type="weekly_pipeline")` MCP 도구
 
 ### #4 Atlas Charts Pipeline Dashboard
 

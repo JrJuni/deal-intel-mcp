@@ -199,3 +199,81 @@ File write failures return a structured error instead of raising `OSError`:
 Programmer errors, such as a naive `generated_at`, may still raise a local
 exception because they indicate an invalid caller contract rather than a runtime
 storage failure.
+
+## Milestone 2.3 - Markdown Summary
+
+`deal_intel.reports.markdown_summary.build_weekly_pipeline_markdown` builds an
+LLM-free Markdown summary from the `weekly_pipeline` row report.
+
+### Scope
+
+- Input: `weekly_pipeline` report dict from Milestone 2.1.
+- Output: Markdown body plus machine-readable summary metrics.
+- Side effects: none.
+- File writing: none.
+- Storage access: none.
+- LLM / embedding: none.
+- MongoDB access: none.
+
+Markdown file persistence is intentionally out of scope for 2.3. The later
+`export_report` MCP tool will be responsible for saving both CSV and Markdown
+artifacts.
+
+### Output Shape
+
+```json
+{
+  "report_type": "weekly_pipeline",
+  "generated_at": "2026-06-09T12:34:56+00:00",
+  "metrics": {},
+  "warnings": [],
+  "markdown": "# Weekly Pipeline Report\n..."
+}
+```
+
+`generated_at` must be timezone-aware. It is converted to UTC before rendering.
+
+### Metric Source
+
+Markdown metrics are computed from the same report rows that CSV export writes.
+The Markdown generator does not re-read MongoDB and does not run a separate
+aggregation. This keeps CSV and Markdown numbers aligned.
+
+The fixed metric surface includes:
+
+- `open_deal_count`
+- `pipeline_value_krw`
+- `known_amount_count`
+- `amount_coverage_pct`
+- `avg_health_pct`
+- `assessed_health_count`
+- `health_coverage_pct`
+- `attention_deal_count`
+- `overdue_count`
+- `stuck_count`
+- `stalled_count`
+- `at_risk_count`
+- `unassessed_health_count`
+- `incomplete_data_quality_count`
+- `missing_expected_close_date_count`
+- `invalid_expected_close_date_count`
+- `missing_last_meeting_date_count`
+- `missing_primary_pain_count`
+- `missing_primary_decision_criteria_count`
+
+### Markdown Sections
+
+The generated body includes:
+
+1. KPI table
+2. Risk deals table, based on `attention_reasons`
+3. Data quality table
+4. Warning code list
+
+Risk deal tables escape Markdown table separators and newlines in cell values.
+
+### Non-Goals
+
+Milestone 2.3 does not create a new MCP tool, write files, call Atlas Charts,
+call an LLM, or create a polished natural-language executive narrative. It is a
+deterministic report renderer.

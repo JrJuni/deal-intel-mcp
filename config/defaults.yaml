@@ -31,15 +31,18 @@ embedding:
 # 딜 파이프라인 stuck 기준 (일 단위).
 # stuck_threshold_days_by_stage가 우선, 없는 stage는 default 사용.
 pipeline:
+  # 새 딜의 예상 종료일. 사용자가 날짜를 직접 입력하면 항상 그 값이 우선.
+  expected_close:
+    default_days: 7
+    # 자유 형식 industry 문자열과 대소문자 무시 exact match.
+    # 예: 공공: 60, 대기업: 28
+    days_by_industry: {}
   stuck_threshold_days: 14
   stuck_threshold_days_by_stage:
     discovery:     7
     qualification: 14
     proposal:      21
     negotiation:   30
-    stalled:       30
-    won:           0   # terminal — stuck 판정 없음
-    lost:          0   # terminal — stuck 판정 없음
 
 # BI metric classification. Override in ~/.deal-intel/config.yaml as operating
 # data accumulates; these bands describe MEDDPICC qualification, not win probability.
@@ -47,3 +50,7 @@ metrics:
   health_bands:
     healthy_min: 70
     watch_min: 40
+  overdue:
+    grace_days: 0
+  win_rate:
+    minimum_closed_sample: 10

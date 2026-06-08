@@ -4,11 +4,16 @@ import uuid
 from datetime import UTC, datetime
 
 from deal_intel.errors import ErrorCode, MCPError, Stage
+from deal_intel.schema.metrics import (
+    ExpectedCloseSettings,
+    resolve_expected_close_date,
+)
 from deal_intel.storage.mongodb import MongoDBClient
 
 
 def handle(
     mongo: MongoDBClient,
+    cfg: dict,
     *,
     company: str,
     industry: str | None,
@@ -22,7 +27,31 @@ def handle(
             message="company must not be empty",
             retryable=False,
         )
-    now = datetime.now(UTC).isoformat()
+    now_dt = datetime.now(UTC)
+    now = now_dt.isoformat()
+    try:
+        expected_close_settings = ExpectedCloseSettings.from_config(cfg)
+    except ValueError as exc:
+        raise MCPError(
+            error_code=ErrorCode.CONFIG_ERROR,
+            stage=Stage.PREFLIGHT,
+            message=str(exc),
+            retryable=False,
+        ) from exc
+    try:
+        resolved_close_date, close_date_source = resolve_expected_close_date(
+            provided=expected_close_date,
+            industry=industry,
+            created_on=now_dt.date(),
+            settings=expected_close_settings,
+        )
+    except ValueError as exc:
+        raise MCPError(
+            error_code=ErrorCode.INVALID_INPUT,
+            stage=Stage.PREFLIGHT,
+            message=str(exc),
+            retryable=False,
+        ) from exc
     deal = {
         "deal_id": str(uuid.uuid4()),
         "company": company.strip(),
@@ -33,7 +62,8 @@ def handle(
         "meddpicc_latest": {},
         "stage_history": [{"stage": "discovery", "entered_at": now}],
         "deal_stage": "discovery",
-        "expected_close_date": expected_close_date,
+        "expected_close_date": resolved_close_date,
+        "expected_close_date_source": close_date_source,
         "actual_close_date": None,
         "close_reason": None,
         "bd_strategy": "",
@@ -52,4 +82,10 @@ def handle(
             hint="Check MONGODB_URI and Atlas cluster status",
             retryable=True,
         ) from exc
-    return {"ok": True, "deal_id": deal["deal_id"], "company": deal["company"]}
+    return {
+        "ok": True,
+        "deal_id": deal["deal_id"],
+        "company": deal["company"],
+        "expected_close_date": resolved_close_date,
+        "expected_close_date_source": close_date_source,
+    }

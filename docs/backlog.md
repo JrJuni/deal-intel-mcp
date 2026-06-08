@@ -14,8 +14,9 @@
 1. 완료: Active/Open/Stalled 범위와 health assessment 정의
 2. 완료: config 기반 health band와 경계값 fixture 테스트
 3. 완료: pipeline value, 추정 범위, 전략적 0원, 금액 coverage 정의
-4. 결정 필요: stuck/overdue, win rate, 데이터 누락률, reporting `as_of`
-5. 이후: `get_insights`와 향후 CSV가 공유할 순수 계산 모듈
+4. 완료: stuck/overdue, win rate, expected close 기본값 정의
+5. 결정 필요: 데이터 누락률, reporting timezone과 `as_of`
+6. 이후: `get_insights`와 향후 CSV가 공유할 순수 계산 모듈
 
 현재 계약: [metrics.md](metrics.md)
 

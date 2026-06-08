@@ -50,8 +50,21 @@
 - 전체 테스트 `58 passed`, Ruff 통과
 - 기존 합성 Won 3건의 actual close date backfill은 범위에서 제외
 
+### BI Reporting Milestone 1.1 Part C 완료
+
+- Stuck을 Active stage 체류일 `>=` config 기준으로 고정
+- Stalled, unassessed stage history, terminal 상태를 stuck과 분리
+- Open 딜의 expected close 기반 overdue와 config grace period 추가
+- Win rate 분모를 `won + lost`로 수정하고 최소 표본 warning 계약 추가
+- 복수 `attention_reasons`와 중복 없는 향후 KPI 계약 정의
+- expected close 기본 7일 및 업종별 config override 추가
+- 자동 날짜와 사용자 입력 날짜를 source로 구분
+- targeted test `25 passed`, 전체 테스트 `83 passed`, Ruff 통과
+- 실제 Atlas read smoke: 10개 중 overdue 3개, 산업별 closed-only 승률 확인
+- create write smoke는 운영 Atlas 데이터 오염을 피하기 위해 생략
+
 ## 다음 스텝
 
-1. Milestone 1.1 Part C: stuck/overdue와 win rate 결정
-2. Milestone 1.1 Part D: 데이터 누락률과 reporting `as_of` 결정
+1. Milestone 1.1 Part D: 데이터 누락률과 reporting timezone/`as_of` 결정
+2. Milestone 1.1 전체 계약 회귀 검토
 3. 전체 metric 계약 완료 후 공통 계산 모듈 구현

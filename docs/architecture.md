@@ -37,11 +37,11 @@
 
 | 도구 | LLM 호출 | Embedding | 주요 기능 |
 |---|---|---|---|
-| `create_deal` | 없음 | 없음 | 딜 생성, stage_history 초기화 |
+| `create_deal` | 없음 | 없음 | expected close 기본값 적용, 딜 생성, stage_history 초기화 |
 | `add_meeting` | 2회 (분석 + 요약) | embed + store | MEDDPICC·고객 주제 추출, health_pct 재계산 |
 | `get_deal` | 없음 | 없음 | 딜 전체 조회 |
 | `update_stage` | 없음 | 없음 | stage_history 및 actual_close_date 기록, MEDDPICC 재계산 |
-| `list_deals` | 없음 | 없음 | stuck flag, health_pct 집계, 정렬 |
+| `list_deals` | 없음 | 없음 | health, stuck, overdue, attention 사유 집계 |
 | `get_insights` | 없음 | 없음 | 7가지 MongoDB aggregation BI |
 | `get_customer_themes` | 없음 | 없음 | 고객 고민 주제별 고유 딜 수·근거 집계 |
 | `analyze_deal` | 1회 (전략) | 없음 | 갭 분석 + BD 전략 생성 |
@@ -57,6 +57,7 @@
   "deal_size_krw":      200000000,
   "deal_stage":         "proposal",
   "expected_close_date": "2026-09-30",
+  "expected_close_date_source": "user_provided",
   "actual_close_date":   null,
   "contacts":           [],
 
@@ -264,15 +265,25 @@ ChatGPT OAuth 주의사항 (`docs/lesson-learned.md` 참조):
 
 ```yaml
 pipeline:
+  expected_close:
+    default_days: 7
+    days_by_industry:
+      공공: 60
+      대기업: 28
   stuck_threshold_days: 14       # 기본값 (stage override 없을 때)
   stuck_threshold_days_by_stage:
     discovery:     7
     qualification: 14
     proposal:      21
     negotiation:   30
-    stalled:       30
-    won:           0             # terminal — stuck 판정 없음
-    lost:          0
+
+metrics:
+  overdue:
+    grace_days: 0
+  win_rate:
+    minimum_closed_sample: 10
 ```
 
-`list_deals` 결과에서 `is_stuck: true` 딜이 상위 정렬.
+`list_deals` 결과에서 `is_stuck: true` 딜이 상위 정렬되며 overdue와
+attention reason도 함께 반환한다. expected close를 직접 입력하지 않은 새 딜은
+기본 7일 또는 업종 override를 적용한다.

@@ -105,18 +105,36 @@ list_deals / get_insights / get_customer_themes / analyze_deal / search_deals
 | `company` | 필수 | 고객사 이름 |
 | `industry` | 선택 | 업종 (예: "제조", "IT SaaS") |
 | `deal_size_krw` | 선택 | 예상 계약 규모 (원 단위, 예: 200000000) |
-| `expected_close_date` | 선택 | 예상 클로징 날짜 (예: "2026-09-30") |
+| `expected_close_date` | 선택 | 예상 클로징 날짜. 생략 시 config 기본값 적용 |
 
 **결과 예시**:
 ```json
 {
   "ok": true,
   "deal_id": "a3f9...",
-  "company": "현대정밀"
+  "company": "현대정밀",
+  "expected_close_date": "2026-06-15",
+  "expected_close_date_source": "config_default"
 }
 ```
 
 이 `deal_id`를 기억해두거나 `list_deals`로 나중에 다시 확인할 수 있다.
+
+예상 종료일을 생략하면 생성일로부터 기본 7일 뒤가 자동 입력된다. 이 날짜는
+확정 일정이 아니라 운영 기본값이다. 사용자가 직접 입력한 날짜는 항상 config보다
+우선한다.
+
+```yaml
+pipeline:
+  expected_close:
+    default_days: 7
+    days_by_industry:
+      공공: 60
+      대기업: 28
+```
+
+업종 override는 자유 형식 `industry` 값과 대소문자를 무시하고 정확히 일치할
+때 적용된다.
 
 ---
 
@@ -192,7 +210,7 @@ discovery → qualification → proposal → negotiation → won / lost / stalle
 **결과에 포함되는 것**:
 - `actual_close_date` — Won/Lost의 실제 종료일
 - `days_in_previous_stage` — 이전 단계에 얼마나 있었는지
-- `stuck_threshold_days` — 새 단계의 stuck 기준 일수
+- `stuck_threshold_days` — 새 Active 단계의 stuck 기준 일수; 그 외 `null`
 - MEDDPICC 갭이 단계에 따라 자동 재계산됨 (예: proposal 단계에서 Identify Pain 하락은 갭이 아님 — 고객의 Pain이 해소되고 있다는 긍정 신호)
 
 ---
@@ -214,7 +232,9 @@ discovery → qualification → proposal → negotiation → won / lost / stalle
 **결과**:
 - `health_pct` — MEDDPICC 종합 점수 (0~100)
 - `gaps` — 점수가 낮은 취약 차원 목록
-- `is_stuck` — 단계별 기준일 초과 여부 (예: discovery에 7일 이상이면 stuck)
+- `is_stuck` — Active stage 체류일이 단계별 기준 이상인지
+- `is_overdue` / `overdue_days` — Open 딜이 예상 종료일을 넘겼는지
+- `attention_reasons` — `stalled`, `overdue`, `stuck`, `at_risk` 복수 사유
 - `days_in_stage` — 현재 단계에서 머문 일수
 
 stuck 딜이 상위에 정렬되어 나온다.
@@ -373,6 +393,7 @@ search_deals
   "deal_size_krw": 200000000,
   "deal_stage": "proposal",
   "expected_close_date": "2026-09-30",
+  "expected_close_date_source": "user_provided",
   "actual_close_date": null,
   "stage_history": [
     {"stage": "discovery",     "entered_at": "2026-05-01T..."},
@@ -464,6 +485,10 @@ metrics:
   health_bands:
     healthy_min: 75
     watch_min: 45
+  overdue:
+    grace_days: 0
+  win_rate:
+    minimum_closed_sample: 10
 ```
 
 Active/Open/Stalled와 미평가 처리의 공식 정의는

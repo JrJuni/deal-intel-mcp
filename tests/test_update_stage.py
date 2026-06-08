@@ -56,6 +56,7 @@ def test_terminal_stage_stores_explicit_actual_close_date() -> None:
     assert mongo.saved["deal_stage"] == "won"
     assert mongo.saved["actual_close_date"] == "2026-06-02"
     assert mongo.saved["stage_history"][-1]["stage"] == "won"
+    assert result["stuck_threshold_days"] is None
 
 
 def test_terminal_stage_defaults_actual_close_date_to_processing_day() -> None:
@@ -86,6 +87,7 @@ def test_reopening_a_terminal_deal_clears_actual_close_date() -> None:
     )
 
     assert result["actual_close_date"] is None
+    assert result["stuck_threshold_days"] == 14
     assert mongo.saved is not None
     assert mongo.saved["actual_close_date"] is None
 

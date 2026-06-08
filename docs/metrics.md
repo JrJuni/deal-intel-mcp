@@ -124,9 +124,30 @@ probabilities.
 - Moving a terminal deal back to an open stage clears `actual_close_date`.
 
 When win-rate period filtering is implemented, it must use
-`actual_close_date`. Terminal records without it may temporarily fall back to
-the terminal stage-history timestamp, but the result must include a data
-quality warning.
+`actual_close_date`. Terminal records without a valid actual date are excluded
+from period metrics and produce a data-quality warning. They do not silently
+fall back to the stage-history timestamp.
+
+### Expected close defaults
+
+When a new deal omits `expected_close_date`, the system derives one from
+configuration:
+
+```yaml
+pipeline:
+  expected_close:
+    default_days: 7
+    days_by_industry:
+      공공: 60
+      대기업: 28
+```
+
+- A user-provided ISO date always wins and records
+  `expected_close_date_source: user_provided`.
+- An exact case-insensitive industry match records `config_industry`.
+- Otherwise `default_days` is used and records `config_default`.
+- Default and industry day values must be non-negative integers.
+- These defaults are operating assumptions, not customer-confirmed dates.
 
 ### User approval before persistence
 
@@ -143,12 +164,71 @@ counts as approval. LLM inference, meeting-note extraction, bulk backfill, and
 similar-deal estimation do not. The future update tool must enforce this
 boundary and store the user's optional rationale in `deal_size_note`.
 
+## Part C - Stuck, Overdue, and Win Rate
+
+### Stuck
+
+- Only Active deals can be stuck.
+- `days_in_stage >= configured threshold` means stuck.
+- Thresholds remain configurable per stage.
+- A zero threshold disables stuck classification for that stage.
+- Stalled and terminal deals are `not_applicable`, not stuck.
+- Missing, malformed, future, or current-stage-mismatched history is
+  `unassessed`, not healthy.
+- Recent meeting activity does not change stuck status.
+
+### Overdue
+
+- An Open deal is overdue when
+  `as_of - expected_close_date > grace_days`.
+- Active and Stalled deals are eligible; terminal deals are not.
+- Today is not overdue when the default grace period is zero.
+- Missing and invalid expected close dates remain separate assessment states.
+- `overdue_days` reports calendar days past the expected date.
+
+```yaml
+metrics:
+  overdue:
+    grace_days: 0
+```
+
+### Win rate
+
+```text
+win_rate_pct = won / (won + lost) * 100
+```
+
+- Active and Stalled deals are excluded.
+- No closed deals returns `null`, not zero percent.
+- Strategic zero Won deals count in deal-count win rate.
+- Period filtering uses inclusive `actual_close_date` boundaries.
+- Missing or invalid actual dates are excluded from period metrics with
+  warnings.
+- A small sample still returns its rate with an insufficient-sample warning.
+
+```yaml
+metrics:
+  win_rate:
+    minimum_closed_sample: 10
+```
+
+Amount-weighted win rate is not part of Part C.
+
+### Attention reasons
+
+A deal can preserve multiple reasons in priority order:
+
+```text
+stalled -> overdue -> stuck -> at_risk
+```
+
+Reason counts may overlap. A future total attention-deal KPI must count unique
+deals rather than summing reason counts.
+
 ## Pending Decisions
 
-Parts A and B intentionally do not define:
+Parts A through C intentionally do not define:
 
-- Stuck versus overdue semantics
-- Win-rate denominator and minimum sample warning
 - Required fields and data-quality coverage
 - Reporting timezone and reproducible `as_of` behavior
 

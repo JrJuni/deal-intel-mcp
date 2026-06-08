@@ -4,6 +4,7 @@ from collections import defaultdict
 from datetime import datetime
 
 from deal_intel.errors import ErrorCode, MCPError, Stage
+from deal_intel.schema.metrics import WinRateSettings
 from deal_intel.storage.mongodb import MongoDBClient
 
 _DIMS = [
@@ -142,7 +143,11 @@ def _gap_frequency(col) -> dict:
     return {"active_deal_count": active_deals, "gap_frequency": rows}
 
 
-def _industry_benchmark(col) -> dict:
+def _industry_benchmark(
+    col,
+    settings: WinRateSettings | None = None,
+) -> dict:
+    settings = settings or WinRateSettings()
     pipeline = [
         {"$match": {"industry": {"$ne": None}}},
         {"$group": {
@@ -151,19 +156,33 @@ def _industry_benchmark(col) -> dict:
             "avg_health_pct": {"$avg": "$meddpicc_latest.health_pct"},
             "won_count": {"$sum": {"$cond": [{"$eq": ["$deal_stage", "won"]}, 1, 0]}},
             "lost_count": {"$sum": {"$cond": [{"$eq": ["$deal_stage", "lost"]}, 1, 0]}},
+            "closed_count": {
+                "$sum": {
+                    "$cond": [
+                        {"$in": ["$deal_stage", _TERMINAL_STAGES]},
+                        1,
+                        0,
+                    ]
+                }
+            },
             "total_size_krw": {"$sum": {"$ifNull": ["$deal_size_krw", 0]}},
         }},
         {"$addFields": {
             "win_rate_pct": {
                 "$cond": [
-                    {"$gt": ["$deal_count", 0]},
+                    {"$gt": ["$closed_count", 0]},
                     {
                         "$round": [
-                            {"$multiply": [{"$divide": ["$won_count", "$deal_count"]}, 100]},
+                            {
+                                "$multiply": [
+                                    {"$divide": ["$won_count", "$closed_count"]},
+                                    100,
+                                ]
+                            },
                             1,
                         ]
                     },
-                    0,
+                    None,
                 ]
             }
         }},
@@ -177,7 +196,17 @@ def _industry_benchmark(col) -> dict:
             "avg_health_pct": round(r["avg_health_pct"], 1) if r["avg_health_pct"] else None,
             "won_count": r["won_count"],
             "lost_count": r["lost_count"],
+            "closed_count": r["closed_count"],
             "win_rate_pct": r["win_rate_pct"],
+            "minimum_closed_sample": settings.minimum_closed_sample,
+            "insufficient_sample": (
+                r["closed_count"] < settings.minimum_closed_sample
+            ),
+            "warnings": (
+                ["insufficient_closed_sample"]
+                if r["closed_count"] < settings.minimum_closed_sample
+                else []
+            ),
             "total_size_krw": r["total_size_krw"],
         })
     return {"industries": rows}
@@ -228,7 +257,7 @@ _HANDLERS = {
 }
 
 
-def handle(mongo: MongoDBClient, *, query_type: str) -> dict:
+def handle(mongo: MongoDBClient, cfg: dict, *, query_type: str) -> dict:
     if query_type not in VALID_QUERY_TYPES:
         raise MCPError(
             error_code=ErrorCode.INVALID_INPUT,
@@ -238,8 +267,20 @@ def handle(mongo: MongoDBClient, *, query_type: str) -> dict:
             retryable=False,
         )
     try:
+        win_rate_settings = WinRateSettings.from_config(cfg)
+    except ValueError as exc:
+        raise MCPError(
+            error_code=ErrorCode.CONFIG_ERROR,
+            stage=Stage.PREFLIGHT,
+            message=str(exc),
+            retryable=False,
+        ) from exc
+    try:
         col = mongo._get_db().deals
-        result = _HANDLERS[query_type](col)
+        if query_type == "industry_benchmark":
+            result = _industry_benchmark(col, win_rate_settings)
+        else:
+            result = _HANDLERS[query_type](col)
         return {"ok": True, "query_type": query_type, **result}
     except MCPError:
         raise

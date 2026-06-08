@@ -16,13 +16,18 @@ def create_deal(
     deal_size_krw: int = 0,
     expected_close_date: str = "",
 ) -> dict:
-    """Create a new deal for a prospect company."""
+    """Create a new deal for a prospect company.
+
+    When expected_close_date is omitted, config supplies a default date with
+    optional exact industry overrides.
+    """
     try:
         from deal_intel import _context
         from deal_intel.tools import create_deal as _t
 
         return _t.handle(
             mongo=_context.mongo(),
+            cfg=_context.config(),
             company=company,
             industry=industry or None,
             deal_size_krw=deal_size_krw or None,
@@ -69,7 +74,8 @@ def update_stage(
     Valid stages: discovery, qualification, proposal, negotiation, won, lost, stalled.
     For won/lost, actual_close_date is an optional ISO date (YYYY-MM-DD). It
     defaults to today when omitted. Non-terminal stages cannot receive one.
-    Returns days spent in the previous stage and the stuck threshold for the new stage.
+    Returns days spent in the previous stage and the stuck threshold for a new
+    Active stage. Stalled and terminal stages return a null threshold.
     """
     try:
         from deal_intel import _context
@@ -100,7 +106,7 @@ def get_deal(deal_id: str) -> dict:
 
 @app.tool()
 def list_deals(stage: str = "", limit: int = 20) -> dict:
-    """List deals with pipeline health data: health_pct, gaps, stuck flag.
+    """List deals with health, stuck, overdue, and attention reasons.
 
     Optionally filter by stage (discovery/qualification/proposal/negotiation/won/lost/stalled).
     Results are sorted: stuck deals first, then by health_pct descending.
@@ -136,7 +142,11 @@ def get_insights(query_type: str) -> dict:
         from deal_intel import _context
         from deal_intel.tools import get_insights as _t
 
-        return _t.handle(mongo=_context.mongo(), query_type=query_type)
+        return _t.handle(
+            mongo=_context.mongo(),
+            cfg=_context.config(),
+            query_type=query_type,
+        )
     except Exception as exc:
         return envelope_from_exception(exc, stage=Stage.STORAGE)
 

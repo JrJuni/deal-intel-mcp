@@ -163,6 +163,7 @@ class Deal(BaseModel):
     stage_history: list[dict] = Field(default_factory=list)  # StageHistoryEntry dicts
     deal_stage: str = "discovery"
     expected_close_date: str | None = None  # ISO-8601 date
+    expected_close_date_source: str | None = None
     actual_close_date: str | None = None  # ISO-8601 date; won/lost only
     close_reason: str | None = None
     bd_strategy: str = ""

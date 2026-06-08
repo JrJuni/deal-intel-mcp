@@ -4,6 +4,7 @@ from datetime import UTC, date, datetime
 
 from deal_intel.errors import ErrorCode, MCPError, Stage
 from deal_intel.schema.meddpicc import VALID_STAGES, compute_meddpicc_latest
+from deal_intel.schema.metrics import ACTIVE_STAGES, PipelineTimingSettings
 from deal_intel.storage.mongodb import MongoDBClient
 
 
@@ -100,11 +101,20 @@ def handle(
         except Exception:
             pass
 
-    # Check stuck threshold for the NEW stage using configurable values.
-    pipeline_cfg = cfg.get("pipeline", {})
-    stuck_by_stage = pipeline_cfg.get("stuck_threshold_days_by_stage", {})
-    stuck_default = int(pipeline_cfg.get("stuck_threshold_days", 14))
-    threshold = int(stuck_by_stage.get(new_stage, stuck_default))
+    try:
+        timing_settings = PipelineTimingSettings.from_config(cfg)
+    except ValueError as exc:
+        raise MCPError(
+            error_code=ErrorCode.CONFIG_ERROR,
+            stage=Stage.PREFLIGHT,
+            message=str(exc),
+            retryable=False,
+        ) from exc
+    threshold = (
+        timing_settings.stuck_threshold_for(new_stage)
+        if new_stage in ACTIVE_STAGES
+        else None
+    )
 
     return {
         "ok": True,

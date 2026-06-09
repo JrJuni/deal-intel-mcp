@@ -6,7 +6,7 @@
 [Claude Desktop / Codex — 자연어 입력]
          │ stdio JSON-RPC (FastMCP)
          ▼
-[deal-intel-mcp 서버  11 tools]
+[deal-intel-mcp 서버  12 tools]
          │
          ├─ LLM Provider ──────────────────────────────────────────────────
          │    add_meeting: MEDDPICC + customer_themes 추출 (구조화 JSON)
@@ -33,7 +33,7 @@
                    deal_summary_vector     : summary_embedding cosine 384d
 ```
 
-## 11개 MCP 도구
+## 12개 MCP 도구
 
 | 도구 | LLM 호출 | Embedding | 주요 기능 |
 |---|---|---|---|
@@ -41,6 +41,7 @@
 | `add_meeting` | 2회 (분석 + 요약) | embed + store | MEDDPICC·고객 주제 추출, health_pct 재계산 |
 | `get_deal` | 없음 | 없음 | 딜 전체 조회 |
 | `update_stage` | 없음 | 없음 | stage_history 및 actual_close_date 기록, MEDDPICC 재계산 |
+| `update_deal` | 없음 | 없음 | 사용자 확인 후 deal value 필드만 수정하고 history 기록 |
 | `list_deals` | 없음 | 없음 | health, stuck, overdue, attention 사유 집계 |
 | `get_metrics` | 없음 | 없음 | pipeline_health KPI, stage 집계, warning 반환 |
 | `export_report` | 없음 | 없음 | weekly_pipeline CSV·Markdown 파일 생성 |
@@ -61,6 +62,15 @@
   "deal_size_high_krw": null,
   "deal_size_status":   "quoted",
   "deal_size_note":     "proposal sent after pricing call",
+  "deal_value_history": [
+    {
+      "updated_at": "2026-06-09T00:00:00+00:00",
+      "source": "update_deal",
+      "deal_size_krw": 200000000,
+      "deal_size_status": "quoted",
+      "deal_size_note": "proposal sent after pricing call"
+    }
+  ],
   "deal_stage":         "proposal",
   "expected_close_date": "2026-09-30",
   "expected_close_date_source": "user_provided",
@@ -131,7 +141,7 @@
 
 ```
 src/deal_intel/
-  mcp_server.py         FastMCP 진입점 — 11개 tool 등록
+  mcp_server.py         FastMCP 진입점 — 12개 tool 등록
                         native ML runtime은 main thread pre-import
                         embedding warmup + Mongo index 생성은 background 실행
   cli.py                typer CLI — login-chatgpt / backfill-customer-themes
@@ -171,6 +181,7 @@ src/deal_intel/
                         기존 meetings에 customer_themes를 idempotent backfill
     get_deal.py         단순 조회
     update_stage.py     VALID_STAGES 검증 → stage_history append → meddpicc_latest 재계산
+    update_deal.py      확인된 deal_size_* 필드만 수정 → deal_value_history append
     list_deals.py       _days_in_current_stage() → is_stuck → stuck 우선 / health_pct 역순 정렬
     get_metrics.py      pipeline_health MCP metric view
     export_report.py    weekly_pipeline CSV·Markdown 파일 export

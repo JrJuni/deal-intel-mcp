@@ -105,6 +105,40 @@ def update_stage(
 
 
 @app.tool()
+def update_deal(
+    deal_id: str,
+    deal_size_status: str,
+    deal_size_note: str,
+    confirmed_by_user: bool = False,
+    deal_size_krw: int | None = None,
+    deal_size_low_krw: int | None = None,
+    deal_size_high_krw: int | None = None,
+) -> dict:
+    """Update an existing deal's value fields after user confirmation.
+
+    First version only updates deal_size_krw, deal_size_low_krw,
+    deal_size_high_krw, deal_size_status, and deal_size_note. It requires
+    confirmed_by_user=true and a non-empty deal_size_note.
+    """
+    try:
+        from deal_intel import _context
+        from deal_intel.tools import update_deal as _t
+
+        return _t.handle(
+            mongo=_context.mongo(),
+            deal_id=deal_id,
+            deal_size_status=deal_size_status,
+            deal_size_note=deal_size_note,
+            confirmed_by_user=confirmed_by_user,
+            deal_size_krw=deal_size_krw,
+            deal_size_low_krw=deal_size_low_krw,
+            deal_size_high_krw=deal_size_high_krw,
+        )
+    except Exception as exc:
+        return envelope_from_exception(exc, stage=Stage.STORAGE)
+
+
+@app.tool()
 def get_deal(deal_id: str) -> dict:
     """Retrieve a deal with full meeting history and MEDDPICC scores."""
     try:

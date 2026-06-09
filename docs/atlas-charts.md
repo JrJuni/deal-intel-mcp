@@ -1,0 +1,117 @@
+# Atlas Charts Dashboard
+
+This document records the Milestone 3.2 setup path for the `Weekly Pipeline
+Review` dashboard in MongoDB Atlas Charts.
+
+Metric definitions remain in [metrics.md](metrics.md). Report/CSV contracts
+remain in [reports.md](reports.md).
+
+## Scope
+
+- Dashboard title: `Weekly Pipeline Review`
+- Data source: `TestCluster` / `deal_intel` / `deals`
+- Versioned spec: [weekly_pipeline_review.v1.json](../atlas/charts/weekly_pipeline_review.v1.json)
+- Renderer: `deal_intel.reports.atlas_charts`
+- CLI helper: `deal-intel render-atlas-dashboard`
+- LLM / embedding: none
+- MongoDB writes: none from this repository
+
+Atlas UI changes are manual because Atlas Charts dashboard objects live inside
+MongoDB Atlas. The repository stores the source aggregation pipelines and the
+exact command used to render config placeholders.
+
+Official Atlas Charts references:
+
+- [Dashboards](https://www.mongodb.com/docs/charts/dashboards/)
+- [Build Charts](https://www.mongodb.com/docs/charts/build-charts/)
+- [Run Aggregation Pipelines on Your Data](https://www.mongodb.com/docs/charts/aggregation-pipeline/)
+
+## Render The Pipelines
+
+Always render placeholders before pasting a pipeline into Atlas Charts.
+
+Full dashboard spec:
+
+```bash
+~/miniconda3/envs/event-intel/python.exe -m deal_intel.cli render-atlas-dashboard --as-of 2026-06-09 --output outputs/atlas_charts/weekly_pipeline_review_20260609.json
+```
+
+Single chart pipeline:
+
+```bash
+~/miniconda3/envs/event-intel/python.exe -m deal_intel.cli render-atlas-dashboard --as-of 2026-06-09 --chart-id pipeline_kpis
+```
+
+The single-chart output is already a JSON array, so it can be pasted directly
+into the Atlas Charts Query bar.
+
+Rendered defaults on 2026-06-09:
+
+```json
+{
+  "as_of_datetime": "2026-06-09T00:00:00Z",
+  "healthy_min": 70.0,
+  "watch_min": 40.0,
+  "overdue_grace_days": 0,
+  "stuck_days": {
+    "discovery": 7,
+    "qualification": 14,
+    "proposal": 21,
+    "negotiation": 30
+  }
+}
+```
+
+## Create The Dashboard
+
+1. In MongoDB Atlas, open the project that contains `TestCluster`.
+2. Open Atlas Charts:
+   - From Data Explorer, select `deal_intel.deals` and click `Visualize Your Data`; or
+   - From the Atlas sidebar, open `Visualization`, then `Project Dashboards`.
+3. Create a dashboard named `Weekly Pipeline Review`.
+4. Add each chart below using data source `deal_intel.deals`.
+5. In the Chart Builder Query bar, paste the rendered pipeline for that chart
+   and click `Apply`.
+6. Save each chart back to the `Weekly Pipeline Review` dashboard.
+
+If Atlas shows the free-tier Charts banner, that is expected on M0 and is not a
+blocker for this MVP dashboard.
+
+## Chart Contract
+
+| Chart ID | Title | Chart Type | Primary Fields |
+|---|---|---|---|
+| `pipeline_kpis` | Pipeline KPIs | Table | `deal_count`, `active_deal_count`, `open_deal_count`, `active_pipeline_value_krw`, `open_pipeline_value_krw`, `avg_health_pct`, `health_coverage_pct`, `stuck_deal_count`, `overdue_deal_count`, `attention_deal_count` |
+| `stage_breakdown` | Stage Breakdown | Bar or Table | `stage`, `count`, `pipeline_value_krw`, `avg_health_pct`, `health_coverage_pct`, `stuck_count`, `overdue_count` |
+| `health_bands` | Health Bands | Donut | `health_band`, `count` |
+| `attention_deals` | Stuck / Overdue / At Risk Deals | Table | `company`, `industry`, `deal_stage`, `deal_size_krw`, `expected_close_date`, `days_in_stage`, `is_stuck`, `is_overdue`, `health_pct`, `health_band`, `attention_reasons` |
+| `meddpicc_gap_distribution` | MEDDPICC Gap Distribution | Bar | `gap`, `count` |
+
+Suggested layout:
+
+1. Top row: `pipeline_kpis`
+2. Middle row: `stage_breakdown`, `health_bands`
+3. Bottom row: `attention_deals`, `meddpicc_gap_distribution`
+
+## Verification Checklist
+
+After creating the dashboard:
+
+- No rendered pipeline contains `{{...}}` placeholders.
+- `pipeline_kpis.open_pipeline_value_krw` matches
+  `get_metrics(metric_type="pipeline_health").kpis.open_pipeline_value_krw`.
+- `pipeline_kpis.active_pipeline_value_krw` matches the same `get_metrics`
+  result.
+- `pipeline_kpis.avg_health_pct`, `health_coverage_pct`, `stuck_deal_count`,
+  `overdue_deal_count`, and `attention_deal_count` match `get_metrics`.
+- `stage_breakdown` stage order is:
+  `discovery`, `qualification`, `proposal`, `negotiation`, `stalled`, `won`,
+  `lost`.
+- `attention_deals` contains no `meetings.raw_notes`, `contacts`, or
+  `summary_embedding`.
+
+Milestone 3.3 is the formal cross-check between:
+
+- `get_metrics`
+- CSV/Markdown export
+- Atlas Charts dashboard data

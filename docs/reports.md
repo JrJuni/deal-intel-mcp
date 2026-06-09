@@ -357,3 +357,22 @@ With M2.4 complete, CSV Reporting MVP is functionally complete:
 2. CSV export
 3. Markdown summary
 4. MCP artifact export
+
+## Milestone 3.2 - Atlas Charts Dashboard Setup
+
+The Atlas Charts dashboard setup path is recorded in
+[atlas-charts.md](atlas-charts.md).
+
+`deal_intel.reports.atlas_charts` owns the versioned aggregation dashboard spec
+and config placeholder rendering. The CLI exposes that renderer:
+
+```bash
+~/miniconda3/envs/event-intel/python.exe -m deal_intel.cli render-atlas-dashboard --as-of 2026-06-09 --chart-id pipeline_kpis
+```
+
+The rendered chart pipeline is a JSON array suitable for the Atlas Charts Query
+bar. The full dashboard spec can also be written to `outputs/atlas_charts`.
+
+This path does not call LLMs, generate embeddings, or write to MongoDB. Atlas UI
+dashboard creation remains a manual UI step because dashboard objects live in
+MongoDB Atlas Charts, not in this repository.

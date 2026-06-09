@@ -3,8 +3,8 @@
   "name": "deal-intel-mcp",
   "display_name": "Deal Intelligence MCP",
   "version": "0.1.5",
-  "description": "Turn meeting notes into MEDDPICC-structured deal intelligence. 9 MCP tools, MongoDB Atlas storage, semantic deal search, Claude or ChatGPT LLM backend.",
-  "long_description": "deal-intel-mcp captures consultation records and meeting notes, extracts MEDDPICC qualification signals and customer concern themes via LLM, and stores them in MongoDB Atlas. Tools: create_deal, add_meeting, get_deal, update_stage, list_deals, analyze_deal, get_insights, get_customer_themes, search_deals. Supports Anthropic Claude or ChatGPT Plus OAuth as LLM backends.",
+  "description": "Turn meeting notes into MEDDPICC-structured deal intelligence. 12 MCP tools, MongoDB Atlas storage, semantic deal search, Claude or ChatGPT LLM backend.",
+  "long_description": "deal-intel-mcp captures consultation records and meeting notes, extracts MEDDPICC qualification signals and customer concern themes via LLM, and stores them in MongoDB Atlas. Tools: create_deal, add_meeting, get_deal, update_stage, update_deal, list_deals, get_metrics, export_report, analyze_deal, get_insights, get_customer_themes, search_deals. Supports Anthropic Claude or ChatGPT Plus OAuth as LLM backends.",
   "author": {
     "name": "JrJuni",
     "email": "tyrical@naver.com",
@@ -22,9 +22,12 @@
     {"name": "add_meeting",   "description": "Add meeting notes to a deal and auto-extract MEDDPICC signals via LLM."},
     {"name": "get_deal",      "description": "Retrieve a deal with full meeting history and MEDDPICC scores."},
     {"name": "update_stage",  "description": "Move a deal to a new pipeline stage and log it to stage history."},
+    {"name": "update_deal",   "description": "Update existing deal value fields after explicit user confirmation."},
     {"name": "get_insights",  "description": "Run BI aggregation queries: pipeline_overview / win_patterns / loss_patterns / compare_won_lost / gap_frequency / industry_benchmark / stage_velocity."},
     {"name": "get_customer_themes", "description": "Rank recurring customer concerns by unique deal count, with coverage and evidence samples."},
     {"name": "list_deals",    "description": "List deals with health_pct, gaps, and stuck flag, optionally filtered by stage."},
+    {"name": "get_metrics",   "description": "Return pipeline_health KPI metrics from the shared BI calculator."},
+    {"name": "export_report", "description": "Export weekly_pipeline CSV and Markdown reports."},
     {"name": "analyze_deal",  "description": "Analyze MEDDPICC gaps and generate BD strategy recommendations."},
     {"name": "search_deals",  "description": "Semantic search — find deals similar to a natural language query (M0 uses local Python cosine; Atlas search is optional on M10+)."}
   ],

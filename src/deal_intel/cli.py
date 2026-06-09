@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import typer
 
@@ -54,6 +55,52 @@ def backfill_customer_themes(
         dry_run=not apply,
     )
     typer.echo(json.dumps(result, ensure_ascii=False, indent=2))
+
+
+@app.command("render-atlas-dashboard")
+def render_atlas_dashboard(
+    as_of: str | None = typer.Option(
+        None,
+        "--as-of",
+        help="Business date for rendered Atlas Charts placeholders, YYYY-MM-DD.",
+    ),
+    chart_id: str | None = typer.Option(
+        None,
+        "--chart-id",
+        help="Optional chart id. If omitted, render the full dashboard spec.",
+    ),
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Optional path to write rendered JSON. Prints to stdout when omitted.",
+    ),
+) -> None:
+    """Render Atlas Charts dashboard JSON for Atlas UI copy/paste."""
+    from deal_intel._env import load_config
+    from deal_intel.reports.atlas_charts import (
+        render_chart_pipeline,
+        render_weekly_pipeline_dashboard_spec,
+    )
+
+    cfg = load_config()
+    try:
+        payload = (
+            render_chart_pipeline(chart_id, cfg, as_of=as_of)
+            if chart_id
+            else render_weekly_pipeline_dashboard_spec(cfg, as_of=as_of)
+        )
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    text = json.dumps(payload, ensure_ascii=False, indent=2)
+    if output is None:
+        typer.echo(text)
+        return
+
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(text + "\n", encoding="utf-8")
+    typer.echo(str(output.resolve()))
 
 
 if __name__ == "__main__":

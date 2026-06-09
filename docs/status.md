@@ -2,6 +2,74 @@
 
 ## Latest Update - 2026-06-09
 
+### BI Reporting Milestone 3.2 Atlas Charts dashboard setup 준비
+
+- `deal-intel render-atlas-dashboard` CLI 추가
+- 전체 dashboard spec 또는 chart id별 aggregation pipeline을 config/as_of 기준으로
+  렌더링
+- 렌더 결과는 Atlas Charts Query bar에 바로 붙여넣을 수 있는 JSON array 또는
+  full dashboard JSON
+- [`docs/atlas-charts.md`](atlas-charts.md)에 Atlas UI 구성 runbook 추가
+- Dashboard target: `Weekly Pipeline Review`
+- Chart IDs:
+  `pipeline_kpis`, `stage_breakdown`, `health_bands`, `attention_deals`,
+  `meddpicc_gap_distribution`
+- LLM/embedding/MongoDB write 없음
+- Targeted test: `tests/test_cli_atlas_charts.py tests/test_atlas_charts.py`
+  `7 passed`
+- Regression subset: `tests/test_export_report.py tests/test_get_metrics.py`
+  `10 passed`
+- Full pytest: `152 passed`
+- Ruff: `ruff check .` 통과
+- CLI render smoke:
+  `outputs/atlas_charts/weekly_pipeline_review_20260609.json` 생성 확인
+- 실제 Atlas UI 5개 chart 생성과 화면 확인은 계정 세션에서 수행 후 M3.3
+  교차 검증으로 확정
+
+### Data Quality Prep - update_deal value-only MVP 완료
+
+- `update_deal` MCP 도구 추가, FastMCP 등록 smoke 기준 현재 12 tools
+- 첫 버전은 기존 딜의 deal value 필드만 수정:
+  `deal_size_krw`, `deal_size_low_krw`, `deal_size_high_krw`,
+  `deal_size_status`, `deal_size_note`
+- `confirmed_by_user=true`와 비어 있지 않은 `deal_size_note`를 요구하여
+  기존 딜 mutation이 사용자 확인과 근거 없이 실행되지 않도록 제한
+- 기존 positive amount + missing status 딜은 amount를 보존한 채 status만
+  업데이트 가능
+- `unknown`으로 업데이트하면 amount/range를 `null`로 정리
+- 모든 수정은 `deal_value_history`에 audit entry를 남김
+- 기존 DB 읽기 확인: 현재 22 deals 중 value invalid는 0건,
+  positive amount + missing status unclassified legacy는 10건,
+  회사명 기준 중복은 `아르카나게임즈` 1건 확인
+- Targeted test: `10 passed`
+- Full pytest: `149 passed`
+- Ruff: `ruff check .` 통과
+- FastMCP registration smoke: 12 tools, `update_deal` required params 확인
+- Atlas write smoke 없음: 기존 딜 mutation을 동반하므로 mock storage로 검증
+
+### BI Reporting Milestone 3.1 Atlas Charts aggregation JSON 완료
+
+- `atlas/charts/weekly_pipeline_review.v1.json` 추가
+- `Weekly Pipeline Review` dashboard용 chart pipeline 5종을 버전 관리:
+  KPI, stage breakdown, health bands, attention deals, MEDDPICC gap distribution
+- `deal_intel.reports.atlas_charts` 렌더러 추가:
+  reporting `as_of`, health band threshold, stuck/overdue config placeholder 치환
+- Atlas aggregation에서 raw notes, contacts, embedding 필드 미사용
+- 기존 legacy positive `deal_size_krw` + missing `deal_size_status`도 Part B
+  backward-compat 계약대로 pipeline value에 포함
+- Targeted test: `tests/test_atlas_charts.py` `4 passed`
+- Full pytest: `141 passed`
+- Ruff: `ruff check src/deal_intel/reports/atlas_charts.py tests/test_atlas_charts.py` 통과
+- Atlas read smoke: chart pipeline 5종 실제 DB 실행 성공
+- Atlas/get_metrics 교차 검증: `2026-06-09` 기준 주요 KPI 모두 일치
+  - deal count `21`
+  - active/open/stalled/terminal `12 / 13 / 1 / 8`
+  - active pipeline value `977,500,000`
+  - open pipeline value `1,035,500,000`
+  - avg health `85.5`, health coverage `100.0`
+  - stuck/overdue/attention `0 / 3 / 4`
+- Atlas write smoke 없음: M3.1은 versioned aggregation JSON과 read-only 검증
+
 ### M3 Prep - create_deal 초기 금액 분류 입력 확장
 
 - `create_deal`이 `deal_size_status`, `deal_size_low_krw`,
@@ -18,7 +86,7 @@
   `customer_budget`, `quoted` 중 하나를 확인하게 함
 - 기존 `get_metrics`, CSV/Markdown report, data-quality 계산은 같은
   `assess_deal_value` 계약을 사용하므로 downstream metric surface 변경 없음
-- FastMCP 등록 smoke: 11 tools 유지, `create_deal` nullable 금액/범위 schema 확인
+- FastMCP 등록 smoke: 당시 11 tools, `create_deal` nullable 금액/범위 schema 확인
 - Targeted create_deal confirmation tests: `6 passed`
 - Full pytest: `141 passed`
 - Ruff: `ruff check .` 통과

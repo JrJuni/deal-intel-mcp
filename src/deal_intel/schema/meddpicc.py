@@ -156,6 +156,7 @@ class Deal(BaseModel):
     deal_size_high_krw: int | None = None
     deal_size_status: str | None = None
     deal_size_note: str | None = None
+    deal_value_history: list[dict] = Field(default_factory=list)
     contacts: list[dict] = Field(default_factory=list)   # Contact dicts
     meetings: list[dict] = Field(default_factory=list)
     customer_themes: list[dict] = Field(default_factory=list)

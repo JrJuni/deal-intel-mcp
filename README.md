@@ -340,7 +340,7 @@ Show stuck/overdue status for IT-industry deals
 
 ---
 
-### 9. `get_deal_gaps` — find missing customer-attack information
+### 9. `get_deal_gaps` — surface the customer intel you're still missing
 
 **When to use**: When you want to know what you still need to confirm before pursuing, forecasting, or reviewing a deal.
 

@@ -61,6 +61,7 @@ class FakeSnapshotCollection:
         self.query = None
         self.projection = None
         self.sort_spec = None
+        self.aggregate_pipeline = None
 
     def update_one(self, query: dict, update: dict, *, upsert: bool):
         assert upsert is True
@@ -78,6 +79,10 @@ class FakeSnapshotCollection:
     def sort(self, sort_spec: list[tuple[str, int]]):
         self.sort_spec = sort_spec
         return list(self.docs.values())
+
+    def aggregate(self, pipeline: list[dict]) -> list[dict]:
+        self.aggregate_pipeline = deepcopy(pipeline)
+        return [{"ok": True}]
 
 
 class FakeDB:
@@ -178,6 +183,17 @@ def test_mongodb_lists_analytics_snapshots_with_safe_projection() -> None:
         ("as_of", 1),
         ("occurred_at", 1),
     ]
+
+
+def test_mongodb_aggregates_analytics_snapshots_for_atlas_smoke() -> None:
+    mongo = MongoDBClient(uri="mongodb://unused")
+    mongo._db = FakeDB()
+    pipeline = [{"$match": {"as_of": "2026-06-10"}}]
+
+    result = mongo.aggregate_analytics_snapshots(pipeline)
+
+    assert result == [{"ok": True}]
+    assert mongo._db.analytics_snapshots.aggregate_pipeline == pipeline
 
 
 def test_record_analytics_snapshot_reports_duplicate_without_second_insert() -> None:

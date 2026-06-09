@@ -59,6 +59,36 @@ def test_render_atlas_dashboard_cli_writes_full_spec(tmp_path) -> None:
     assert "{{" not in output.read_text(encoding="utf-8")
 
 
+def test_render_atlas_dashboard_cli_supports_pipeline_trend_dashboard(tmp_path) -> None:
+    runner = CliRunner()
+    output = tmp_path / "pipeline_trend.rendered.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "render-atlas-dashboard",
+            "--dashboard",
+            "pipeline_trend",
+            "--as-of",
+            "2026-06-10",
+            "--lookback-days",
+            "14",
+            "--chart-id",
+            "trend_kpis",
+            "--output",
+            str(output),
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert payload[0]["$match"]["as_of"] == {
+        "$gte": "2026-05-27",
+        "$lte": "2026-06-10",
+    }
+    assert "{{" not in output.read_text(encoding="utf-8")
+
+
 def test_render_atlas_dashboard_cli_rejects_unknown_chart_id() -> None:
     runner = CliRunner()
 
@@ -75,3 +105,19 @@ def test_render_atlas_dashboard_cli_rejects_unknown_chart_id() -> None:
 
     assert result.exit_code != 0
     assert "chart_id" in result.output
+
+
+def test_render_atlas_dashboard_cli_rejects_unknown_dashboard() -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "render-atlas-dashboard",
+            "--dashboard",
+            "unknown",
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "dashboard" in result.output

@@ -64,10 +64,20 @@ def render_atlas_dashboard(
         "--as-of",
         help="Business date for rendered Atlas Charts placeholders, YYYY-MM-DD.",
     ),
+    dashboard: str = typer.Option(
+        "weekly_pipeline_review",
+        "--dashboard",
+        help="Dashboard id: weekly_pipeline_review or pipeline_trend.",
+    ),
     chart_id: str | None = typer.Option(
         None,
         "--chart-id",
         help="Optional chart id. If omitted, render the full dashboard spec.",
+    ),
+    lookback_days: int = typer.Option(
+        7,
+        "--lookback-days",
+        help="Trend lookback window, used only by the pipeline_trend dashboard.",
     ),
     output: Path | None = typer.Option(
         None,
@@ -80,15 +90,26 @@ def render_atlas_dashboard(
     from deal_intel._env import load_config
     from deal_intel.reports.atlas_charts import (
         render_chart_pipeline,
-        render_weekly_pipeline_dashboard_spec,
+        render_dashboard_spec,
     )
 
     cfg = load_config()
     try:
         payload = (
-            render_chart_pipeline(chart_id, cfg, as_of=as_of)
+            render_chart_pipeline(
+                chart_id,
+                cfg,
+                as_of=as_of,
+                lookback_days=lookback_days,
+                dashboard=dashboard,
+            )
             if chart_id
-            else render_weekly_pipeline_dashboard_spec(cfg, as_of=as_of)
+            else render_dashboard_spec(
+                dashboard,
+                cfg,
+                as_of=as_of,
+                lookback_days=lookback_days,
+            )
         )
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc

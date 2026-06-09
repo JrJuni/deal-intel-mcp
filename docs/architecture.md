@@ -180,6 +180,7 @@ src/deal_intel/
                         preload_driver()      — main thread에서 pymongo 선행 import
                         ensure_indexes()      — deals/audit/snapshot 인덱스 (idempotent)
                         list_analytics_snapshots() — trend read projection
+                        aggregate_analytics_snapshots() — Atlas trend chart smoke
                         ensure_vector_index() — Atlas Vector Search index (createSearchIndexes)
                         search_by_embedding() — $vectorSearch aggregation pipeline
 

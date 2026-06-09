@@ -143,6 +143,11 @@ compares the latest per-deal snapshot at the start and end of the window,
 dedupes duplicate `event_id` snapshots defensively, and returns insufficiency
 warnings when the snapshot history is too sparse.
 
+Atlas trend charts use the same `analytics_snapshots` source through the
+versioned `pipeline_trend.v1.json` spec. The repository may execute read-only
+aggregation smoke tests through `MongoDBClient.aggregate_analytics_snapshots()`;
+it does not write dashboard objects to Atlas.
+
 `get_deal_gaps` accepts exact-match `stage`, `industry`, and `deal_id` filters.
 Valid `min_priority` values are `low`, `medium`, and `high`; default is
 `medium`. `limit` defaults to `10` and is capped at `50`. When `deal_id` is

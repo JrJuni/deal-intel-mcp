@@ -163,6 +163,9 @@ class MongoDBClient:
     def aggregate_deals(self, pipeline: list[dict]) -> list[dict]:
         return list(self._get_db().deals.aggregate(pipeline))
 
+    def aggregate_analytics_snapshots(self, pipeline: list[dict]) -> list[dict]:
+        return list(self._get_db().analytics_snapshots.aggregate(pipeline))
+
     def list_deals_for_theme_backfill(self, *, limit: int = 0) -> list[dict]:
         cursor = self._get_db().deals.find(with_unarchived_deal_filter(), {"_id": 0})
         if limit > 0:

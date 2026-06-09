@@ -6,6 +6,45 @@ contracts live in [baseline.md](baseline.md) and [metrics.md](metrics.md).
 
 ## Latest Update - 2026-06-10
 
+### BI Reporting Milestone 5.8 Atlas trend chart
+
+Implemented:
+
+- Added versioned Atlas Charts spec:
+  `atlas/charts/pipeline_trend.v1.json`.
+- Added `Pipeline Trend Review` dashboard source over
+  `analytics_snapshots`.
+- Added chart pipelines:
+  `trend_kpis` and `trend_delta_bars`.
+- Extended `render-atlas-dashboard` with:
+  `--dashboard pipeline_trend` and `--lookback-days`.
+- Added `MongoDBClient.aggregate_analytics_snapshots()` for read-only Atlas
+  pipeline smoke tests.
+- No LLM, embedding, or MongoDB writes are used by the trend chart path.
+
+Verification:
+
+- M5.8 targeted tests:
+  `20 passed`
+- Related Atlas/report/trend regression tests:
+  `34 passed`
+- Full pytest with workspace-local temp:
+  `234 passed`
+- Ruff:
+  `All checks passed`
+- CLI render smoke:
+  `render-atlas-dashboard --dashboard pipeline_trend --chart-id trend_kpis`
+  wrote rendered JSON with no unresolved placeholders
+- Live Atlas aggregation smoke:
+  `trend_kpis=1 row`, `trend_delta_bars=3 rows`
+
+Manual follow-up:
+
+- Create or update the Atlas Charts dashboard named `Pipeline Trend Review`
+  using [atlas-charts.md](atlas-charts.md). This is a manual Atlas UI step.
+
+## History
+
 ### BI Reporting Milestone 5.7 trend CSV
 
 Implemented:
@@ -32,8 +71,6 @@ Verification:
 - Live Atlas read-only smoke:
   `ok=true`, `report_type=pipeline_trend`, `snapshot_count=0`, `row_count=7`,
   expected sparse-history warnings returned, CSV/Markdown artifacts created
-
-## History
 
 ### OpenAI API LLM provider support
 
@@ -234,5 +271,4 @@ Verification:
 
 ## Next
 
-1. M5.8 Atlas trend chart.
-2. M6 Customer Themes expansion.
+1. M6 Customer Themes expansion.

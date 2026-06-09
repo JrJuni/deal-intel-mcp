@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from copy import deepcopy
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -11,18 +11,61 @@ from deal_intel.schema.metrics import (
     PipelineTimingSettings,
     ReportingContext,
 )
+from deal_intel.schema.pipeline_trends import (
+    DEFAULT_LOOKBACK_DAYS,
+    validate_lookback_days,
+)
 
-DEFAULT_DASHBOARD_SPEC = (
+WEEKLY_PIPELINE_DASHBOARD = "weekly_pipeline_review"
+PIPELINE_TREND_DASHBOARD = "pipeline_trend"
+
+DEFAULT_WEEKLY_PIPELINE_SPEC = (
     Path(__file__).resolve().parents[3]
     / "atlas"
     / "charts"
     / "weekly_pipeline_review.v1.json"
 )
+DEFAULT_PIPELINE_TREND_SPEC = (
+    Path(__file__).resolve().parents[3]
+    / "atlas"
+    / "charts"
+    / "pipeline_trend.v1.json"
+)
+DEFAULT_DASHBOARD_SPEC = DEFAULT_WEEKLY_PIPELINE_SPEC
+DEFAULT_DASHBOARD = WEEKLY_PIPELINE_DASHBOARD
+DASHBOARD_SPECS = {
+    WEEKLY_PIPELINE_DASHBOARD: DEFAULT_WEEKLY_PIPELINE_SPEC,
+    PIPELINE_TREND_DASHBOARD: DEFAULT_PIPELINE_TREND_SPEC,
+}
 
 
 def load_weekly_pipeline_dashboard_spec(path: str | Path | None = None) -> dict:
     """Load the version-managed Atlas Charts dashboard spec."""
-    spec_path = Path(path) if path is not None else DEFAULT_DASHBOARD_SPEC
+    spec_path = Path(path) if path is not None else DEFAULT_WEEKLY_PIPELINE_SPEC
+    return json.loads(spec_path.read_text(encoding="utf-8"))
+
+
+def load_pipeline_trend_dashboard_spec(path: str | Path | None = None) -> dict:
+    """Load the version-managed Atlas Charts trend dashboard spec."""
+    spec_path = Path(path) if path is not None else DEFAULT_PIPELINE_TREND_SPEC
+    return json.loads(spec_path.read_text(encoding="utf-8"))
+
+
+def load_dashboard_spec(
+    dashboard: str = DEFAULT_DASHBOARD,
+    *,
+    path: str | Path | None = None,
+) -> dict:
+    if path is not None:
+        spec_path = Path(path)
+    else:
+        try:
+            spec_path = DASHBOARD_SPECS[dashboard]
+        except KeyError as exc:
+            valid = sorted(DASHBOARD_SPECS)
+            raise ValueError(
+                f"dashboard {dashboard!r} is not valid; valid ids: {valid}"
+            ) from exc
     return json.loads(spec_path.read_text(encoding="utf-8"))
 
 
@@ -35,6 +78,38 @@ def render_weekly_pipeline_dashboard_spec(
     """Render Atlas Charts placeholders using the reporting and metric config."""
     spec = load_weekly_pipeline_dashboard_spec(path)
     tokens = _render_tokens(cfg, as_of=as_of)
+    rendered = _render_spec(spec, tokens)
+    return rendered
+
+
+def render_pipeline_trend_dashboard_spec(
+    cfg: dict,
+    *,
+    as_of: str | date | None = None,
+    lookback_days: int = DEFAULT_LOOKBACK_DAYS,
+    path: str | Path | None = None,
+) -> dict:
+    """Render Atlas Charts trend placeholders using reporting config."""
+    spec = load_pipeline_trend_dashboard_spec(path)
+    tokens = _render_tokens(cfg, as_of=as_of, lookback_days=lookback_days)
+    return _render_spec(spec, tokens)
+
+
+def render_dashboard_spec(
+    dashboard: str,
+    cfg: dict,
+    *,
+    as_of: str | date | None = None,
+    lookback_days: int = DEFAULT_LOOKBACK_DAYS,
+    path: str | Path | None = None,
+) -> dict:
+    """Render one version-managed dashboard spec."""
+    spec = load_dashboard_spec(dashboard, path=path)
+    tokens = _render_tokens(cfg, as_of=as_of, lookback_days=lookback_days)
+    return _render_spec(spec, tokens)
+
+
+def _render_spec(spec: dict, tokens: dict[str, Any]) -> dict:
     rendered = _replace_tokens(spec, tokens)
     rendered["rendered_parameters"] = {
         key.strip("{}").lower(): value for key, value in tokens.items()
@@ -47,10 +122,18 @@ def render_chart_pipeline(
     cfg: dict,
     *,
     as_of: str | date | None = None,
+    lookback_days: int = DEFAULT_LOOKBACK_DAYS,
+    dashboard: str = DEFAULT_DASHBOARD,
     path: str | Path | None = None,
 ) -> list[dict]:
     """Return one rendered chart aggregation pipeline by chart id."""
-    spec = render_weekly_pipeline_dashboard_spec(cfg, as_of=as_of, path=path)
+    spec = render_dashboard_spec(
+        dashboard,
+        cfg,
+        as_of=as_of,
+        lookback_days=lookback_days,
+        path=path,
+    )
     for chart in spec["charts"]:
         if chart.get("id") == chart_id:
             return deepcopy(chart["pipeline"])
@@ -58,17 +141,27 @@ def render_chart_pipeline(
     raise ValueError(f"chart_id {chart_id!r} is not valid; valid ids: {valid_ids}")
 
 
-def _render_tokens(cfg: dict, *, as_of: str | date | None) -> dict[str, Any]:
+def _render_tokens(
+    cfg: dict,
+    *,
+    as_of: str | date | None,
+    lookback_days: int = DEFAULT_LOOKBACK_DAYS,
+) -> dict[str, Any]:
     reporting = ReportingContext.from_config(cfg, as_of=as_of)
     health_thresholds = HealthBandThresholds.from_config(cfg)
     timing_settings = PipelineTimingSettings.from_config(cfg)
+    validate_lookback_days(lookback_days)
     as_of_datetime = datetime.combine(
         reporting.as_of,
         datetime.min.time(),
         tzinfo=reporting.generated_at.tzinfo,
     )
+    start_date = reporting.as_of - timedelta(days=lookback_days)
     return {
         "{{AS_OF_DATETIME}}": as_of_datetime.isoformat().replace("+00:00", "Z"),
+        "{{AS_OF_DATE}}": reporting.as_of.isoformat(),
+        "{{START_DATE}}": start_date.isoformat(),
+        "{{LOOKBACK_DAYS}}": lookback_days,
         "{{HEALTHY_MIN}}": health_thresholds.healthy_min,
         "{{WATCH_MIN}}": health_thresholds.watch_min,
         "{{OVERDUE_GRACE_DAYS}}": timing_settings.overdue_grace_days,

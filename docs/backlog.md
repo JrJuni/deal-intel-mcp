@@ -108,7 +108,11 @@ context에서 `create_sample_data`와 `delete_sample_data`로만 관리한다.
 완료: M5.7 trend CSV. `export_report(report_type="pipeline_trend")`가
 analytics snapshot 기반 trend summary를 CSV와 Markdown으로 저장한다.
 
-남은 범위: Atlas 추세 차트.
+완료: M5.8 Atlas trend chart. `Pipeline Trend Review` dashboard spec을
+버전 관리하고 `render-atlas-dashboard --dashboard pipeline_trend`로
+렌더링할 수 있게 했다. Atlas aggregation read smoke도 통과했다.
+
+남은 범위: M6 Customer Themes expansion.
 
 ---
 

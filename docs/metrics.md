@@ -373,6 +373,23 @@ The CSV rows are intentionally flat:
 This report reads from `analytics_snapshots`, does not call an LLM or embedding
 provider, and does not write to MongoDB.
 
+## Milestone 5.8 - Atlas Trend Chart
+
+`atlas/charts/pipeline_trend.v1.json` defines the `Pipeline Trend Review`
+dashboard over the `analytics_snapshots` collection. The renderer supports:
+
+```bash
+deal-intel render-atlas-dashboard --dashboard pipeline_trend --as-of 2026-06-10 --lookback-days 7
+```
+
+The versioned chart pipelines expose:
+
+- `trend_kpis`: start/end/delta KPI table
+- `trend_delta_bars`: delta rows for active deals, open deals, and open
+  pipeline value
+
+The chart path is read-only and uses no LLM or embeddings.
+
 ## Milestone 4.1 - Deal Gaps
 
 `get_deal_gaps` is the first user-facing data-quality action view. It does not

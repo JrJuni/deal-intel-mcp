@@ -144,7 +144,8 @@ src/deal_intel/
   mcp_server.py         FastMCP 진입점 — 12개 tool 등록
                         native ML runtime은 main thread pre-import
                         embedding warmup + Mongo index 생성은 background 실행
-  cli.py                typer CLI — login-chatgpt / backfill-customer-themes
+  cli.py                typer CLI — login-chatgpt / backfill-customer-themes /
+                        render-atlas-dashboard / crosscheck-weekly-dashboard
   _env.py               dotenv 로드 + 3-tier config 병합 (yaml merge)
   _context.py           프로세스 싱글톤 (지연 초기화)
                         config() / llm_provider() / embedding_provider() / mongo()

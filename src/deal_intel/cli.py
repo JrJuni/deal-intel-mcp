@@ -103,5 +103,64 @@ def render_atlas_dashboard(
     typer.echo(str(output.resolve()))
 
 
+@app.command("crosscheck-weekly-dashboard")
+def crosscheck_weekly_dashboard(
+    as_of: str | None = typer.Option(
+        None,
+        "--as-of",
+        help="Business date for cross-checking metrics, reports, and Atlas pipelines.",
+    ),
+    output_dir: Path | None = typer.Option(
+        None,
+        "--output-dir",
+        help="Directory for the generated CSV/Markdown report artifacts.",
+    ),
+) -> None:
+    """Cross-check get_metrics, weekly reports, and Atlas Charts pipelines."""
+    from deal_intel import _context
+    from deal_intel.reports.atlas_charts import render_chart_pipeline
+    from deal_intel.reports.dashboard_crosscheck import (
+        build_weekly_pipeline_dashboard_crosscheck,
+    )
+    from deal_intel.tools import export_report as _export_report
+    from deal_intel.tools import get_metrics as _get_metrics
+
+    cfg = _context.config()
+    mongo = _context.mongo()
+    metrics_result = _get_metrics.handle(
+        mongo=mongo,
+        cfg=cfg,
+        metric_type="pipeline_health",
+        as_of=as_of,
+    )
+    report_result = _export_report.handle(
+        mongo=mongo,
+        cfg=cfg,
+        report_type="weekly_pipeline",
+        output_dir=str(output_dir) if output_dir is not None else None,
+        as_of=as_of,
+    )
+    atlas_results = {
+        chart_id: mongo.aggregate_deals(
+            render_chart_pipeline(chart_id, cfg, as_of=as_of)
+        )
+        for chart_id in (
+            "pipeline_kpis",
+            "stage_breakdown",
+            "health_bands",
+            "attention_deals",
+            "meddpicc_gap_distribution",
+        )
+    }
+    result = build_weekly_pipeline_dashboard_crosscheck(
+        metrics_result=metrics_result,
+        report_result=report_result,
+        atlas_results=atlas_results,
+    )
+    typer.echo(json.dumps(result, ensure_ascii=False, indent=2))
+    if not result["ok"]:
+        raise typer.Exit(code=1)
+
+
 if __name__ == "__main__":
     app()

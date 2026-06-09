@@ -115,3 +115,13 @@ Milestone 3.3 is the formal cross-check between:
 - `get_metrics`
 - CSV/Markdown export
 - Atlas Charts dashboard data
+
+Run it with:
+
+```bash
+~/miniconda3/envs/event-intel/python.exe -m deal_intel.cli crosscheck-weekly-dashboard --as-of 2026-06-09 --output-dir outputs/m3_3_crosscheck
+```
+
+The command uses the same versioned aggregation pipelines as the dashboard, so a
+passing result means the dashboard data source is aligned with the MCP and report
+metric surfaces.

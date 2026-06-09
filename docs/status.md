@@ -2,6 +2,35 @@
 
 ## Latest Update - 2026-06-09
 
+### BI Reporting Milestone 3.3 Atlas/get_metrics/CSV 교차 검증 완료
+
+- `deal_intel.reports.dashboard_crosscheck` 추가
+- `deal-intel crosscheck-weekly-dashboard` CLI 추가
+- 같은 `as_of` 기준으로 세 BI surface를 비교:
+  `get_metrics(pipeline_health)`, `export_report(weekly_pipeline)`,
+  Atlas Charts aggregation
+- 실제 Atlas UI dashboard `Weekly Pipeline Review` 수동 구성 확인
+- Dashboard cards/charts:
+  Active Deal Count, Open Pipeline Value, Attention Deal Count,
+  Attention Deals, Stage Pipeline Value, Health Bands,
+  MEDDPICC Gap Distribution
+- Live Atlas cross-check: `ok=true`, mismatches 없음
+- `2026-06-09` 기준 주요 일치값:
+  - deal count `22`
+  - active/open/stalled/terminal `12 / 13 / 1 / 9`
+  - active pipeline value `977,500,000`
+  - open pipeline value `1,035,500,000`
+  - avg health `85.5`, health coverage `100.0`
+  - health assessed count `12`
+  - stuck/overdue/attention `0 / 3 / 4`
+  - stage value: discovery `453,000,000`, negotiation `372,500,000`,
+    proposal `152,000,000`, stalled `58,000,000`
+  - health bands: healthy `19`, watch `2`, at_risk `0`, unassessed `1`
+- Generated artifacts:
+  `outputs/m3_3_crosscheck/weekly_pipeline_20260609_035638.csv`,
+  `outputs/m3_3_crosscheck/weekly_pipeline_20260609_035638.md`
+- MongoDB writes 없음, LLM/embedding 없음
+
 ### BI Reporting Milestone 3.2 Atlas Charts dashboard setup 준비
 
 - `deal-intel render-atlas-dashboard` CLI 추가

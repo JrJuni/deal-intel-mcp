@@ -23,6 +23,9 @@ env/
 outputs/*
 !outputs/.gitkeep
 
+# Throwaway / experimental rendered JSON (e.g. ad-hoc Atlas Charts renders)
+scripts/tmp/
+
 # mcpb build artifacts
 mcpb/*.mcpb
 

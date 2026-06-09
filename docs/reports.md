@@ -376,3 +376,32 @@ bar. The full dashboard spec can also be written to `outputs/atlas_charts`.
 This path does not call LLMs, generate embeddings, or write to MongoDB. Atlas UI
 dashboard creation remains a manual UI step because dashboard objects live in
 MongoDB Atlas Charts, not in this repository.
+
+## Milestone 3.3 - Dashboard Cross-Check
+
+`deal_intel.reports.dashboard_crosscheck` compares the three BI surfaces that
+must agree:
+
+- `get_metrics(metric_type="pipeline_health")`
+- `export_report(report_type="weekly_pipeline")` CSV/Markdown metrics
+- rendered Atlas Charts aggregation pipelines
+
+The CLI command is:
+
+```bash
+~/miniconda3/envs/event-intel/python.exe -m deal_intel.cli crosscheck-weekly-dashboard --as-of 2026-06-09 --output-dir outputs/m3_3_crosscheck
+```
+
+The command reads MongoDB, writes local CSV/Markdown report artifacts, executes
+the versioned Atlas chart pipelines against the live collection, and returns a
+structured `ok` result plus per-metric comparisons. It does not write to MongoDB
+and does not call LLMs or embeddings.
+
+Cross-checked fields include:
+
+- KPI counts and values
+- open pipeline value against CSV/Markdown report value
+- attention, overdue, stuck, and stalled counts
+- stage breakdown values
+- health band counts
+- attention table row count

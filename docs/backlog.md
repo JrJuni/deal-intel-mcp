@@ -29,7 +29,7 @@ Milestone 1.2 상태:
 - 완료: UTF-8 BOM CSV 저장과 formula injection 방어
 - 완료: LLM 없는 Markdown 요약
 - 완료: `export_report(report_type="weekly_pipeline")` MCP 도구
-- 다음: Atlas Charts Pipeline Dashboard
+- 완료: Atlas Charts Pipeline Dashboard와 교차 검증
 
 ### #2 `get_metrics` MCP 도구
 
@@ -52,9 +52,12 @@ CSV Reporting MVP Gate 통과. 다음 단계는 실제 주간 회의에서 CSV/M
 2. 완료: KPI, stage별 건수·금액, health band, stuck/overdue, MEDDPICC gap
    pipeline을 실제 Atlas read smoke로 검증
 3. 완료: Atlas UI dashboard 구성 runbook과 `render-atlas-dashboard` CLI 추가
-4. 다음: MongoDB Atlas UI에서 5개 chart를 실제 생성하고 화면 확인
-5. 이후: `get_metrics`, CSV/Markdown, Atlas Charts 주요 KPI 교차 검증을
-   실제 dashboard 화면 기준으로 확정
+4. 완료: MongoDB Atlas UI에서 `Weekly Pipeline Review` dashboard 구성 및
+   6개 chart 화면 확인
+5. 완료: `get_metrics`, CSV/Markdown, Atlas Charts aggregation 주요 KPI 교차 검증
+
+Atlas Charts MVP 완료. 다음 BI 작업은 실제 주간 리뷰에서 사용해 본 뒤 데이터 품질
+또는 추세 분석으로 이동한다.
 
 ### #5 데이터 품질
 

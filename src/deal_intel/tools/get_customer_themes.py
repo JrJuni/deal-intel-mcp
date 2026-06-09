@@ -3,7 +3,7 @@ from __future__ import annotations
 from deal_intel.errors import ErrorCode, MCPError, Stage
 from deal_intel.schema.customer_themes import THEME_DIMENSIONS
 from deal_intel.schema.meddpicc import VALID_STAGES
-from deal_intel.storage.mongodb import MongoDBClient
+from deal_intel.storage.mongodb import MongoDBClient, with_unarchived_deal_filter
 
 _TERMINAL_STAGES = ["won", "lost"]
 _VALID_STAGE_FILTERS = VALID_STAGES | {"active", "all"}
@@ -20,7 +20,7 @@ def build_scope_query(*, stage: str, industry: str | None) -> dict:
             retryable=False,
         )
 
-    query: dict = {}
+    query = with_unarchived_deal_filter()
     if stage == "active":
         query["deal_stage"] = {"$nin": _TERMINAL_STAGES}
     elif stage != "all":

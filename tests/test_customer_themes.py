@@ -293,6 +293,7 @@ def test_get_customer_themes_counts_unique_deals_and_adds_shares() -> None:
     }
     assert result["themes"][0]["share_of_evidenced_pct"] == 50.0
     assert result["themes"][0]["share_of_all_deals_pct"] == 40.0
+    assert mongo.pipeline[0]["$match"]["archived"] == {"$ne": True}
     assert mongo.pipeline[0]["$match"]["deal_stage"] == {"$nin": ["won", "lost"]}
     assert {"$match": {"customer_themes.dimension": "decision_criteria"}} in mongo.pipeline
 

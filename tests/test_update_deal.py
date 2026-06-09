@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from copy import deepcopy
 
 import pytest
@@ -27,11 +28,17 @@ def _deal(**overrides) -> dict:
     deal = {
         "deal_id": "deal-1",
         "company": "Test Co",
+        "industry": "IT",
+        "deal_stage": "discovery",
         "deal_size_krw": 18_000_000,
         "deal_size_low_krw": None,
         "deal_size_high_krw": None,
         "deal_size_status": None,
         "deal_size_note": None,
+        "expected_close_date": "2026-06-30",
+        "expected_close_date_source": "config_default",
+        "actual_close_date": None,
+        "close_reason": None,
         "updated_at": "2026-06-01T00:00:00+00:00",
     }
     deal.update(overrides)
@@ -136,6 +143,145 @@ def test_update_deal_unknown_clears_amount_fields() -> None:
     assert mongo.saved["deal_size_krw"] is None
 
 
+def test_update_deal_updates_metadata_with_confirmation_and_history() -> None:
+    mongo = FakeMongo(_deal())
+
+    result = update_deal.handle(
+        mongo=mongo,
+        deal_id="deal-1",
+        industry="제조",
+        expected_close_date="2026-07-15",
+        update_note="user confirmed industry and close forecast",
+        confirmed_by_user=True,
+    )
+
+    assert result["ok"] is True
+    assert result["changed_value_fields"] == []
+    assert result["changed_metadata_fields"] == [
+        "industry",
+        "expected_close_date",
+        "expected_close_date_source",
+    ]
+    assert result["changed_fields"] == [
+        "industry",
+        "expected_close_date",
+        "expected_close_date_source",
+    ]
+    assert mongo.saved is not None
+    assert mongo.saved["industry"] == "제조"
+    assert mongo.saved["expected_close_date"] == "2026-07-15"
+    assert mongo.saved["expected_close_date_source"] == "user_provided"
+    history = mongo.saved["deal_metadata_history"][-1]
+    assert history["source"] == "update_deal"
+    assert history["update_note"] == "user confirmed industry and close forecast"
+    assert history["old_values"]["expected_close_date"] == "2026-06-30"
+    assert history["new_values"]["expected_close_date"] == "2026-07-15"
+    assert "deal_value_history" not in mongo.saved
+
+
+def test_update_deal_updates_terminal_postmortem_fields() -> None:
+    mongo = FakeMongo(_deal(deal_stage="lost"))
+
+    result = update_deal.handle(
+        mongo=mongo,
+        deal_id="deal-1",
+        actual_close_date="2026-06-05",
+        close_reason="security review failed",
+        update_note="user confirmed lost postmortem",
+        confirmed_by_user=True,
+    )
+
+    assert result["changed_metadata_fields"] == [
+        "actual_close_date",
+        "close_reason",
+    ]
+    assert mongo.saved is not None
+    assert mongo.saved["actual_close_date"] == "2026-06-05"
+    assert mongo.saved["close_reason"] == "security review failed"
+
+
+def test_update_deal_rejects_metadata_update_without_note() -> None:
+    mongo = FakeMongo(_deal())
+
+    with pytest.raises(MCPError) as exc_info:
+        update_deal.handle(
+            mongo=mongo,
+            deal_id="deal-1",
+            industry="Finance",
+            confirmed_by_user=True,
+        )
+
+    assert exc_info.value.error_code == ErrorCode.INVALID_INPUT
+    assert "update_note" in exc_info.value.message
+    assert mongo.saved is None
+
+
+def test_update_deal_rejects_actual_close_date_for_open_deal() -> None:
+    mongo = FakeMongo(_deal(deal_stage="proposal"))
+
+    with pytest.raises(MCPError) as exc_info:
+        update_deal.handle(
+            mongo=mongo,
+            deal_id="deal-1",
+            actual_close_date="2026-06-05",
+            update_note="user confirmed date",
+            confirmed_by_user=True,
+        )
+
+    assert exc_info.value.error_code == ErrorCode.INVALID_INPUT
+    assert "won or lost" in exc_info.value.message
+    assert exc_info.value.hint["fix"] == "Use update_stage to move the deal to won/lost first."
+    assert mongo.saved is None
+
+
+def test_update_deal_rejects_close_reason_for_non_lost_deal() -> None:
+    mongo = FakeMongo(_deal(deal_stage="won"))
+
+    with pytest.raises(MCPError) as exc_info:
+        update_deal.handle(
+            mongo=mongo,
+            deal_id="deal-1",
+            close_reason="not applicable",
+            update_note="user confirmed reason",
+            confirmed_by_user=True,
+        )
+
+    assert exc_info.value.error_code == ErrorCode.INVALID_INPUT
+    assert "lost deals" in exc_info.value.message
+    assert mongo.saved is None
+
+
+def test_update_deal_combines_value_and_metadata_updates() -> None:
+    mongo = FakeMongo(_deal(deal_stage="proposal"))
+
+    result = update_deal.handle(
+        mongo=mongo,
+        deal_id="deal-1",
+        deal_size_status="quoted",
+        deal_size_note="quote sent and user confirmed",
+        deal_size_krw=20_000_000,
+        expected_close_date="2026-07-01",
+        update_note="user confirmed revised close date",
+        confirmed_by_user=True,
+    )
+
+    assert result["changed_value_fields"] == [
+        "deal_size_krw",
+        "deal_size_status",
+        "deal_size_note",
+    ]
+    assert result["changed_metadata_fields"] == [
+        "expected_close_date",
+        "expected_close_date_source",
+    ]
+    assert mongo.saved is not None
+    assert mongo.saved["deal_value_history"][-1]["deal_size_status"] == "quoted"
+    assert mongo.saved["deal_metadata_history"][-1]["new_values"] == {
+        "expected_close_date": "2026-07-01",
+        "expected_close_date_source": "user_provided",
+    }
+
+
 def test_update_deal_rejects_invalid_value_combination_before_storage() -> None:
     mongo = FakeMongo(_deal())
 
@@ -185,3 +331,40 @@ def test_mcp_update_deal_forwards_value_update(monkeypatch) -> None:
     assert result["new_deal_value"]["deal_size_status"] == "quoted"
     assert mongo.saved is not None
     assert mongo.saved["deal_value_history"][-1]["deal_size_status"] == "quoted"
+
+
+def test_mcp_update_deal_forwards_metadata_update(monkeypatch) -> None:
+    mongo = FakeMongo(_deal())
+    monkeypatch.setattr(_context, "mongo", lambda: mongo)
+
+    result = mcp_server.update_deal(
+        "deal-1",
+        industry="Finance",
+        expected_close_date="2026-07-20",
+        update_note="user confirmed metadata",
+        confirmed_by_user=True,
+    )
+
+    assert result["ok"] is True
+    assert result["changed_metadata_fields"] == [
+        "industry",
+        "expected_close_date",
+        "expected_close_date_source",
+    ]
+    assert mongo.saved is not None
+    assert mongo.saved["industry"] == "Finance"
+
+
+def test_mcp_runtime_update_deal_exposes_metadata_params() -> None:
+    tools = asyncio.run(mcp_server.app.list_tools())
+    tool = next(item for item in tools if item.name == "update_deal")
+
+    assert tool.parameters["required"] == ["deal_id"]
+    assert {
+        "company",
+        "industry",
+        "expected_close_date",
+        "actual_close_date",
+        "close_reason",
+        "update_note",
+    }.issubset(tool.parameters["properties"])

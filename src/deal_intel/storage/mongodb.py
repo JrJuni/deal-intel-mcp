@@ -4,6 +4,18 @@ import os
 from typing import Any
 
 
+def unarchived_deal_filter() -> dict[str, Any]:
+    """Match visible deals, including legacy docs that predate archive fields."""
+    return {"archived": {"$ne": True}}
+
+
+def with_unarchived_deal_filter(query: dict | None = None) -> dict:
+    """Compose a Mongo query with the standard archived exclusion filter."""
+    merged = dict(query or {})
+    merged.setdefault("archived", {"$ne": True})
+    return merged
+
+
 def preload_driver() -> None:
     """Import pymongo on the main thread before background MongoDB work starts."""
     import pymongo  # noqa: F401
@@ -52,6 +64,13 @@ class MongoDBClient:
         # list_deals: no stage filter, updated_at sort only.
         col.create_index([("updated_at", DESCENDING)], name="updated_desc")
 
+        # Default read paths hide archived deals while preserving legacy docs
+        # where the field is absent.
+        col.create_index(
+            [("archived", ASCENDING), ("updated_at", DESCENDING)],
+            name="archived_updated",
+        )
+
         # BI / get_insights: sort by health score (used in Phase 2).
         col.create_index(
             [("meddpicc_latest.health_pct", DESCENDING)],
@@ -62,6 +81,12 @@ class MongoDBClient:
         col.create_index(
             [("deal_stage", ASCENDING), ("customer_themes.theme_key", ASCENDING)],
             name="stage_customer_theme",
+        )
+
+        audit_col = self._get_db().delete_audit_logs
+        audit_col.create_index(
+            [("deal_id", ASCENDING), ("deleted_at", DESCENDING)],
+            name="delete_audit_deal_deleted",
         )
 
     def ping(self) -> dict:
@@ -89,7 +114,7 @@ class MongoDBClient:
 
     def list_deals(self, *, stage: str | None = None, limit: int = 50) -> list[dict]:
         db = self._get_db()
-        query: dict = {}
+        query = with_unarchived_deal_filter()
         if stage:
             query["deal_stage"] = stage
         cursor = db.deals.find(query, {"_id": 0, "meetings.raw_notes": 0}).sort(
@@ -105,7 +130,7 @@ class MongoDBClient:
             "contacts": 0,
             "summary_embedding": 0,
         }
-        cursor = db.deals.find({}, projection)
+        cursor = db.deals.find(with_unarchived_deal_filter(), projection)
         return list(cursor)
 
     def count_deals(self, query: dict) -> int:
@@ -115,7 +140,7 @@ class MongoDBClient:
         return list(self._get_db().deals.aggregate(pipeline))
 
     def list_deals_for_theme_backfill(self, *, limit: int = 0) -> list[dict]:
-        cursor = self._get_db().deals.find({}, {"_id": 0})
+        cursor = self._get_db().deals.find(with_unarchived_deal_filter(), {"_id": 0})
         if limit > 0:
             cursor = cursor.limit(limit)
         return list(cursor)
@@ -133,7 +158,9 @@ class MongoDBClient:
         """
         db = self._get_db()
         cursor = db.deals.find(
-            {"summary_embedding": {"$exists": True, "$ne": None}},
+            with_unarchived_deal_filter(
+                {"summary_embedding": {"$exists": True, "$ne": None}}
+            ),
             {
                 "_id": 0,
                 "deal_id": 1,
@@ -188,6 +215,7 @@ class MongoDBClient:
                     "limit": limit,
                 }
             },
+            {"$match": with_unarchived_deal_filter()},
             {
                 "$project": {
                     "_id": 0,
@@ -203,3 +231,12 @@ class MongoDBClient:
             },
         ]
         return list(col.aggregate(pipeline))
+
+    # --- lifecycle audit / hard delete ---
+
+    def insert_delete_audit_log(self, entry: dict) -> None:
+        self._get_db().delete_audit_logs.insert_one(entry)
+
+    def hard_delete_deal(self, deal_id: str) -> int:
+        result = self._get_db().deals.delete_one({"deal_id": deal_id})
+        return int(result.deleted_count)

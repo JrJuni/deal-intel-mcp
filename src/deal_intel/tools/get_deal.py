@@ -13,4 +13,11 @@ def handle(mongo: MongoDBClient, *, deal_id: str) -> dict:
             message=f"deal_id {deal_id!r} not found",
             retryable=False,
         )
-    return {"ok": True, "deal": deal}
+    result = {"ok": True, "deal": deal}
+    if deal.get("archived") is True:
+        result["warnings"] = ["deal_archived"]
+        result["archive"] = {
+            "archived_at": deal.get("archived_at"),
+            "archived_reason": deal.get("archived_reason"),
+        }
+    return result

@@ -11,7 +11,7 @@ from deal_intel.schema.metrics import (
     WinRateSettings,
 )
 from deal_intel.schema.pipeline_metrics import build_pipeline_health_summary
-from deal_intel.storage.mongodb import MongoDBClient
+from deal_intel.storage.mongodb import MongoDBClient, with_unarchived_deal_filter
 
 _DIMS = [
     "metrics", "economic_buyer", "decision_criteria",
@@ -53,7 +53,7 @@ def _dim_avg_accumulators() -> dict:
 def _meddpicc_profile(col, stage: str) -> dict:
     """Average MEDDPICC scores for a given stage."""
     pipeline = [
-        {"$match": {"deal_stage": stage}},
+        {"$match": with_unarchived_deal_filter({"deal_stage": stage})},
         {"$group": {
             "_id": None,
             "count": {"$sum": 1},
@@ -142,8 +142,9 @@ def _compare_won_lost(col) -> dict:
 
 
 def _gap_frequency(col) -> dict:
+    active_query = with_unarchived_deal_filter({"deal_stage": _ACTIVE_STAGES})
     pipeline = [
-        {"$match": {"deal_stage": _ACTIVE_STAGES}},
+        {"$match": active_query},
         {"$project": {"gaps": "$meddpicc_latest.gaps", "deal_stage": 1}},
         {"$unwind": "$gaps"},
         {"$group": {"_id": "$gaps", "count": {"$sum": 1}}},
@@ -151,7 +152,7 @@ def _gap_frequency(col) -> dict:
     ]
     rows = [{"dimension": r["_id"], "gap_count": r["count"]} for r in col.aggregate(pipeline)]
     active_count_pipeline = [
-        {"$match": {"deal_stage": _ACTIVE_STAGES}},
+        {"$match": active_query},
         {"$count": "n"},
     ]
     active_res = list(col.aggregate(active_count_pipeline))
@@ -165,7 +166,7 @@ def _industry_benchmark(
 ) -> dict:
     settings = settings or WinRateSettings()
     pipeline = [
-        {"$match": {"industry": {"$ne": None}}},
+        {"$match": with_unarchived_deal_filter({"industry": {"$ne": None}})},
         {"$group": {
             "_id": "$industry",
             "deal_count": {"$sum": 1},
@@ -231,7 +232,9 @@ def _industry_benchmark(
 def _stage_velocity(col) -> dict:
     """Compute average days spent per stage from stage_history entries."""
     deals = list(col.find(
-        {"stage_history.1": {"$exists": True}},  # at least 2 history entries
+        with_unarchived_deal_filter(
+            {"stage_history.1": {"$exists": True}}
+        ),  # at least 2 history entries
         {"_id": 0, "stage_history": 1},
     ))
 

@@ -107,18 +107,24 @@ def update_stage(
 @app.tool()
 def update_deal(
     deal_id: str,
-    deal_size_status: str,
-    deal_size_note: str,
+    deal_size_status: str = "",
+    deal_size_note: str = "",
     confirmed_by_user: bool = False,
     deal_size_krw: int | None = None,
     deal_size_low_krw: int | None = None,
     deal_size_high_krw: int | None = None,
+    company: str = "",
+    industry: str = "",
+    expected_close_date: str = "",
+    actual_close_date: str = "",
+    close_reason: str = "",
+    update_note: str = "",
 ) -> dict:
-    """Update an existing deal's value fields after user confirmation.
+    """Update confirmed value fields and selected metadata.
 
-    First version only updates deal_size_krw, deal_size_low_krw,
-    deal_size_high_krw, deal_size_status, and deal_size_note. It requires
-    confirmed_by_user=true and a non-empty deal_size_note.
+    Requires confirmed_by_user=true. Value updates require deal_size_status and
+    deal_size_note. Metadata updates require update_note or deal_size_note.
+    Does not change deal_stage; use update_stage for stage transitions.
     """
     try:
         from deal_intel import _context
@@ -133,6 +139,95 @@ def update_deal(
             deal_size_krw=deal_size_krw,
             deal_size_low_krw=deal_size_low_krw,
             deal_size_high_krw=deal_size_high_krw,
+            company=company or None,
+            industry=industry or None,
+            expected_close_date=expected_close_date or None,
+            actual_close_date=actual_close_date or None,
+            close_reason=close_reason or None,
+            update_note=update_note or None,
+        )
+    except Exception as exc:
+        return envelope_from_exception(exc, stage=Stage.STORAGE)
+
+
+@app.tool()
+def archive_deal(
+    deal_id: str,
+    expected_company: str,
+    archive_reason: str,
+    confirmed_by_user: bool = False,
+) -> dict:
+    """Archive a deal so BI/read paths hide it without hard deletion.
+
+    Requires confirmed_by_user=true, exact expected_company match, and a reason.
+    Archived deals remain retrievable through get_deal with an archived warning.
+    """
+    try:
+        from deal_intel import _context
+        from deal_intel.tools import archive_deal as _t
+
+        return _t.handle(
+            mongo=_context.mongo(),
+            deal_id=deal_id,
+            expected_company=expected_company,
+            archive_reason=archive_reason,
+            confirmed_by_user=confirmed_by_user,
+        )
+    except Exception as exc:
+        return envelope_from_exception(exc, stage=Stage.STORAGE)
+
+
+@app.tool()
+def restore_deal(
+    deal_id: str,
+    expected_company: str,
+    restore_reason: str,
+    confirmed_by_user: bool = False,
+) -> dict:
+    """Restore an archived deal back into BI/read paths.
+
+    Requires confirmed_by_user=true, exact expected_company match, and a reason.
+    """
+    try:
+        from deal_intel import _context
+        from deal_intel.tools import restore_deal as _t
+
+        return _t.handle(
+            mongo=_context.mongo(),
+            deal_id=deal_id,
+            expected_company=expected_company,
+            restore_reason=restore_reason,
+            confirmed_by_user=confirmed_by_user,
+        )
+    except Exception as exc:
+        return envelope_from_exception(exc, stage=Stage.STORAGE)
+
+
+@app.tool()
+def delete_deal(
+    deal_id: str,
+    expected_company: str,
+    delete_reason: str,
+    confirmed_by_user: bool = False,
+    dry_run: bool = True,
+) -> dict:
+    """Hard-delete an archived deal after a dry-run preview.
+
+    dry_run defaults to true and writes nothing. Actual deletion requires an
+    already archived deal, confirmed_by_user=true, exact expected_company
+    match, and a delete reason. A safe audit snapshot is stored before delete.
+    """
+    try:
+        from deal_intel import _context
+        from deal_intel.tools import delete_deal as _t
+
+        return _t.handle(
+            mongo=_context.mongo(),
+            deal_id=deal_id,
+            expected_company=expected_company,
+            delete_reason=delete_reason,
+            confirmed_by_user=confirmed_by_user,
+            dry_run=dry_run,
         )
     except Exception as exc:
         return envelope_from_exception(exc, stage=Stage.STORAGE)

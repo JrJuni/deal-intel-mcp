@@ -249,7 +249,7 @@ def test_metrics_read_path_excludes_raw_notes_contacts_and_vectors() -> None:
     result = client.list_deals_for_metrics()
 
     assert result == [{"deal_id": "deal-1"}]
-    assert db.deals.query == {}
+    assert db.deals.query == {"archived": {"$ne": True}}
     assert db.deals.projection == {
         "_id": 0,
         "meetings.raw_notes": 0,

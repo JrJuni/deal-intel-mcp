@@ -19,8 +19,8 @@ API keys are optional in the form — the server also loads them from the repo's
 ```bash
 cd mcpb
 mcpb validate manifest.json
-mcpb pack . deal-intel-mcp-0.1.5.mcpb   # output goes into mcpb/ folder
-mcpb info deal-intel-mcp-0.1.5.mcpb
+mcpb pack . deal-intel-mcp-0.1.6.mcpb   # output goes into mcpb/ folder
+mcpb info deal-intel-mcp-0.1.6.mcpb
 ```
 
 `mcpb` CLI: `npm install -g @anthropic-ai/mcpb` (Node.js 18+).
@@ -37,7 +37,7 @@ The `.mcpb` output is gitignored (build artifact, version-stamped in filename).
    - **Use ChatGPT Plus/Pro** — checked by default; run `deal-intel login-chatgpt` once in a terminal after install to authenticate
    - **Anthropic API key** — leave blank if using ChatGPT OAuth
 4. Restart Claude Desktop
-5. Verify all 9 tools appear, including `get_customer_themes` and `search_deals`
+5. Verify all 16 tools appear, including `archive_deal`, `delete_deal`, and `search_deals`
 
 ## Version bump
 

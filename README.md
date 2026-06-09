@@ -6,6 +6,26 @@ Claude Desktop이나 MCP를 연결한 Codex에서 말로 하면 된다. 별도 C
 
 ---
 
+## 실제 화면
+
+쌓인 딜 데이터를 두 가지 방식으로 본다.
+
+### 1. MongoDB Atlas Charts — Weekly Pipeline Review
+
+![Atlas Charts Weekly Pipeline Review 대시보드](docs/images/atlas-dashboard.png)
+
+Active/Attention 딜 수, 단계별 파이프라인 금액, MEDDPICC health band 분포, gap 분포, Open 파이프라인 금액을 한 화면에. 각 차트의 aggregation 파이프라인은 `render-atlas-dashboard` CLI로 생성해 Atlas Charts에 붙여넣는다 (아래 "Atlas Charts Dashboard" 섹션 참고).
+
+### 2. Claude / Codex 인-챗 분석 렌더링
+
+![Claude 인-챗 렌더링 대시보드](docs/images/chat-dashboard.png)
+
+MCP 도구 결과를 그대로 받아 win rate, stage funnel, Won vs Lost MEDDPICC gap, data quality coverage, attention items까지 대화 안에서 렌더링한다. 별도 앱 없이 회의록 한 건 붙여넣는 것에서 시작한다.
+
+> 위 화면의 회사명·금액은 모두 데모용 가상 데이터다.
+
+---
+
 ## 이게 뭔가요?
 
 **MEDDPICC**란 B2B 영업에서 쓰는 딜 자격 심사 프레임워크다. 7가지 항목으로 "이 고객이 실제로 살 가능성이 있는가"를 점수화한다.

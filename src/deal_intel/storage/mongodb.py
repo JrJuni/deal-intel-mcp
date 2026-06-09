@@ -301,3 +301,54 @@ class MongoDBClient:
             upsert=True,
         )
         return result.upserted_id is not None
+
+    def list_analytics_snapshots(
+        self,
+        *,
+        start_date: str,
+        end_date: str,
+        stage: str | None = None,
+        industry: str | None = None,
+    ) -> list[dict]:
+        query: dict[str, Any] = {"as_of": {"$gte": start_date, "$lte": end_date}}
+        if stage:
+            query["deal_stage"] = stage
+        if industry:
+            query["industry"] = industry
+        projection = {
+            "_id": 0,
+            "event_id": 1,
+            "event_type": 1,
+            "occurred_at": 1,
+            "created_at": 1,
+            "as_of": 1,
+            "timezone": 1,
+            "deal_id": 1,
+            "company": 1,
+            "industry": 1,
+            "deal_stage": 1,
+            "deal_size_krw": 1,
+            "deal_size_low_krw": 1,
+            "deal_size_high_krw": 1,
+            "deal_size_status": 1,
+            "expected_close_date": 1,
+            "expected_close_date_source": 1,
+            "actual_close_date": 1,
+            "close_reason_present": 1,
+            "health_pct": 1,
+            "health_band": 1,
+            "meddpicc_filled_count": 1,
+            "meddpicc_gap_count": 1,
+            "meddpicc_gaps": 1,
+            "days_in_stage": 1,
+            "stuck_threshold_days": 1,
+            "is_stuck": 1,
+            "close_date_status": 1,
+            "is_overdue": 1,
+            "overdue_days": 1,
+            "attention_reasons": 1,
+        }
+        cursor = self._get_db().analytics_snapshots.find(query, projection).sort(
+            [("as_of", 1), ("occurred_at", 1)]
+        )
+        return list(cursor)

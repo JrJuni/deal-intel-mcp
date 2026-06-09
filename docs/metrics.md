@@ -285,8 +285,8 @@ reporting:
   UTC `generated_at`.
 - Callers may supply `as_of` as `YYYY-MM-DD` for reproducible date arithmetic.
 - An explicit `as_of` evaluates the current collection using that date. It
-  does not reconstruct historical document state. Trend reporting will read
-  from the M5 `analytics_snapshots` collection once `pipeline_trend` is added.
+  does not reconstruct historical document state for current-state metrics.
+  `pipeline_trend` reads from the M5 `analytics_snapshots` collection.
 - Invalid timezones fail as configuration errors. Invalid `as_of` values fail
   as input errors.
 
@@ -329,6 +329,33 @@ deal amount.
 `get_metrics(metric_type="pipeline_health")` is the direct MCP metric view over
 the same calculator. It supports exact `stage` and `industry` filters and
 returns the full summary surface without LLM or embedding work.
+
+## Milestone 5.6 - Pipeline Trend
+
+`get_metrics(metric_type="pipeline_trend")` reads the M5
+`analytics_snapshots` collection and compares the latest snapshot per deal at
+the start and end of a lookback window.
+
+Defaults and limits:
+
+- `lookback_days`: default `7`, valid range `1..365`
+- `as_of`: business end date, default from reporting timezone
+- `stage`: optional exact snapshot `deal_stage` match
+- `industry`: optional exact snapshot `industry` match
+
+The trend summary includes:
+
+- `window`: start/end date and lookback length
+- `start` and `end`: active/open counts, open pipeline value, average health,
+  attention count, won count, lost count
+- `delta`: end minus start for each comparable KPI
+- `stage_changes`: stage transitions plus deals entering or exiting the
+  window baseline
+- `warnings`: `no_snapshots_in_window`, `missing_start_baseline`,
+  `missing_end_baseline`, `insufficient_snapshots`
+
+The calculator dedupes repeated `event_id` snapshots defensively. It does not
+call an LLM, does not use embeddings, and does not write to MongoDB.
 
 ## Milestone 4.1 - Deal Gaps
 

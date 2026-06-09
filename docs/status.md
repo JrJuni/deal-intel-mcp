@@ -6,6 +6,38 @@ contracts live in [baseline.md](baseline.md) and [metrics.md](metrics.md).
 
 ## Latest Update - 2026-06-09
 
+### BI Reporting Milestone 5.6 pipeline_trend metric
+
+Implemented:
+
+- Added `get_metrics(metric_type="pipeline_trend")`.
+- Added `lookback_days`, default `7`, max `365`.
+- Added `MongoDBClient.list_analytics_snapshots()` with a restricted
+  projection over `analytics_snapshots`.
+- Added pure `build_pipeline_trend_summary()` calculator.
+- Trend output compares the window start and end latest snapshots by deal.
+- Trend output includes active/open counts, open pipeline value, average health,
+  attention count, won/lost counts, stage transitions, and data sufficiency
+  warnings.
+- Duplicate `event_id` snapshots are ignored defensively by the calculator.
+- No LLM, embedding, or MongoDB writes are used by the trend read path.
+
+Verification so far:
+
+- M5.6 targeted tests:
+  `24 passed`
+- Related BI regression tests:
+  `21 passed`
+- Full pytest with workspace-local temp:
+  `216 passed`
+- Ruff:
+  `All checks passed`
+- Live Atlas read smoke:
+  `ok=true`, `metric_type=pipeline_trend`, `lookback_days=7`,
+  `snapshot_count=0`, expected insufficiency warnings returned
+
+## History
+
 ### BI Reporting Milestone 5.1-5.5 analytics snapshot foundation
 
 Implemented:
@@ -35,8 +67,6 @@ Verification so far:
 - Live Atlas write smoke:
   first insert `true`, duplicate insert `false`, found before cleanup `1`,
   cleanup deleted `1`
-
-## History
 
 ### BI Reporting Milestone 4.4 onboarding/demo sample data
 
@@ -148,6 +178,6 @@ Verification:
 
 ## Next
 
-1. M5.6 `pipeline_trend` metric using `analytics_snapshots`.
-2. M5.7 trend CSV.
-3. M5.8 Atlas trend chart.
+1. M5.7 trend CSV.
+2. M5.8 Atlas trend chart.
+3. M6 Customer Themes expansion.

@@ -377,14 +377,16 @@ def get_metrics(
     stage: str = "",
     industry: str = "",
     as_of: str = "",
+    lookback_days: int = 7,
 ) -> dict:
     """Return shared BI metrics for direct assistant answers.
 
-    First supported metric_type: pipeline_health.
+    Supported metric_type values: pipeline_health, pipeline_trend.
     Optional filters:
     - stage: exact pipeline stage match
     - industry: exact stored industry match
     - as_of: YYYY-MM-DD business date for stuck/overdue calculations
+    - lookback_days: trend window length, used only by pipeline_trend
     """
     try:
         from deal_intel import _context
@@ -397,6 +399,7 @@ def get_metrics(
             stage=stage or None,
             industry=industry or None,
             as_of=as_of or None,
+            lookback_days=lookback_days,
         )
     except Exception as exc:
         return envelope_from_exception(exc, stage=Stage.STORAGE)

@@ -33,8 +33,9 @@ Milestone 1.2 상태:
 
 ### #2 `get_metrics` MCP 도구
 
-완료. 첫 view는 `pipeline_health`만 지원한다. stage·industry 필터, KPI, stage별 집계,
-coverage와 warning을 반환한다. LLM과 embedding은 사용하지 않는다.
+완료. `pipeline_health`와 `pipeline_trend`를 지원한다. stage·industry 필터,
+KPI, stage별 집계, coverage, warning, snapshot 기반 추세를 반환한다.
+LLM과 embedding은 사용하지 않는다.
 
 ### #3 Weekly Pipeline 보고서
 
@@ -100,7 +101,11 @@ context에서 `create_sample_data`와 `delete_sample_data`로만 관리한다.
 연결했다. Snapshot은 `event_id` 기준 idempotent upsert이며, 실패해도 원래
 딜 작업은 중단하지 않고 응답에 warning만 반환한다.
 
-남은 범위: `pipeline_trend`, 추세 CSV, Atlas 추세 차트를 순서대로 추가한다.
+완료: M5.6 `pipeline_trend` metric. `get_metrics`에서
+`metric_type="pipeline_trend"`를 지원하며, 기본 7일 lookback으로
+`analytics_snapshots`의 시작/종료 latest snapshot을 비교한다.
+
+남은 범위: 추세 CSV, Atlas 추세 차트를 순서대로 추가한다.
 
 ---
 

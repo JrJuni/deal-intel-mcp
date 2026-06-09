@@ -51,7 +51,7 @@ All MCP boundaries return structured errors with:
 | `delete_sample_data` | None | `dataset`, `demo_database`, `confirmed_by_user`, `dry_run` | `ok`, `dataset`, `sample_batch_id`, `primary_database`, `demo_database`, `dry_run`, `existing_count`, `sample_deals`, `storage_written` | Defaults to dry-run. Actual deletes require confirmation and delete only records with the known sample batch marker in the demo database |
 | `get_deal` | `deal_id` | None | `ok`, `deal` | Read only; includes full meeting history and raw notes |
 | `list_deals` | None | `stage`, `limit`, `as_of` | `ok`, `as_of`, `timezone`, `generated_at`, `deals`, `count`, `data_quality` | Read only; returns health, timing, attention, and field-quality results while excluding meeting raw notes |
-| `get_metrics` | None | `metric_type`, `stage`, `industry`, `as_of` | `ok`, `metric_type`, `as_of`, `timezone`, `generated_at`, `filters`, `kpis`, `stage_breakdown`, `health_bands`, `attention_reasons`, `pipeline_values`, `win_rate`, `data_quality`, `warnings` | Read only; uses the shared metric calculator and restricted metric projection |
+| `get_metrics` | None | `metric_type`, `stage`, `industry`, `as_of`, `lookback_days` | `ok`, `metric_type`, `as_of`, `timezone`, `generated_at`, `filters`, metric-specific summary fields, `warnings` | Read only; `pipeline_health` uses the shared deal metric calculator and restricted deal projection; `pipeline_trend` uses `analytics_snapshots` and a restricted snapshot projection |
 | `get_deal_gaps` | None | `as_of`, `stage`, `industry`, `deal_id`, `min_priority`, `limit` | `ok`, `as_of`, `timezone`, `generated_at`, `filters`, `summary`, `deals`, `warnings` | Read only; uses the restricted metric projection, prioritizes sales follow-up gaps, and excludes raw notes, contacts, and embeddings |
 | `export_report` | None | `report_type`, `output_dir`, `stage`, `industry`, `as_of` | `ok`, `report_type`, `as_of`, `timezone`, `generated_at`, `filters`, `row_count`, `warnings`, `metrics`, `output_dir`, `artifacts`, `csv_path`, `markdown_path` | Reads through the restricted metric projection and writes local CSV/Markdown report artifacts |
 | `get_insights` | `query_type` | `as_of` | `ok`, `query_type`, `as_of`, `timezone`, `generated_at`, query-specific aggregate fields | Read only over the current collection snapshot |
@@ -62,6 +62,7 @@ All MCP boundaries return structured errors with:
 `get_metrics.metric_type` currently supports:
 
 - `pipeline_health`
+- `pipeline_trend`
 
 `create_deal` validates initial deal-value fields with the shared Part B metric
 contract before storage. Valid `deal_size_status` values are `unknown`,
@@ -116,8 +117,12 @@ original tool call; the response includes `analytics_snapshot.ok: false` with
 notes, contacts, and embeddings.
 
 `get_metrics` accepts exact-match `stage` and `industry` filters. Invalid
-metric types, invalid stages, invalid `as_of`, and invalid metric config fail
-before MongoDB storage access.
+metric types, invalid stages, invalid `as_of`, invalid trend `lookback_days`,
+and invalid metric config fail before MongoDB storage access.
+`pipeline_trend` defaults to `lookback_days: 7` and caps it at `365`. It
+compares the latest per-deal snapshot at the start and end of the window,
+dedupes duplicate `event_id` snapshots defensively, and returns insufficiency
+warnings when the snapshot history is too sparse.
 
 `get_deal_gaps` accepts exact-match `stage`, `industry`, and `deal_id` filters.
 Valid `min_priority` values are `low`, `medium`, and `high`; default is

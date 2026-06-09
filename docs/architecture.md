@@ -48,7 +48,7 @@
 | `create_sample_data` | 없음 | 없음 | 별도 demo database에 fictional onboarding sample deal 생성 |
 | `delete_sample_data` | 없음 | 없음 | 별도 demo database의 sample batch만 dry-run 기본으로 삭제 |
 | `list_deals` | 없음 | 없음 | health, stuck, overdue, attention 사유 집계 |
-| `get_metrics` | 없음 | 없음 | pipeline_health KPI, stage 집계, warning 반환 |
+| `get_metrics` | 없음 | 없음 | pipeline_health KPI와 pipeline_trend 추세 metric 반환 |
 | `get_deal_gaps` | 없음 | 없음 | 고객 공략에 필요한 미확인 정보와 follow-up question 우선순위화 |
 | `export_report` | 없음 | 없음 | weekly_pipeline CSV·Markdown 파일 생성 |
 | `get_insights` | 없음 | 없음 | 7가지 BI 집계와 legacy insight query |
@@ -171,11 +171,13 @@ src/deal_intel/
                         compute_meddpicc_latest(meetings, weights, gap_threshold, deal_stage)
                         → stage-aware gap 기준 (proposal/negotiation: identify_pain 임계값 완화)
                         Deal, Meeting Pydantic 모델
+    pipeline_trends.py  pipeline_trend 계산기 (analytics_snapshots 기반)
 
   storage/
     mongodb.py          MongoDBClient — pymongo lazy import
                         preload_driver()      — main thread에서 pymongo 선행 import
                         ensure_indexes()      — deals/audit/snapshot 인덱스 (idempotent)
+                        list_analytics_snapshots() — trend read projection
                         ensure_vector_index() — Atlas Vector Search index (createSearchIndexes)
                         search_by_embedding() — $vectorSearch aggregation pipeline
 
@@ -199,7 +201,7 @@ src/deal_intel/
     delete_sample_data.py
                         separate demo database sample deletion
     list_deals.py       _days_in_current_stage() → is_stuck → stuck 우선 / health_pct 역순 정렬
-    get_metrics.py      pipeline_health MCP metric view
+    get_metrics.py      pipeline_health / pipeline_trend MCP metric view
     get_deal_gaps.py    read-only prioritized sales follow-up gaps
     export_report.py    weekly_pipeline CSV·Markdown 파일 export
     get_insights.py     7가지 aggregation: pipeline_overview / win_patterns / loss_patterns /

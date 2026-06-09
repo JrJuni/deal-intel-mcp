@@ -58,6 +58,9 @@ class FakeUpdateResult:
 class FakeSnapshotCollection:
     def __init__(self) -> None:
         self.docs: dict[str, dict] = {}
+        self.query = None
+        self.projection = None
+        self.sort_spec = None
 
     def update_one(self, query: dict, update: dict, *, upsert: bool):
         assert upsert is True
@@ -66,6 +69,15 @@ class FakeSnapshotCollection:
             return FakeUpdateResult(None)
         self.docs[event_id] = deepcopy(update["$setOnInsert"])
         return FakeUpdateResult("inserted-id")
+
+    def find(self, query: dict, projection: dict):
+        self.query = deepcopy(query)
+        self.projection = deepcopy(projection)
+        return self
+
+    def sort(self, sort_spec: list[tuple[str, int]]):
+        self.sort_spec = sort_spec
+        return list(self.docs.values())
 
 
 class FakeDB:
@@ -134,6 +146,38 @@ def test_mongodb_snapshot_upsert_is_idempotent_by_event_id() -> None:
     assert mongo.upsert_analytics_snapshot({"event_id": "event-1"}) is True
     assert mongo.upsert_analytics_snapshot({"event_id": "event-1"}) is False
     assert len(mongo._db.analytics_snapshots.docs) == 1
+
+
+def test_mongodb_lists_analytics_snapshots_with_safe_projection() -> None:
+    mongo = MongoDBClient(uri="mongodb://unused")
+    mongo._db = FakeDB()
+    mongo._db.analytics_snapshots.docs["event-1"] = {
+        "event_id": "event-1",
+        "deal_id": "deal-1",
+    }
+
+    result = mongo.list_analytics_snapshots(
+        start_date="2026-06-02",
+        end_date="2026-06-09",
+        stage="discovery",
+        industry="IT",
+    )
+
+    assert result == [{"event_id": "event-1", "deal_id": "deal-1"}]
+    assert mongo._db.analytics_snapshots.query == {
+        "as_of": {"$gte": "2026-06-02", "$lte": "2026-06-09"},
+        "deal_stage": "discovery",
+        "industry": "IT",
+    }
+    projection = mongo._db.analytics_snapshots.projection
+    assert projection["_id"] == 0
+    assert "raw_notes" not in projection
+    assert "contacts" not in projection
+    assert "summary_embedding" not in projection
+    assert mongo._db.analytics_snapshots.sort_spec == [
+        ("as_of", 1),
+        ("occurred_at", 1),
+    ]
 
 
 def test_record_analytics_snapshot_reports_duplicate_without_second_insert() -> None:

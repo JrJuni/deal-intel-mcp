@@ -463,7 +463,7 @@ Which dimension is most often missing?
 
 ---
 
-### 11. `search_deals` — semantic similar-deal search
+### 12. `search_deals` — semantic similar-deal search
 
 **When to use**: When you want to reference how past deals in similar situations played out. Search in natural language.
 
@@ -491,7 +491,7 @@ Any deals with a pattern similar to Hyundai Precision?
 
 ---
 
-### 12. `get_customer_themes` — frequency of customer concerns / selection criteria
+### 13. `get_customer_themes` — frequency of customer concerns / selection criteria
 
 **When to use**: To group meeting evidence across deals and see the topics customers worry about most. It counts by unique deal (not by meeting) and returns representative companies and evidence.
 

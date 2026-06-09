@@ -1,11 +1,19 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from pathlib import Path
 
 from deal_intel.errors import ErrorCode, MCPError, Stage
 from deal_intel.reports.csv_export import save_report_csv
 from deal_intel.reports.markdown_export import save_report_markdown
 from deal_intel.reports.markdown_summary import build_weekly_pipeline_markdown
+from deal_intel.reports.pipeline_trend import (
+    REPORT_TYPE as REPORT_TYPE_PIPELINE_TREND,
+)
+from deal_intel.reports.pipeline_trend import (
+    build_pipeline_trend_markdown,
+    build_pipeline_trend_report,
+)
 from deal_intel.reports.weekly_pipeline import build_weekly_pipeline_rows
 from deal_intel.schema.metrics import (
     VALID_STAGES,
@@ -13,10 +21,15 @@ from deal_intel.schema.metrics import (
     PipelineTimingSettings,
     ReportingContext,
 )
+from deal_intel.schema.pipeline_trends import (
+    DEFAULT_LOOKBACK_DAYS,
+    build_pipeline_trend_summary,
+    validate_lookback_days,
+)
 from deal_intel.storage.mongodb import MongoDBClient
 
 REPORT_TYPE_WEEKLY_PIPELINE = "weekly_pipeline"
-VALID_REPORT_TYPES = frozenset({REPORT_TYPE_WEEKLY_PIPELINE})
+VALID_REPORT_TYPES = frozenset({REPORT_TYPE_WEEKLY_PIPELINE, REPORT_TYPE_PIPELINE_TREND})
 DEFAULT_OUTPUT_DIR = Path("outputs") / "reports"
 
 
@@ -29,6 +42,7 @@ def handle(
     stage: str | None = None,
     industry: str | None = None,
     as_of: str | None = None,
+    lookback_days: int = DEFAULT_LOOKBACK_DAYS,
 ) -> dict:
     if report_type not in VALID_REPORT_TYPES:
         raise MCPError(
@@ -51,11 +65,13 @@ def handle(
         reporting = ReportingContext.from_config(cfg, as_of=as_of)
         health_thresholds = HealthBandThresholds.from_config(cfg)
         timing_settings = PipelineTimingSettings.from_config(cfg)
+        if report_type == REPORT_TYPE_PIPELINE_TREND:
+            validate_lookback_days(lookback_days)
         resolved_output_dir = _resolve_output_dir(cfg, output_dir)
     except ValueError as exc:
         error_code = (
             ErrorCode.INVALID_INPUT
-            if str(exc).startswith(("as_of", "output_dir"))
+            if str(exc).startswith(("as_of", "output_dir", "lookback_days"))
             else ErrorCode.CONFIG_ERROR
         )
         raise MCPError(
@@ -65,6 +81,40 @@ def handle(
             retryable=False,
         ) from exc
 
+    if report_type == REPORT_TYPE_PIPELINE_TREND:
+        return _handle_pipeline_trend(
+            mongo=mongo,
+            report_type=report_type,
+            output_dir=resolved_output_dir,
+            reporting=reporting,
+            stage=stage,
+            industry=industry,
+            lookback_days=lookback_days,
+        )
+
+    return _handle_weekly_pipeline(
+        mongo=mongo,
+        report_type=report_type,
+        output_dir=resolved_output_dir,
+        reporting=reporting,
+        health_thresholds=health_thresholds,
+        timing_settings=timing_settings,
+        stage=stage,
+        industry=industry,
+    )
+
+
+def _handle_weekly_pipeline(
+    *,
+    mongo: MongoDBClient,
+    report_type: str,
+    output_dir: Path,
+    reporting: ReportingContext,
+    health_thresholds: HealthBandThresholds,
+    timing_settings: PipelineTimingSettings,
+    stage: str | None,
+    industry: str | None,
+) -> dict:
     try:
         deals = mongo.list_deals_for_metrics()
     except Exception as exc:
@@ -89,14 +139,14 @@ def handle(
     )
     csv_result = save_report_csv(
         report,
-        output_dir=resolved_output_dir,
+        output_dir=output_dir,
         generated_at=reporting.generated_at,
     )
     _raise_io_error(csv_result)
     markdown_result = save_report_markdown(
         markdown_summary["markdown"],
         report_type=report_type,
-        output_dir=resolved_output_dir,
+        output_dir=output_dir,
         generated_at=reporting.generated_at,
     )
     _raise_io_error(markdown_result)
@@ -109,7 +159,80 @@ def handle(
         "row_count": report["row_count"],
         "warnings": report["warnings"],
         "metrics": markdown_summary["metrics"],
-        "output_dir": str(resolved_output_dir.resolve()),
+        "output_dir": str(output_dir.resolve()),
+        "artifacts": {
+            "csv": _artifact(csv_result),
+            "markdown": _artifact(markdown_result),
+        },
+        "csv_path": csv_result["path"],
+        "markdown_path": markdown_result["path"],
+    }
+
+
+def _handle_pipeline_trend(
+    *,
+    mongo: MongoDBClient,
+    report_type: str,
+    output_dir: Path,
+    reporting: ReportingContext,
+    stage: str | None,
+    industry: str | None,
+    lookback_days: int,
+) -> dict:
+    start_date = reporting.as_of - timedelta(days=lookback_days)
+    try:
+        snapshots = mongo.list_analytics_snapshots(
+            start_date=start_date.isoformat(),
+            end_date=reporting.as_of.isoformat(),
+            stage=stage,
+            industry=industry,
+        )
+    except Exception as exc:
+        raise MCPError(
+            error_code=ErrorCode.STORAGE_ERROR,
+            stage=Stage.STORAGE,
+            message=str(exc),
+            retryable=True,
+        ) from exc
+
+    summary = build_pipeline_trend_summary(
+        snapshots,
+        as_of=reporting.as_of,
+        lookback_days=lookback_days,
+        stage=stage,
+        industry=industry,
+    )
+    report = build_pipeline_trend_report(summary)
+    markdown_summary = build_pipeline_trend_markdown(
+        report,
+        generated_at=reporting.generated_at,
+    )
+    csv_result = save_report_csv(
+        report,
+        output_dir=output_dir,
+        generated_at=reporting.generated_at,
+    )
+    _raise_io_error(csv_result)
+    markdown_result = save_report_markdown(
+        markdown_summary["markdown"],
+        report_type=report_type,
+        output_dir=output_dir,
+        generated_at=reporting.generated_at,
+    )
+    _raise_io_error(markdown_result)
+
+    return {
+        "ok": True,
+        "report_type": report_type,
+        **reporting.to_dict(),
+        "filters": report["filters"],
+        "window": report["window"],
+        "snapshot_count": report["snapshot_count"],
+        "deal_count": report["deal_count"],
+        "row_count": report["row_count"],
+        "warnings": report["warnings"],
+        "metrics": markdown_summary["metrics"],
+        "output_dir": str(output_dir.resolve()),
         "artifacts": {
             "csv": _artifact(csv_result),
             "markdown": _artifact(markdown_result),

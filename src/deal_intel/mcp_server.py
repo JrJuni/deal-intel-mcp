@@ -452,15 +452,17 @@ def export_report(
     stage: str = "",
     industry: str = "",
     as_of: str = "",
+    lookback_days: int = 7,
 ) -> dict:
     """Export BI reports to local files and return absolute artifact paths.
 
-    First supported report_type: weekly_pipeline.
+    Supported report_type values: weekly_pipeline, pipeline_trend.
     Creates a CSV and Markdown report using the shared BI/reporting contracts.
     Optional filters:
     - stage: exact pipeline stage match
     - industry: exact stored industry match
     - as_of: YYYY-MM-DD business date for stuck/overdue calculations
+    - lookback_days: trend window length, used only by pipeline_trend
     - output_dir: local output directory; defaults to reporting.output_dir or outputs/reports
     """
     try:
@@ -475,6 +477,7 @@ def export_report(
             stage=stage or None,
             industry=industry or None,
             as_of=as_of or None,
+            lookback_days=lookback_days,
         )
     except Exception as exc:
         return envelope_from_exception(exc, stage=Stage.STORAGE)

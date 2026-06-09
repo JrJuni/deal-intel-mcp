@@ -357,6 +357,22 @@ The trend summary includes:
 The calculator dedupes repeated `event_id` snapshots defensively. It does not
 call an LLM, does not use embeddings, and does not write to MongoDB.
 
+## Milestone 5.7 - Pipeline Trend Report
+
+`export_report(report_type="pipeline_trend")` converts the M5.6 trend summary
+into local CSV and Markdown artifacts. It uses the same `lookback_days`,
+`as_of`, `stage`, and `industry` contracts as `get_metrics(metric_type="pipeline_trend")`.
+
+The CSV rows are intentionally flat:
+
+- KPI rows: start, end, and delta values
+- stage transition rows
+- stage entered rows
+- stage exited rows
+
+This report reads from `analytics_snapshots`, does not call an LLM or embedding
+provider, and does not write to MongoDB.
+
 ## Milestone 4.1 - Deal Gaps
 
 `get_deal_gaps` is the first user-facing data-quality action view. It does not

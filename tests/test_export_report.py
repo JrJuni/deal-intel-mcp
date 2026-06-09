@@ -25,8 +25,39 @@ class FakeMongo:
         raise AssertionError("export_report should use the metrics read path")
 
 
+class FakeTrendMongo:
+    def __init__(self, snapshots: list[dict]) -> None:
+        self.snapshots = deepcopy(snapshots)
+        self.snapshot_read_args: dict | None = None
+
+    def list_deals_for_metrics(self) -> list[dict]:
+        raise AssertionError("pipeline_trend should use the snapshot read path")
+
+    def list_analytics_snapshots(
+        self,
+        *,
+        start_date: str,
+        end_date: str,
+        stage: str | None = None,
+        industry: str | None = None,
+    ) -> list[dict]:
+        self.snapshot_read_args = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "stage": stage,
+            "industry": industry,
+        }
+        return deepcopy(self.snapshots)
+
+    def _get_db(self) -> None:
+        raise AssertionError("export_report should use the snapshot read path")
+
+
 class FailingMongo:
     def list_deals_for_metrics(self) -> list[dict]:
+        raise AssertionError("preflight should fail before storage")
+
+    def list_analytics_snapshots(self, **_kwargs) -> list[dict]:
         raise AssertionError("preflight should fail before storage")
 
     def _get_db(self) -> None:
@@ -161,6 +192,93 @@ def test_export_report_writes_weekly_pipeline_csv_and_markdown(tmp_path) -> None
     assert "summary_embedding" not in payload
 
 
+def test_export_report_writes_pipeline_trend_csv_and_markdown(tmp_path) -> None:
+    mongo = FakeTrendMongo(
+        [
+            {
+                "event_id": "start-a",
+                "as_of": "2026-06-03",
+                "occurred_at": "2026-06-03T00:00:00+00:00",
+                "deal_id": "deal-a",
+                "company": "Alpha",
+                "industry": "IT",
+                "deal_stage": "proposal",
+                "deal_size_krw": 100_000_000,
+                "health_pct": 70,
+                "attention_reasons": [],
+            },
+            {
+                "event_id": "end-a",
+                "as_of": "2026-06-10",
+                "occurred_at": "2026-06-10T00:00:00+00:00",
+                "deal_id": "deal-a",
+                "company": "Alpha",
+                "industry": "IT",
+                "deal_stage": "negotiation",
+                "deal_size_krw": 120_000_000,
+                "health_pct": 80,
+                "attention_reasons": ["overdue"],
+            },
+            {
+                "event_id": "end-b",
+                "as_of": "2026-06-10",
+                "occurred_at": "2026-06-10T00:00:00+00:00",
+                "deal_id": "deal-b",
+                "company": "Beta",
+                "industry": "IT",
+                "deal_stage": "discovery",
+                "deal_size_krw": 50_000_000,
+                "health_pct": 60,
+                "attention_reasons": [],
+            },
+        ]
+    )
+
+    result = export_report.handle(
+        mongo=mongo,
+        cfg={"reporting": {"output_dir": str(tmp_path)}},
+        report_type="pipeline_trend",
+        stage="proposal",
+        industry="IT",
+        as_of="2026-06-10",
+        lookback_days=7,
+    )
+
+    assert result["ok"] is True
+    assert result["report_type"] == "pipeline_trend"
+    assert result["window"] == {
+        "lookback_days": 7,
+        "start_date": "2026-06-03",
+        "end_date": "2026-06-10",
+    }
+    assert result["filters"] == {"stage": "proposal", "industry": "IT"}
+    assert mongo.snapshot_read_args == {
+        "start_date": "2026-06-03",
+        "end_date": "2026-06-10",
+        "stage": "proposal",
+        "industry": "IT",
+    }
+    assert result["metrics"]["start"]["open_pipeline_value_krw"] == 100_000_000
+    assert result["metrics"]["end"]["open_pipeline_value_krw"] == 100_000_000
+    assert result["metrics"]["delta"]["active_deal_count"] == 0
+    assert result["row_count"] >= 7
+
+    csv_path = Path(result["csv_path"])
+    markdown_path = Path(result["markdown_path"])
+    assert csv_path.name.startswith("pipeline_trend_")
+    assert markdown_path.name.startswith("pipeline_trend_")
+    assert csv_path.read_bytes().startswith(b"\xef\xbb\xbf")
+    assert "Pipeline Trend Report" in markdown_path.read_text(encoding="utf-8")
+
+    with csv_path.open(encoding="utf-8-sig", newline="") as file:
+        rows = list(csv.DictReader(file))
+    open_value = next(
+        row for row in rows if row["item"] == "open_pipeline_value_krw"
+    )
+    assert open_value["start_value"] == "100000000"
+    assert open_value["end_value"] == "100000000"
+
+
 def test_export_report_mcp_wrapper_forwards_to_handler(monkeypatch, tmp_path) -> None:
     mongo = FakeMongo([_deal("deal-1", company="PublicCo")])
     monkeypatch.setattr(_context, "mongo", lambda: mongo)
@@ -174,6 +292,31 @@ def test_export_report_mcp_wrapper_forwards_to_handler(monkeypatch, tmp_path) ->
 
     assert result["ok"] is True
     assert result["report_type"] == "weekly_pipeline"
+    assert Path(result["csv_path"]).exists()
+    assert Path(result["markdown_path"]).exists()
+
+
+def test_export_report_mcp_wrapper_forwards_pipeline_trend(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    mongo = FakeTrendMongo([])
+    monkeypatch.setattr(_context, "mongo", lambda: mongo)
+    monkeypatch.setattr(
+        _context,
+        "config",
+        lambda: {"reporting": {"output_dir": str(tmp_path)}},
+    )
+
+    result = mcp_server.export_report(
+        report_type="pipeline_trend",
+        as_of="2026-06-10",
+        lookback_days=14,
+    )
+
+    assert result["ok"] is True
+    assert result["report_type"] == "pipeline_trend"
+    assert result["window"]["lookback_days"] == 14
     assert Path(result["csv_path"]).exists()
     assert Path(result["markdown_path"]).exists()
 
@@ -201,13 +344,22 @@ def test_export_report_rejects_invalid_inputs_before_storage(tmp_path) -> None:
             report_type="weekly_pipeline",
             as_of="not-a-date",
         )
+    with pytest.raises(MCPError) as invalid_lookback:
+        export_report.handle(
+            mongo=FailingMongo(),
+            cfg={"reporting": {"output_dir": str(tmp_path)}},
+            report_type="pipeline_trend",
+            as_of="2026-06-10",
+            lookback_days=0,
+        )
 
     assert invalid_report_type.value.error_code == ErrorCode.INVALID_INPUT
     assert invalid_report_type.value.hint == {
-        "valid_report_types": ["weekly_pipeline"]
+        "valid_report_types": ["pipeline_trend", "weekly_pipeline"]
     }
     assert invalid_stage.value.error_code == ErrorCode.INVALID_INPUT
     assert invalid_as_of.value.error_code == ErrorCode.INVALID_INPUT
+    assert invalid_lookback.value.error_code == ErrorCode.INVALID_INPUT
 
 
 def test_export_report_returns_io_error_when_artifact_write_fails(tmp_path) -> None:

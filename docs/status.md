@@ -6,6 +6,35 @@ contracts live in [baseline.md](baseline.md) and [metrics.md](metrics.md).
 
 ## Latest Update - 2026-06-10
 
+### BI Reporting Milestone 5.7 trend CSV
+
+Implemented:
+
+- Added `export_report(report_type="pipeline_trend")`.
+- Added `lookback_days`, default `7`, max `365`, for trend reports.
+- Added pipeline trend CSV rows for KPI start/end/delta and stage movement.
+- Added LLM-free Markdown summary for pipeline trend reports.
+- Reused the M5.6 `build_pipeline_trend_summary()` calculator.
+- Trend report reads only `analytics_snapshots` through
+  `list_analytics_snapshots()` and does not read deal raw notes.
+- No LLM, embedding, or MongoDB writes are used by the trend export path.
+
+Verification:
+
+- M5.7 targeted tests:
+  `17 passed`
+- Related report/trend regression tests:
+  `33 passed`
+- Full pytest with workspace-local temp:
+  `228 passed`
+- Ruff:
+  `All checks passed`
+- Live Atlas read-only smoke:
+  `ok=true`, `report_type=pipeline_trend`, `snapshot_count=0`, `row_count=7`,
+  expected sparse-history warnings returned, CSV/Markdown artifacts created
+
+## History
+
 ### OpenAI API LLM provider support
 
 Implemented:
@@ -34,8 +63,6 @@ Verification:
 - Live OpenAI API smoke:
   not run because this environment does not currently have API credits/key;
   provider behavior is covered with mock HTTP tests.
-
-## History
 
 ### BI Reporting Milestone 5.6 pipeline_trend metric
 
@@ -207,6 +234,5 @@ Verification:
 
 ## Next
 
-1. M5.7 trend CSV.
-2. M5.8 Atlas trend chart.
-3. M6 Customer Themes expansion.
+1. M5.8 Atlas trend chart.
+2. M6 Customer Themes expansion.

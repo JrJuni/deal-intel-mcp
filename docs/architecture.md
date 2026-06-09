@@ -51,7 +51,7 @@
 | `list_deals` | 없음 | 없음 | health, stuck, overdue, attention 사유 집계 |
 | `get_metrics` | 없음 | 없음 | pipeline_health KPI와 pipeline_trend 추세 metric 반환 |
 | `get_deal_gaps` | 없음 | 없음 | 고객 공략에 필요한 미확인 정보와 follow-up question 우선순위화 |
-| `export_report` | 없음 | 없음 | weekly_pipeline CSV·Markdown 파일 생성 |
+| `export_report` | 없음 | 없음 | weekly_pipeline / pipeline_trend CSV·Markdown 파일 생성 |
 | `get_insights` | 없음 | 없음 | 7가지 BI 집계와 legacy insight query |
 | `get_customer_themes` | 없음 | 없음 | 고객 고민 주제별 고유 딜 수·근거 집계 |
 | `analyze_deal` | 1회 (전략) | 없음 | 갭 분석 + BD 전략 생성 |
@@ -205,7 +205,7 @@ src/deal_intel/
     list_deals.py       _days_in_current_stage() → is_stuck → stuck 우선 / health_pct 역순 정렬
     get_metrics.py      pipeline_health / pipeline_trend MCP metric view
     get_deal_gaps.py    read-only prioritized sales follow-up gaps
-    export_report.py    weekly_pipeline CSV·Markdown 파일 export
+    export_report.py    weekly_pipeline / pipeline_trend CSV·Markdown 파일 export
     get_insights.py     7가지 aggregation: pipeline_overview / win_patterns / loss_patterns /
                         compare_won_lost / gap_frequency / industry_benchmark / stage_velocity
     analyze_deal.py     MEDDPICC 집계 텍스트 → LLM → 갭 분석 + BD 전략

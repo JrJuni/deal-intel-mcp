@@ -72,7 +72,7 @@ available.
 | `list_deals` | None | `stage`, `limit`, `as_of` | `ok`, `as_of`, `timezone`, `generated_at`, `deals`, `count`, `data_quality` | Read only; returns health, timing, attention, and field-quality results while excluding meeting raw notes |
 | `get_metrics` | None | `metric_type`, `stage`, `industry`, `as_of`, `lookback_days` | `ok`, `metric_type`, `as_of`, `timezone`, `generated_at`, `filters`, metric-specific summary fields, `warnings` | Read only; `pipeline_health` uses the shared deal metric calculator and restricted deal projection; `pipeline_trend` uses `analytics_snapshots` and a restricted snapshot projection |
 | `get_deal_gaps` | None | `as_of`, `stage`, `industry`, `deal_id`, `min_priority`, `limit` | `ok`, `as_of`, `timezone`, `generated_at`, `filters`, `summary`, `deals`, `warnings` | Read only; uses the restricted metric projection, prioritizes sales follow-up gaps, and excludes raw notes, contacts, and embeddings |
-| `export_report` | None | `report_type`, `output_dir`, `stage`, `industry`, `as_of` | `ok`, `report_type`, `as_of`, `timezone`, `generated_at`, `filters`, `row_count`, `warnings`, `metrics`, `output_dir`, `artifacts`, `csv_path`, `markdown_path` | Reads through the restricted metric projection and writes local CSV/Markdown report artifacts |
+| `export_report` | None | `report_type`, `output_dir`, `stage`, `industry`, `as_of`, `lookback_days` | `ok`, `report_type`, `as_of`, `timezone`, `generated_at`, `filters`, `row_count`, `warnings`, `metrics`, `output_dir`, `artifacts`, `csv_path`, `markdown_path` | Reads through the report-specific restricted projection and writes local CSV/Markdown report artifacts |
 | `get_insights` | `query_type` | `as_of` | `ok`, `query_type`, `as_of`, `timezone`, `generated_at`, query-specific aggregate fields | Read only over the current collection snapshot |
 | `get_customer_themes` | None | `dimension`, `stage`, `industry`, `top_k` | `ok`, `filters`, `coverage`, `themes` | Read-only MongoDB counts and aggregation |
 | `search_deals` | `query` | `limit` | `ok`, `query`, `result_count`, `results` | Generates a local query embedding and reads deal embeddings; may return a structured warmup response before search |
@@ -154,10 +154,14 @@ call an LLM or embedding provider.
 `export_report.report_type` currently supports:
 
 - `weekly_pipeline`
+- `pipeline_trend`
 
-`export_report` accepts exact-match `stage` and `industry` filters. Invalid
-report types, invalid stages, invalid `as_of`, and invalid report/metric config
-fail before MongoDB storage access.
+`export_report` accepts exact-match `stage` and `industry` filters. For
+`pipeline_trend`, `lookback_days` defaults to `7` and is capped at `365`.
+Invalid report types, invalid stages, invalid `as_of`, invalid
+`lookback_days`, and invalid report/metric config fail before MongoDB storage
+access. `weekly_pipeline` reads through `list_deals_for_metrics()`;
+`pipeline_trend` reads through `list_analytics_snapshots()`.
 
 `get_insights.query_type` currently supports:
 

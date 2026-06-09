@@ -405,3 +405,69 @@ Cross-checked fields include:
 - stage breakdown values
 - health band counts
 - attention table row count
+
+## Milestone 5.7 - Pipeline Trend CSV
+
+`export_report(report_type="pipeline_trend")` exports the M5.6 trend metric as
+CSV and Markdown artifacts.
+
+### Scope
+
+- Reads `analytics_snapshots` through `MongoDBClient.list_analytics_snapshots()`.
+- Reuses `build_pipeline_trend_summary()`.
+- Writes a UTF-8 BOM CSV and a Markdown summary.
+- LLM / embedding: none.
+- MongoDB writes: none.
+
+### Inputs
+
+| Parameter | Required | Contract |
+|---|---|---|
+| `report_type` | optional | `pipeline_trend` for this report |
+| `output_dir` | optional | Explicit local directory. Defaults to `reporting.output_dir` or `outputs/reports` |
+| `stage` | optional | Exact valid snapshot `deal_stage` match |
+| `industry` | optional | Exact stored snapshot industry match |
+| `as_of` | optional | `YYYY-MM-DD` business end date |
+| `lookback_days` | optional | Defaults to `7`, valid range `1..365` |
+
+### CSV Rows
+
+The CSV has one table with these columns:
+
+```text
+section,item,start_value,end_value,delta,count,notes
+```
+
+Rows are grouped by:
+
+- `kpi`: start/end/delta for active deals, open deals, open pipeline value,
+  average health, attention deals, won deals, and lost deals
+- `stage_transition`: stage movement such as `proposal->negotiation`
+- `stage_entered`: stages that appear in the end baseline but not the start
+  baseline
+- `stage_exited`: stages present at the start baseline but absent at the end
+
+### Success Shape
+
+The response follows the same artifact contract as `weekly_pipeline` and adds
+trend-specific metadata:
+
+```json
+{
+  "ok": true,
+  "report_type": "pipeline_trend",
+  "window": {
+    "lookback_days": 7,
+    "start_date": "2026-06-03",
+    "end_date": "2026-06-10"
+  },
+  "snapshot_count": 12,
+  "deal_count": 9,
+  "csv_path": "C:/absolute/path/pipeline_trend_20260610_123456.csv",
+  "markdown_path": "C:/absolute/path/pipeline_trend_20260610_123456.md"
+}
+```
+
+`lookback_days` validation fails before MongoDB storage access. The report is
+read-only and may return sparse-history warnings such as
+`insufficient_snapshots`.

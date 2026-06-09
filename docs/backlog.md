@@ -105,7 +105,10 @@ context에서 `create_sample_data`와 `delete_sample_data`로만 관리한다.
 `metric_type="pipeline_trend"`를 지원하며, 기본 7일 lookback으로
 `analytics_snapshots`의 시작/종료 latest snapshot을 비교한다.
 
-남은 범위: 추세 CSV, Atlas 추세 차트를 순서대로 추가한다.
+완료: M5.7 trend CSV. `export_report(report_type="pipeline_trend")`가
+analytics snapshot 기반 trend summary를 CSV와 Markdown으로 저장한다.
+
+남은 범위: Atlas 추세 차트.
 
 ---
 
@@ -118,6 +121,11 @@ context에서 `create_sample_data`와 `delete_sample_data`로만 관리한다.
 `llm.openai_api_reasoning_effort`로 설정하며 기존 MCP tool surface는 그대로
 유지한다. 현재 환경에는 OpenAI API credit/key가 없어 live smoke는 mock HTTP
 테스트로 대체했다.
+
+추후 검증 필요: disposable `OPENAI_API_KEY`와 API credit이 준비되면
+`llm.provider: openai_api`로 최소 live smoke를 수행한다. 검증 범위는
+provider ping, 작은 `chat_once` 1회, 그리고 가능하면 `add_meeting`의 LLM
+경로 1회다. 비용이 발생하므로 명시적으로 opt-in할 때만 수행한다.
 
 ### #8 Customer Themes 확장
 

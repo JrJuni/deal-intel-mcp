@@ -1,5 +1,668 @@
 # deal-intel-mcp
 
+**English** | [한국어](#한국어)
+
+A B2B sales-support MCP server: paste a meeting note and it scores the deal on MEDDPICC, then stacks everything in MongoDB to surface which deals are stuck and where you're losing.
+
+Drive it by talking — in Claude Desktop, or in Codex with the MCP connected. No separate CRM app.
+
+---
+
+## Live demo
+
+Two ways to look at the deal data you've accumulated.
+
+### 1. MongoDB Atlas Charts — Weekly Pipeline Review
+
+![Atlas Charts Weekly Pipeline Review dashboard](docs/images/atlas-dashboard.png)
+
+Active/Attention deal counts, pipeline value by stage, MEDDPICC health-band distribution, gap distribution, and open pipeline value — all on one screen. Each chart's aggregation pipeline is generated with the `render-atlas-dashboard` CLI and pasted into Atlas Charts (see the "Atlas Charts Dashboard" section below).
+
+### 2. Claude / Codex in-chat rendered analysis
+
+![Claude in-chat rendered dashboard](docs/images/chat-dashboard.png)
+
+It takes the raw MCP tool output and renders win rate, the stage funnel, Won vs Lost MEDDPICC gaps, data-quality coverage, and attention items right inside the conversation. It all starts from pasting in a single meeting note — no extra app.
+
+> Company names and figures in these screens are all fictional demo data.
+
+---
+
+## What is this?
+
+**MEDDPICC** is a deal-qualification framework used in B2B sales. It scores "is this customer actually likely to buy?" across seven dimensions.
+
+| Dimension | What it measures |
+|---|---|
+| **M**etrics | The quantified impact the customer expects (ROI, cost-reduction %) |
+| **E**conomic Buyer | Who actually holds budget authority |
+| **D**ecision Criteria | What the vendor-selection criteria are |
+| **D**ecision Process | How the internal approval process runs |
+| **I**dentify Pain | The customer's core problem and its urgency |
+| **C**hampion | Whether you have an internal advocate |
+| **C**ompetition | How you fight competitors and the status quo |
+
+Paste a meeting note and the LLM extracts these seven automatically, stacks them in MongoDB Atlas, and runs pattern analysis on top.
+
+---
+
+## Install (5 minutes)
+
+### Prerequisites
+
+- Claude Desktop (Windows / Mac)
+- Python 3.11+ with `pip install -e .` completed in a conda env
+- A MongoDB Atlas account (the free M0 cluster is enough)
+- A ChatGPT Plus/Pro subscription **or** an Anthropic API key
+
+### Steps
+
+**Step 1 — Install the package**
+
+```bash
+# reuse the event-intel conda env
+~/miniconda3/envs/event-intel/python.exe -m pip install -e ".[embedding]"
+```
+
+Adding `[embedding]` also installs `sentence-transformers` (for similar-deal search).
+
+**Step 2 — Configure .env**
+
+Copy `.env.example` in the project root to `.env` and fill it in.
+
+```
+MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/?retryWrites=true&w=majority
+ANTHROPIC_API_KEY=sk-ant-...   # leave blank if using ChatGPT OAuth
+```
+
+**Step 3 — Install the mcpb bundle**
+
+Double-click `deal-intel-mcp-0.1.5.mcpb` (built from `mcpb/manifest.json`), or install via Claude Desktop → Settings → Extensions → from file. See [`mcpb/README.md`](mcpb/README.md) for how to build the bundle.
+
+The form that appears:
+- **MongoDB Atlas URI** — paste the URI you set above
+- **Use ChatGPT Plus/Pro** — checked by default; leave it if using ChatGPT OAuth
+- **Anthropic API key** — enter if using Anthropic; leave blank for ChatGPT OAuth
+
+**Step 4 — ChatGPT OAuth login** (ChatGPT subscribers only)
+
+```bash
+~/miniconda3/envs/event-intel/python.exe -m deal_intel.cli login-chatgpt
+```
+
+A browser opens; log in with your ChatGPT account. One time only.
+
+**Step 5 — Restart Claude Desktop**
+
+You're done when these 12 tools appear in the tool list.
+
+```
+create_deal / add_meeting / get_deal / update_stage / update_deal
+list_deals / get_metrics / get_insights / get_customer_themes
+export_report / analyze_deal / search_deals
+```
+
+---
+
+## Tool guide (12 tools)
+
+> **Tip**: In Claude Desktop, type the example sentences below verbatim or say something similar. You can find a `deal_id` with `create_deal` or `list_deals`.
+
+---
+
+### 1. `create_deal` — create a new deal
+
+**When to use**: Run this first when you start engaging a new prospect.
+
+**Example**:
+```
+Create a new deal for Hyundai Precision. Manufacturing industry, deal size 200M KRW.
+```
+
+**Parameters**:
+| Parameter | Required | Description |
+|---|---|---|
+| `company` | required | Customer company name |
+| `industry` | optional | Industry (e.g., "Manufacturing", "IT SaaS") |
+| `deal_size_krw` | optional | Median expected contract size (in KRW, e.g., 200000000) |
+| `deal_size_status` | required when an amount is given | Amount status: `unknown`, `rough_estimate`, `customer_budget`, `quoted`, `strategic_zero` |
+| `deal_size_low_krw` / `deal_size_high_krw` | optional | Estimate range. Omitted → treated as equal to the median in metrics |
+| `deal_size_note` | optional | Rationale for the amount classification, or a user memo |
+| `expected_close_date` | optional | Expected close date. Omitted → config default applies |
+
+**Example result**:
+```json
+{
+  "ok": true,
+  "deal_id": "a3f9...",
+  "company": "Hyundai Precision",
+  "deal_size_krw": 200000000,
+  "deal_size_status": "rough_estimate",
+  "expected_close_date": "2026-06-15",
+  "expected_close_date_source": "config_default"
+}
+```
+
+Remember this `deal_id`, or look it up later with `list_deals`.
+
+If you omit the expected close date, a default of 7 days after creation is filled in. This is an operational default, not a confirmed schedule. A date you provide always takes precedence over config.
+
+When you enter a deal amount, you must also set its status. If unknown, leave `deal_size_status="unknown"` and leave the amount blank. If only a positive amount is given, the tool asks which basis applies — sales estimate / customer budget / quote sent. If only 0 is given, it doesn't save immediately and asks whether it's a strategic free/reference deal or an undecided amount. If undecided, it's saved as `unknown` with the amount blanked. An intentional zero-KRW deal (free sample, reference win) is saved with `deal_size_krw=0` and `deal_size_status="strategic_zero"`. If you heard a customer budget or sent a quote, use `customer_budget` or `quoted` so it counts as a validated pipeline value in metrics.
+
+```yaml
+pipeline:
+  expected_close:
+    default_days: 7
+    days_by_industry:
+      공공: 60
+      대기업: 28
+
+reporting:
+  timezone: Asia/Seoul
+```
+
+Industry overrides apply on a case-insensitive exact match against the free-form `industry` value. Auto-dates use the business date in the reporting timezone, while stored audit timestamps stay in UTC.
+
+---
+
+### 2. `add_meeting` — add a meeting note
+
+**When to use**: Right after a customer meeting. Paste the note as-is and the LLM extracts MEDDPICC automatically.
+
+**Example**:
+```
+Add today's (2026-06-08) meeting note to Hyundai Precision, deal_id: a3f9...
+
+Notes:
+Met Director Kim (purchasing decision-maker). Current production-line defect rate
+is 3.2%, causing ~1.5B KRW/yr loss. Our solution targets ≤1.5%. Manager Park is in
+favor internally. Competitor A is under review but costs 2x. Internal approval due
+end of June.
+```
+
+**Parameters**:
+| Parameter | Required | Description |
+|---|---|---|
+| `deal_id` | required | Target deal ID |
+| `date` | required | Meeting date (YYYY-MM-DD) |
+| `raw_notes` | required | Raw meeting notes (Korean or English both fine) |
+
+**What the result includes**:
+- `meddpicc` — scores + evidence extracted from this meeting
+- `meddpicc_latest` — the deal's cumulative health_pct + per-dimension trend
+- `summary` — a 2–3 sentence LLM-generated summary
+- `customer_themes` — customer concerns / selection criteria extracted from this meeting
+- `stage_suggestion` — filled only when the notes explicitly imply a stage transition (e.g., contract signed → won, lost deal → lost); otherwise `null`
+- `embedding_stored` — whether the similar-deal-search embedding was stored
+
+> **The stage never changes automatically.** Even if the notes say "contract signed," `add_meeting` does not change the stage directly — it only **suggests** via `stage_suggestion`. When Claude asks "shall I move this deal to won?", `update_stage` makes the actual change after you confirm. This is a deliberate separation to prevent wrong auto-closing.
+
+---
+
+### 3. `get_deal` — view deal details
+
+**When to use**: To check a specific deal's full history, MEDDPICC scores, and meeting records.
+
+**Example**:
+```
+Show me the full Hyundai Precision deal. deal_id is a3f9...
+```
+
+You get the raw notes, the per-meeting MEDDPICC extraction, and the cumulative health_pct.
+
+---
+
+### 4. `update_stage` — change the pipeline stage
+
+**When to use**: When a deal moves to the next stage or the outcome is finalized.
+
+```text
+update_stage(deal_id, new_stage, actual_close_date="")
+```
+
+**Example**:
+```
+Move the Hyundai Precision deal to the proposal stage.
+```
+
+When moving to `won` or `lost`, you can specify the actual close date as `YYYY-MM-DD`. Omitted → the processing day is stored. `expected_close_date` stays as the forecast, and `stage_history.entered_at` is the system audit time, kept distinct from the actual close date. Moving a closed deal back to an open stage clears `actual_close_date`.
+
+**Stages** (in order):
+```
+discovery → qualification → proposal → negotiation → won / lost / stalled
+```
+
+**What the result includes**:
+- `actual_close_date` — the real close date for Won/Lost
+- `days_in_previous_stage` — how long it spent in the previous stage
+- `stuck_threshold_days` — the stuck threshold for a new Active stage; otherwise `null`
+- MEDDPICC gaps are recomputed per stage (e.g., a drop in Identify Pain at the proposal stage is not a gap — it's a positive signal that the pain is being resolved)
+
+---
+
+### 5. `update_deal` — fix an existing deal's amount classification
+
+**When to use**: When an existing deal's `deal_size_status` is missing, or to save after the user confirms customer-budget / quote / strategic-zero.
+
+The first version only edits deal-value fields, for safety. It does not touch company, industry, stage, meetings, or contacts.
+
+**Example**:
+```
+The existing ArcanaGames deal has evidence of a closed contract, so save it as quoted.
+Note the rationale as "CEO said let's sign today and paid same-day."
+```
+
+**Required conditions**:
+- `confirmed_by_user=true`
+- `deal_size_note` with the user's confirmation rationale or meeting evidence
+
+Edits are logged to `deal_value_history`.
+
+---
+
+### 6. `list_deals` — see all deals at a glance
+
+**When to use**: When you want the whole pipeline at a glance. Good for a weekly review.
+
+**Example**:
+```
+Show me all deals, stuck ones first.
+```
+
+Or a specific stage only:
+```
+Show me only the deals in the proposal stage.
+```
+
+**Result**:
+- `health_pct` — overall MEDDPICC score (0–100)
+- `gaps` — list of weak, low-scoring dimensions
+- `is_stuck` — whether the Active-stage dwell time exceeds the per-stage threshold
+- `is_overdue` / `overdue_days` — whether an Open deal passed its expected close date
+- `attention_reasons` — multiple reasons: `stalled`, `overdue`, `stuck`, `at_risk`
+- `days_in_stage` — days spent in the current stage
+- `data_quality` — per-deal missing/invalid/estimated fields and overall coverage
+- `as_of`, `timezone`, `generated_at` — reporting base date and generation time
+
+Specify `as_of="YYYY-MM-DD"` to re-run date-based calculations against the same base date. Stuck deals sort to the top.
+
+---
+
+### 7. `analyze_deal` — MEDDPICC gap analysis + BD strategy
+
+**When to use**: When a deal is stuck or you're planning the next meeting. The LLM analyzes gaps and proposes concrete actions.
+
+**Example**:
+```
+Analyze the Hyundai Precision deal. Where is it weak, and what should I do next meeting?
+```
+
+The result includes:
+- a summary of current MEDDPICC health
+- concrete responses per weak dimension
+- a recommended agenda for the next meeting
+
+---
+
+### 8. `get_metrics` — current pipeline-health KPIs
+
+**When to use**: For instant BI questions in Claude/Codex like "how's pipeline health right now?", "how many at-risk deals?", "show pipeline value and health by stage."
+
+The first version supports only `pipeline_health`.
+
+**Parameters**:
+| Parameter | Required | Description |
+|---|---|---|
+| `metric_type` | optional | Currently only `pipeline_health` |
+| `stage` | optional | Exact match against the stored stage |
+| `industry` | optional | Exact match against the stored industry |
+| `as_of` | optional | Base date for stuck/overdue calculation, `YYYY-MM-DD` |
+
+**What the result includes**:
+- `kpis`: active/open/stalled/terminal count, open value, avg health, coverage, stuck/overdue, attention count
+- `stage_breakdown`: count/value/health/stuck/overdue in canonical stage order
+- `health_bands`: healthy/watch/at_risk/unassessed counts
+- `attention_reasons`: stalled/overdue/stuck/at_risk reason counts and unique attention-deal count
+- `pipeline_values`, `win_rate`, `data_quality`, `warnings`
+
+The BI path uses no LLM and no embedding. Raw notes, contacts, and vectors are excluded from the metric read path.
+
+**Example**:
+```
+Tell me the current pipeline health
+```
+```
+Show pipeline health for the proposal stage only
+```
+```
+Show stuck/overdue status for IT-industry deals
+```
+
+---
+
+### 9. `export_report` — generate a weekly pipeline report
+
+**When to use**: When you need a file to share or for a meeting, like "make this week's pipeline report."
+
+The first version supports only `weekly_pipeline` and produces CSV and Markdown with the same timestamp.
+
+**Parameters**:
+| Parameter | Required | Description |
+|---|---|---|
+| `report_type` | optional | Currently only `weekly_pipeline` |
+| `output_dir` | optional | Save path. Omitted → `reporting.output_dir` or `outputs/reports` |
+| `stage` | optional | Exact match against the stored stage |
+| `industry` | optional | Exact match against the stored industry |
+| `as_of` | optional | Base date for stuck/overdue calculation, `YYYY-MM-DD` |
+
+**What the result includes**:
+- `csv_path`, `markdown_path`: absolute paths of the generated files
+- `artifacts`: CSV/Markdown filename, path, encoding
+- `metrics`, `warnings`, `row_count`
+
+This is a BI/Reporting path, so it uses no LLM and no embedding.
+
+**Example**:
+```
+Make this week's pipeline report
+```
+```
+Export the proposal stage only as a weekly pipeline report
+```
+
+---
+
+### Atlas Charts Dashboard — `Weekly Pipeline Review`
+
+When you'd rather see it on screen than as CSV/Markdown, use the Atlas Charts dashboard. The dashboard aggregation spec and setup runbook are in [`docs/atlas-charts.md`](docs/atlas-charts.md).
+
+Render command:
+
+```bash
+~/miniconda3/envs/event-intel/python.exe -m deal_intel.cli render-atlas-dashboard --as-of 2026-06-09 --output outputs/atlas_charts/weekly_pipeline_review_20260609.json
+```
+
+To paste a single chart into the Atlas Query bar:
+
+```bash
+~/miniconda3/envs/event-intel/python.exe -m deal_intel.cli render-atlas-dashboard --as-of 2026-06-09 --chart-id pipeline_kpis
+```
+
+The five managed chart ids are `pipeline_kpis`, `stage_breakdown`, `health_bands`, `attention_deals`, `meddpicc_gap_distribution`.
+
+Cross-check the dashboard numbers:
+
+```bash
+~/miniconda3/envs/event-intel/python.exe -m deal_intel.cli crosscheck-weekly-dashboard --as-of 2026-06-09 --output-dir outputs/m3_3_crosscheck
+```
+
+---
+
+### 10. `get_insights` — pipeline BI analysis
+
+**When to use**: To aggregate all deal data and spot patterns. Good for monthly reviews and learning win/loss patterns.
+
+You can specify `as_of`; the response includes `timezone` and a UTC `generated_at`. These label the current collection snapshot — they don't reconstruct historical document state.
+
+**Seven analysis types**:
+
+| query_type | What it tells you |
+|---|---|
+| `pipeline_overview` | Deal count / avg health / total size by stage |
+| `win_patterns` | Average MEDDPICC scores of Won deals |
+| `loss_patterns` | Average MEDDPICC scores of Lost deals |
+| `compare_won_lost` | Per-dimension score gap between Won and Lost |
+| `gap_frequency` | The dimensions most often missing in active deals |
+| `industry_benchmark` | Avg health / win rate / deal size by industry |
+| `stage_velocity` | Average dwell days per stage |
+
+**Example**:
+```
+Show me the whole pipeline overview.
+```
+```
+What's the MEDDPICC pattern difference between deals we win and deals we lose?
+```
+```
+Which dimension is most often missing?
+```
+
+---
+
+### 11. `search_deals` — semantic similar-deal search
+
+**When to use**: When you want to reference how past deals in similar situations played out. Search in natural language.
+
+**Example**:
+```
+Find deals where the customer struggled with cost reduction.
+```
+```
+Show deals with a strong champion and a clear decision structure.
+```
+```
+Any deals with a pattern similar to Hyundai Precision?
+```
+
+**How it works**:
+1. Convert the query into a 384-dim vector
+2. Compute cosine similarity against every deal's meeting-summary vector
+3. Return them sorted by similarity, highest first
+
+**What the result includes**:
+- `score` — similarity (0–1, higher = more similar)
+- `deal_stage`, `health_pct`, `gaps` — the deal's current state
+
+> The local embedding model warms up in the background at server start. While it's loading, `warming_up: true` is returned, so retry after 5 seconds. After 30+ seconds it switches to a stalled error.
+
+---
+
+### 12. `get_customer_themes` — frequency of customer concerns / selection criteria
+
+**When to use**: To group meeting evidence across deals and see the topics customers worry about most. It counts by unique deal (not by meeting) and returns representative companies and evidence.
+
+**Example**:
+```
+Show the top 5 things customers worried about most across active deals.
+```
+```
+Tell me the most frequent themes and evidence in Decision Criteria.
+```
+
+**Filters**:
+- `dimension`: `all`, `identify_pain`, `decision_criteria`, `metrics`
+- `stage`: `active`, `all`, or an individual deal stage
+- `industry`: exact industry name
+- `top_k`: up to 20
+
+To backfill themes onto existing data, run this first:
+
+```bash
+~/miniconda3/envs/event-intel/python.exe -m deal_intel.cli backfill-customer-themes --apply
+```
+
+The Atlas Charts aggregation is in `scripts/atlas_charts_customer_themes.json`.
+
+---
+
+## Recommended workflow
+
+```
+1. Right after a meeting  → add_meeting (paste the note)
+2. On stage change        → update_stage
+3. Pre-meeting prep        → analyze_deal (figure out the next agenda)
+4. Weekly review           → list_deals (find stuck deals)
+5. Pipeline KPIs           → get_metrics pipeline_health
+6. Monthly retro           → get_insights compare_won_lost / stage_velocity
+7. Reference similar cases → search_deals
+8. Customer-concern analysis → get_customer_themes
+9. Dashboard               → Atlas Charts Weekly Pipeline Review
+```
+
+---
+
+## Architecture
+
+```
+[Claude Desktop / Codex — natural-language input]
+         │ stdio JSON-RPC
+         ▼
+[deal-intel-mcp  FastMCP server  12 tools]
+         │
+         ├── LLM Provider
+         │     ├── ChatGPT OAuth (default, Plus/Pro subscription)
+         │     └── Anthropic API (optional)
+         │
+         ├── Embedding Provider
+         │     └── sentence-transformers all-MiniLM-L6-v2
+         │          → runs locally / no API key / 384 dims
+         │
+         └── MongoDB Atlas M0
+               deals collection
+               └── Regular Indexes  : deal_id, stage+updated, health_pct, customer themes
+
+search_deals
+  ├── M0 default : reads summary_embedding, computes cosine in Python
+  └── M10+ option : uses the Atlas Vector Search index
+```
+
+### Deal document schema (key fields)
+
+```json
+{
+  "deal_id": "uuid",
+  "company": "Hyundai Precision",
+  "industry": "Manufacturing",
+  "deal_size_krw": 200000000,
+  "deal_stage": "proposal",
+  "expected_close_date": "2026-09-30",
+  "expected_close_date_source": "user_provided",
+  "actual_close_date": null,
+  "stage_history": [
+    {"stage": "discovery",     "entered_at": "2026-05-01T..."},
+    {"stage": "qualification", "entered_at": "2026-05-15T..."},
+    {"stage": "proposal",      "entered_at": "2026-06-01T..."}
+  ],
+  "meetings": [
+    {
+      "meeting_id": "uuid",
+      "date": "2026-06-08",
+      "raw_notes": "Met Director Kim. Defect rate 3.2% → target 1.5%...",
+      "summary": "2–3 sentence LLM-generated summary",
+      "meddpicc": {
+        "metrics":      {"score": 4, "evidence": "~1.5B KRW/yr loss"},
+        "identify_pain": {"score": 5, "evidence": "defect rate 3.2%, line urgent"},
+        "champion":     {"score": 3, "evidence": "Manager Park in favor"}
+      }
+    }
+  ],
+  "meddpicc_latest": {
+    "health_pct": 72.4,
+    "gaps": ["economic_buyer", "decision_criteria"],
+    "metrics":       {"score": 4.0, "trend": "up"},
+    "identify_pain": {"score": 5.0, "trend": "flat"},
+    "champion":      {"score": 3.0, "trend": "up"}
+  },
+  "summary_embedding": [0.012, -0.034, ...],
+  "created_at": "2026-05-01T...",
+  "updated_at": "2026-06-08T..."
+}
+```
+
+### Module structure
+
+```
+src/deal_intel/
+  mcp_server.py         FastMCP entry point, registers 12 tools
+  cli.py                typer CLI (login-chatgpt, backfill-customer-themes,
+                        render-atlas-dashboard, crosscheck-weekly-dashboard)
+  _env.py               dotenv + 3-tier config merge
+  _context.py           LLM / MongoDB / Embedding process singletons
+  providers/
+    llm.py              LLMProvider ABC + Anthropic + ChatGPTOAuth + factory
+    embedding.py        EmbeddingProvider + SentenceTransformerProvider + factory
+  schema/
+    meddpicc.py         compute_meddpicc_latest, Deal/Meeting Pydantic models
+    customer_themes.py  customer-theme taxonomy, parser, stage-signal validation
+  storage/
+    mongodb.py          MongoDBClient — CRUD + aggregation + semantic-search storage
+  tools/
+    create_deal.py
+    add_meeting.py      MEDDPICC extraction + summary generation + embedding storage
+    get_deal.py
+    update_stage.py     stage_history logging + MEDDPICC recompute
+    update_deal.py      edit deal-value fields after user confirmation
+    list_deals.py       health_pct / gaps / stuck-flag aggregation
+    get_metrics.py      pipeline_health KPIs / stage aggregation / warnings
+    export_report.py    weekly_pipeline CSV/Markdown export
+    get_insights.py     7 BI queries plus legacy insight query
+    get_customer_themes.py
+                        aggregates customer concerns by unique deal count
+    analyze_deal.py     MEDDPICC gap analysis + BD strategy via LLM
+    search_deals.py     Python cosine by default / Atlas semantic search optional
+```
+
+### How MEDDPICC health_pct is computed
+
+```
+health_pct = sum(dim_avg × weight) / sum(5 × weight) × 100
+```
+
+Weights (tunable in `config/defaults.yaml`):
+
+| Dimension | Weight | Why |
+|---|---|---|
+| champion | 2.0 | No internal momentum → no deal |
+| identify_pain / economic_buyer | 1.5 | Confirming the pain and reaching the budget holder are core |
+| metrics / decision_criteria / decision_process | 1.0 | Standard |
+| competition | 0.5 | Competition surfacing late is normal |
+
+**Stage-aware gap adjustment** (applied automatically on `update_stage`):
+- A drop in Identify Pain at the `proposal` / `negotiation` stage → not a gap (signals the pain is being resolved)
+- `won` deals → no gaps
+
+**Health-band configuration**:
+
+Defaults are Healthy ≥70, Watch ≥40, At Risk <40. These classify the level of MEDDPICC validation, not win probability, and can be changed in `~/.deal-intel/config.yaml` once you've accumulated operational data.
+
+```yaml
+metrics:
+  health_bands:
+    healthy_min: 75
+    watch_min: 45
+  overdue:
+    grace_days: 0
+  win_rate:
+    minimum_closed_sample: 10
+```
+
+The formal definitions of Active/Open/Stalled and unassessed handling are in [`docs/metrics.md`](docs/metrics.md).
+
+---
+
+## FAQ
+
+**Q. Do my meeting notes have to be perfect?**
+No. A rough memo of the essentials is fine. The LLM just skips dimensions with no evidence.
+
+**Q. Do Korean meeting notes work?**
+Yes. Mixed English/Korean works too.
+
+**Q. Do I need a paid MongoDB Atlas plan?**
+The core features work on the free M0 plan today. `search_deals` computes with Python cosine on M0. As deal volume grows you can switch to Atlas Vector Search on M10+.
+
+**Q. search_deals returns nothing.**
+Right after the server first starts, the local model may still be warming up — retry after 5 seconds. You also need at least one deal with a stored `summary_embedding` (run `add_meeting`).
+
+**Q. Should I use ChatGPT OAuth or Anthropic?**
+If you have a ChatGPT Plus/Pro subscription, ChatGPT OAuth is attractive since it adds no cost. The Anthropic API supports prompt caching, which can be cheaper if you do a lot of repeated analysis.
+
+---
+
+# 한국어
+
+> [English version is above ↑](#deal-intel-mcp)
+
 회의록을 붙여넣으면 MEDDPICC 점수가 나오고, 어떤 딜이 막혔는지·어디서 지고 있는지를 MongoDB에 쌓아 분석해주는 B2B 영업 지원 MCP 서버.
 
 Claude Desktop이나 MCP를 연결한 Codex에서 말로 하면 된다. 별도 CRM 앱은 없다.

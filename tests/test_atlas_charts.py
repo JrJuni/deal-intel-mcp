@@ -134,7 +134,8 @@ def test_chart_pipeline_rendering_supports_trend_dashboard() -> None:
         "$gte": "2026-06-03",
         "$lte": "2026-06-10",
     }
-    assert pipeline[-1]["$project"]["window_start"] == "2026-06-03"
+    assert pipeline[-1]["$project"]["window_start"] == {"$literal": "2026-06-03"}
+    assert pipeline[-1]["$project"]["lookback_days"] == {"$literal": 7}
 
 
 def test_atlas_chart_pipelines_do_not_touch_sensitive_fields() -> None:

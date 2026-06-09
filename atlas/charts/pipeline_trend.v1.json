@@ -383,9 +383,15 @@
         {
           "$project": {
             "_id": 0,
-            "window_start": "{{START_DATE}}",
-            "window_end": "{{AS_OF_DATE}}",
-            "lookback_days": "{{LOOKBACK_DAYS}}",
+            "window_start": {
+              "$literal": "{{START_DATE}}"
+            },
+            "window_end": {
+              "$literal": "{{AS_OF_DATE}}"
+            },
+            "lookback_days": {
+              "$literal": "{{LOOKBACK_DAYS}}"
+            },
             "snapshot_count": 1,
             "start_deal_count": {
               "$size": "$start"

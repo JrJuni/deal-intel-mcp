@@ -10,6 +10,10 @@ from deal_intel.schema.metrics import (
     ReportingContext,
 )
 from deal_intel.storage.mongodb import MongoDBClient
+from deal_intel.tools.analytics_snapshot import (
+    record_analytics_snapshot,
+    snapshot_event_id,
+)
 
 
 def handle(
@@ -123,7 +127,20 @@ def handle(
         else None
     )
 
-    return {
+    analytics_snapshot = record_analytics_snapshot(
+        mongo=mongo,
+        cfg=cfg,
+        event_type="update_stage",
+        event_id=snapshot_event_id(
+            "update_stage",
+            deal_id=deal_id,
+            event_key=f"{new_stage}:{now}",
+        ),
+        deal=deal,
+        occurred_at=now_dt,
+    )
+
+    result = {
         "ok": True,
         "deal_id": deal_id,
         "old_stage": old_stage,
@@ -132,3 +149,6 @@ def handle(
         "days_in_previous_stage": days_in_prev,
         "stuck_threshold_days": threshold,
     }
+    if analytics_snapshot is not None:
+        result["analytics_snapshot"] = analytics_snapshot
+    return result

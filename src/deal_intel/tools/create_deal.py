@@ -12,6 +12,10 @@ from deal_intel.schema.metrics import (
     resolve_expected_close_date,
 )
 from deal_intel.storage.mongodb import MongoDBClient
+from deal_intel.tools.analytics_snapshot import (
+    record_analytics_snapshot,
+    snapshot_event_id,
+)
 
 
 def handle(
@@ -97,7 +101,21 @@ def handle(
             hint="Check MONGODB_URI and Atlas cluster status",
             retryable=True,
         ) from exc
-    return {
+
+    analytics_snapshot = record_analytics_snapshot(
+        mongo=mongo,
+        cfg=cfg,
+        event_type="create_deal",
+        event_id=snapshot_event_id(
+            "create_deal",
+            deal_id=deal["deal_id"],
+            event_key="created",
+        ),
+        deal=deal,
+        occurred_at=now_dt,
+    )
+
+    result = {
         "ok": True,
         "deal_id": deal["deal_id"],
         "company": deal["company"],
@@ -109,6 +127,9 @@ def handle(
         "expected_close_date": resolved_close_date,
         "expected_close_date_source": close_date_source,
     }
+    if analytics_snapshot is not None:
+        result["analytics_snapshot"] = analytics_snapshot
+    return result
 
 
 def _build_deal_value(

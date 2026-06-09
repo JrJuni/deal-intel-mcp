@@ -285,8 +285,8 @@ reporting:
   UTC `generated_at`.
 - Callers may supply `as_of` as `YYYY-MM-DD` for reproducible date arithmetic.
 - An explicit `as_of` evaluates the current collection using that date. It
-  does not reconstruct historical document state; trend reporting requires
-  the future analytics snapshot milestone.
+  does not reconstruct historical document state. Trend reporting will read
+  from the M5 `analytics_snapshots` collection once `pipeline_trend` is added.
 - Invalid timezones fail as configuration errors. Invalid `as_of` values fail
   as input errors.
 

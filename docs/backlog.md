@@ -95,8 +95,12 @@ context에서 `create_sample_data`와 `delete_sample_data`로만 관리한다.
 
 ### #6 추세 분석
 
-현재 상태 BI가 안정된 뒤 `analytics_snapshots`, 변경 이벤트 idempotency,
-`pipeline_trend`, 추세 CSV와 Atlas 차트를 순서대로 추가한다.
+완료: M5.1-M5.5 trend foundation. `analytics_snapshots` 저장 계약을 추가하고
+`create_deal`, `add_meeting`, `update_stage`에 non-blocking snapshot 기록을
+연결했다. Snapshot은 `event_id` 기준 idempotent upsert이며, 실패해도 원래
+딜 작업은 중단하지 않고 응답에 warning만 반환한다.
+
+남은 범위: `pipeline_trend`, 추세 CSV, Atlas 추세 차트를 순서대로 추가한다.
 
 ---
 

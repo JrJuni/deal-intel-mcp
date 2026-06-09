@@ -6,6 +6,38 @@ contracts live in [baseline.md](baseline.md) and [metrics.md](metrics.md).
 
 ## Latest Update - 2026-06-09
 
+### BI Reporting Milestone 5.1-5.5 analytics snapshot foundation
+
+Implemented:
+
+- Added an internal `analytics_snapshots` write model for trend analysis.
+- Added idempotent snapshot storage keyed by `event_id`.
+- Added snapshot indexes for `event_id`, `deal_id + occurred_at`, and
+  `event_type + occurred_at`.
+- Connected snapshots to `create_deal`, `add_meeting`, and `update_stage`.
+- Snapshot failures do not block the original deal mutation; tool responses
+  include an `analytics_snapshot` warning object instead.
+- Snapshot documents store only lightweight BI state:
+  deal metadata, value fields, stage, health band, MEDDPICC gaps, timing, and
+  attention reasons.
+- Snapshot documents do not store raw meeting notes, contacts, or embeddings.
+
+Verification so far:
+
+- New targeted tests:
+  `6 passed`
+- Related regression tests:
+  `58 passed`
+- Full pytest with workspace-local temp:
+  `203 passed`
+- Ruff:
+  `All checks passed`
+- Live Atlas write smoke:
+  first insert `true`, duplicate insert `false`, found before cleanup `1`,
+  cleanup deleted `1`
+
+## History
+
 ### BI Reporting Milestone 4.4 onboarding/demo sample data
 
 Implemented:
@@ -38,8 +70,6 @@ Verification so far:
   `create_ok=true`, `create_storage_written=false`,
   `delete_ok=true`, `delete_storage_written=false`,
   demo database `deal_intel_demo`, existing sample count `0`
-
-## History
 
 ### BI Reporting Milestone 4.3 deal lifecycle safety layer
 
@@ -118,7 +148,6 @@ Verification:
 
 ## Next
 
-1. Optional live Atlas write smoke for archive/restore on a disposable deal.
-2. Optional live Atlas hard-delete smoke only after creating a disposable
-   archived test deal.
-3. M4.4 planning: demo DB sample-data create/delete workflow.
+1. M5.6 `pipeline_trend` metric using `analytics_snapshots`.
+2. M5.7 trend CSV.
+3. M5.8 Atlas trend chart.

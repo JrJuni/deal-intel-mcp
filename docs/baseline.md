@@ -40,9 +40,9 @@ All MCP boundaries return structured errors with:
 
 | Tool | Required inputs | Optional inputs | Success response | Persistence or external effects |
 |---|---|---|---|---|
-| `create_deal` | `company` | `industry`, `deal_size_krw`, `deal_size_status`, `deal_size_low_krw`, `deal_size_high_krw`, `deal_size_note`, `expected_close_date` | `ok`, `deal_id`, `company`, deal value fields, `expected_close_date`, `expected_close_date_source` | Validates the initial deal-value classification, applies the configured close-date default when omitted, upserts one deal, and initializes `discovery` stage history |
-| `add_meeting` | `deal_id`, `date`, `raw_notes` | None | `ok`, `meeting_id`, `summary`, `meddpicc`, `meddpicc_latest`, `customer_themes`, `stage_suggestion`, `embedding_stored`, `usage` | Calls LLM, appends a meeting, recalculates deal signals, optionally stores an embedding, and upserts the deal |
-| `update_stage` | `deal_id`, `new_stage` | `actual_close_date` | `ok`, `deal_id`, `old_stage`, `new_stage`, `actual_close_date`, `days_in_previous_stage`, `stuck_threshold_days` | Appends stage history, records the actual terminal date, recalculates stage-aware MEDDPICC gaps, and upserts the deal |
+| `create_deal` | `company` | `industry`, `deal_size_krw`, `deal_size_status`, `deal_size_low_krw`, `deal_size_high_krw`, `deal_size_note`, `expected_close_date` | `ok`, `deal_id`, `company`, deal value fields, `expected_close_date`, `expected_close_date_source`, optional `analytics_snapshot` | Validates the initial deal-value classification, applies the configured close-date default when omitted, upserts one deal, initializes `discovery` stage history, and attempts a non-blocking analytics snapshot |
+| `add_meeting` | `deal_id`, `date`, `raw_notes` | None | `ok`, `meeting_id`, `summary`, `meddpicc`, `meddpicc_latest`, `customer_themes`, `stage_suggestion`, `embedding_stored`, `usage`, optional `analytics_snapshot` | Calls LLM, appends a meeting, recalculates deal signals, optionally stores an embedding, upserts the deal, and attempts a non-blocking analytics snapshot |
+| `update_stage` | `deal_id`, `new_stage` | `actual_close_date` | `ok`, `deal_id`, `old_stage`, `new_stage`, `actual_close_date`, `days_in_previous_stage`, `stuck_threshold_days`, optional `analytics_snapshot` | Appends stage history, records the actual terminal date, recalculates stage-aware MEDDPICC gaps, upserts the deal, and attempts a non-blocking analytics snapshot |
 | `update_deal` | `deal_id` | `confirmed_by_user`, value fields, `company`, `industry`, `expected_close_date`, `actual_close_date`, `close_reason`, `update_note` | `ok`, `deal_id`, `company`, old/new value snapshots, old/new metadata snapshots, `changed_fields`, `changed_value_fields`, `changed_metadata_fields`, `storage_written` | Requires explicit user confirmation, updates confirmed value/metadata fields only, appends value/metadata history entries, and upserts the deal |
 | `archive_deal` | `deal_id`, `expected_company`, `archive_reason` | `confirmed_by_user` | `ok`, `deal_id`, `company`, `already_archived`, `old_deal`, `new_deal`, `storage_written` | Requires explicit confirmation and exact company match, marks the deal archived, appends archive history, and hides it from default BI/read paths |
 | `restore_deal` | `deal_id`, `expected_company`, `restore_reason` | `confirmed_by_user` | `ok`, `deal_id`, `company`, `already_active`, `old_deal`, `new_deal`, `storage_written` | Requires explicit confirmation and exact company match, clears archived state, appends restore history, and returns the deal to default BI/read paths |
@@ -105,6 +105,15 @@ sample-data layer. They use `mongodb.demo_database` by default
 deletes require `confirmed_by_user: true`. `delete_sample_data` only deletes
 documents matching both `is_sample: true` and the known `sample_batch_id`.
 The first supported dataset is `weekly_pipeline_demo`.
+
+`analytics_snapshots` form the M5.1-M5.5 trend foundation. `create_deal`,
+`add_meeting`, and `update_stage` attempt to write one lightweight snapshot
+after the source deal mutation succeeds. Snapshot writes are idempotent by
+`event_id`; a duplicate event returns `inserted: false` and `duplicate: true`
+instead of creating a second document. Snapshot failures do not fail the
+original tool call; the response includes `analytics_snapshot.ok: false` with
+`warning: analytics_snapshot_failed`. Snapshot documents exclude raw meeting
+notes, contacts, and embeddings.
 
 `get_metrics` accepts exact-match `stage` and `industry` filters. Invalid
 metric types, invalid stages, invalid `as_of`, and invalid metric config fail

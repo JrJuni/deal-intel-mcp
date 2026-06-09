@@ -175,11 +175,13 @@ src/deal_intel/
   storage/
     mongodb.py          MongoDBClient — pymongo lazy import
                         preload_driver()      — main thread에서 pymongo 선행 import
-                        ensure_indexes()      — 5개 일반 인덱스 (idempotent)
+                        ensure_indexes()      — deals/audit/snapshot 인덱스 (idempotent)
                         ensure_vector_index() — Atlas Vector Search index (createSearchIndexes)
                         search_by_embedding() — $vectorSearch aggregation pipeline
 
   tools/
+    analytics_snapshot.py
+                        create/add_meeting/update_stage용 idempotent BI snapshot
     create_deal.py      딜 생성, stage_history 초기화 [{stage:"discovery", entered_at:now}]
     add_meeting.py      MEDDPICC 추출 LLM → 요약 LLM → meddpicc_latest 재계산 → 임베딩 저장
     get_customer_themes.py

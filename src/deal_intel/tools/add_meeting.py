@@ -12,6 +12,10 @@ from deal_intel.schema.customer_themes import (
 )
 from deal_intel.schema.meddpicc import compute_meddpicc_latest
 from deal_intel.storage.mongodb import MongoDBClient
+from deal_intel.tools.analytics_snapshot import (
+    record_analytics_snapshot,
+    snapshot_event_id,
+)
 
 _SYSTEM = "You are a B2B sales expert specializing in MEDDPICC deal qualification."
 
@@ -227,7 +231,19 @@ def handle(
             ),
         }
 
-    return {
+    analytics_snapshot = record_analytics_snapshot(
+        mongo=mongo,
+        cfg=cfg,
+        event_type="add_meeting",
+        event_id=snapshot_event_id(
+            "add_meeting",
+            deal_id=deal_id,
+            event_key=meeting["meeting_id"],
+        ),
+        deal=deal,
+    )
+
+    result = {
         "ok": True,
         "meeting_id": meeting["meeting_id"],
         "summary": summary,
@@ -238,3 +254,6 @@ def handle(
         "embedding_stored": embedding_provider is not None,
         "usage": resp.usage,
     }
+    if analytics_snapshot is not None:
+        result["analytics_snapshot"] = analytics_snapshot
+    return result

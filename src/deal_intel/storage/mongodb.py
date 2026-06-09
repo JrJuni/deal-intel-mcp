@@ -93,6 +93,21 @@ class MongoDBClient:
             name="delete_audit_deal_deleted",
         )
 
+        snapshot_col = self._get_db().analytics_snapshots
+        snapshot_col.create_index(
+            [("event_id", ASCENDING)],
+            unique=True,
+            name="analytics_snapshot_event_id_unique",
+        )
+        snapshot_col.create_index(
+            [("deal_id", ASCENDING), ("occurred_at", DESCENDING)],
+            name="analytics_snapshot_deal_occurred",
+        )
+        snapshot_col.create_index(
+            [("event_type", ASCENDING), ("occurred_at", DESCENDING)],
+            name="analytics_snapshot_event_occurred",
+        )
+
         col.create_index(
             [("is_sample", ASCENDING), ("sample_batch_id", ASCENDING)],
             name="sample_batch",
@@ -276,3 +291,13 @@ class MongoDBClient:
             {"is_sample": True, "sample_batch_id": sample_batch_id}
         )
         return int(result.deleted_count)
+
+    # --- analytics snapshots / trend foundation ---
+
+    def upsert_analytics_snapshot(self, snapshot: dict) -> bool:
+        result = self._get_db().analytics_snapshots.update_one(
+            {"event_id": snapshot["event_id"]},
+            {"$setOnInsert": snapshot},
+            upsert=True,
+        )
+        return result.upserted_id is not None

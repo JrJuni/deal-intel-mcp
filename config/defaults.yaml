@@ -6,6 +6,7 @@ llm:
 
 mongodb:
   database: deal_intel
+  demo_database: deal_intel_demo
   vector_search: python_cosine   # python_cosine | atlas (atlas requires M10+ cluster)
 
 reporting:

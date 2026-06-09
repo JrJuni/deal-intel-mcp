@@ -68,9 +68,11 @@ hard delete는 `dry_run=true`가 기본이고, 실제 삭제는 archived deal에
 사용자 확인, exact company match, 삭제 사유, safe audit snapshot 저장 후에만
 수행한다.
 
-M4.4로 이관: onboarding/demo sample data. 샘플 데이터는 운영 DB의
-`is_sample` 필터가 아니라 별도 demo database context에서
-`create_sample_data`와 `delete_sample_data`를 함께 설계한다.
+완료: M4.4 onboarding/demo sample data. 샘플 데이터는 운영 DB의
+`is_sample` 필터가 아니라 `mongodb.demo_database` 기반 별도 demo database
+context에서 `create_sample_data`와 `delete_sample_data`로만 관리한다.
+두 도구 모두 `dry_run=true`가 기본이며 실제 write/delete는
+`confirmed_by_user=true`가 필요하다.
 
 `data_quality` metric, 누락 정보 보고서, Claude/Codex 보완 흐름을 각각 별도
 태스크로 구현한다.

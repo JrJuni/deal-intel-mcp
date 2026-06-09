@@ -160,5 +160,5 @@ def test_mcp_runtime_registers_get_deal_gaps() -> None:
     tools = asyncio.run(mcp_server.app.list_tools())
     names = sorted(tool.name for tool in tools)
 
-    assert len(names) == 16
+    assert len(names) == 18
     assert "get_deal_gaps" in names

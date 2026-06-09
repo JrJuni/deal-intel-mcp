@@ -30,6 +30,10 @@ class MongoDBClient:
         self._client: Any = None
         self._db: Any = None
 
+    @property
+    def database_name(self) -> str:
+        return self._database_name
+
     def _get_db(self) -> Any:
         if self._db is None:
             if not self._uri:
@@ -87,6 +91,11 @@ class MongoDBClient:
         audit_col.create_index(
             [("deal_id", ASCENDING), ("deleted_at", DESCENDING)],
             name="delete_audit_deal_deleted",
+        )
+
+        col.create_index(
+            [("is_sample", ASCENDING), ("sample_batch_id", ASCENDING)],
+            name="sample_batch",
         )
 
     def ping(self) -> dict:
@@ -239,4 +248,31 @@ class MongoDBClient:
 
     def hard_delete_deal(self, deal_id: str) -> int:
         result = self._get_db().deals.delete_one({"deal_id": deal_id})
+        return int(result.deleted_count)
+
+    # --- sample/demo data ---
+
+    def upsert_deals(self, deals: list[dict]) -> int:
+        if not deals:
+            return 0
+        from pymongo import ReplaceOne
+
+        operations = [
+            ReplaceOne({"deal_id": deal["deal_id"]}, deal, upsert=True)
+            for deal in deals
+        ]
+        self._get_db().deals.bulk_write(operations, ordered=True)
+        return len(deals)
+
+    def list_sample_deals(self, sample_batch_id: str) -> list[dict]:
+        cursor = self._get_db().deals.find(
+            {"is_sample": True, "sample_batch_id": sample_batch_id},
+            {"_id": 0, "deal_id": 1, "company": 1, "deal_stage": 1},
+        )
+        return list(cursor)
+
+    def delete_sample_deals(self, sample_batch_id: str) -> int:
+        result = self._get_db().deals.delete_many(
+            {"is_sample": True, "sample_batch_id": sample_batch_id}
+        )
         return int(result.deleted_count)

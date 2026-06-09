@@ -259,5 +259,5 @@ def test_mcp_lifecycle_wrappers_and_registration(monkeypatch) -> None:
     names = sorted(tool.name for tool in tools)
 
     assert result["ok"] is True
-    assert len(names) == 16
+    assert len(names) == 18
     assert {"archive_deal", "restore_deal", "delete_deal"}.issubset(names)

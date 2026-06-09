@@ -6,7 +6,7 @@
 [Claude Desktop / Codex — 자연어 입력]
          │ stdio JSON-RPC (FastMCP)
          ▼
-[deal-intel-mcp 서버  16 tools]
+[deal-intel-mcp 서버  18 tools]
          │
          ├─ LLM Provider ──────────────────────────────────────────────────
          │    add_meeting: MEDDPICC + customer_themes 추출 (구조화 JSON)
@@ -33,7 +33,7 @@
                    deal_summary_vector     : summary_embedding cosine 384d
 ```
 
-## 16개 MCP 도구
+## 18개 MCP 도구
 
 | 도구 | LLM 호출 | Embedding | 주요 기능 |
 |---|---|---|---|
@@ -45,6 +45,8 @@
 | `archive_deal` | 없음 | 없음 | 사용자 확인 후 딜을 archived 처리하여 기본 BI/read path에서 숨김 |
 | `restore_deal` | 없음 | 없음 | 사용자 확인 후 archived 딜을 기본 BI/read path로 복구 |
 | `delete_deal` | 없음 | 없음 | dry-run 기본 hard delete. archived 딜만 safe audit snapshot 저장 후 삭제 |
+| `create_sample_data` | 없음 | 없음 | 별도 demo database에 fictional onboarding sample deal 생성 |
+| `delete_sample_data` | 없음 | 없음 | 별도 demo database의 sample batch만 dry-run 기본으로 삭제 |
 | `list_deals` | 없음 | 없음 | health, stuck, overdue, attention 사유 집계 |
 | `get_metrics` | 없음 | 없음 | pipeline_health KPI, stage 집계, warning 반환 |
 | `get_deal_gaps` | 없음 | 없음 | 고객 공략에 필요한 미확인 정보와 follow-up question 우선순위화 |
@@ -145,7 +147,7 @@
 
 ```
 src/deal_intel/
-  mcp_server.py         FastMCP 진입점 — 16개 tool 등록
+  mcp_server.py         FastMCP 진입점 — 18개 tool 등록
                         native ML runtime은 main thread pre-import
                         embedding warmup + Mongo index 생성은 background 실행
   cli.py                typer CLI — login-chatgpt / backfill-customer-themes /
@@ -190,6 +192,10 @@ src/deal_intel/
     archive_deal.py     confirmed archive → default BI/read path exclusion
     restore_deal.py     confirmed restore → default BI/read path inclusion
     delete_deal.py      dry-run first hard delete → delete_audit_logs snapshot
+    create_sample_data.py
+                        separate demo database sample creation
+    delete_sample_data.py
+                        separate demo database sample deletion
     list_deals.py       _days_in_current_stage() → is_stuck → stuck 우선 / health_pct 역순 정렬
     get_metrics.py      pipeline_health MCP metric view
     get_deal_gaps.py    read-only prioritized sales follow-up gaps

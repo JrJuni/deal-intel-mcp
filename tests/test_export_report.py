@@ -232,5 +232,5 @@ def test_mcp_runtime_registers_export_report() -> None:
     tools = asyncio.run(mcp_server.app.list_tools())
     names = sorted(tool.name for tool in tools)
 
-    assert len(names) == 16
+    assert len(names) == 18
     assert "export_report" in names

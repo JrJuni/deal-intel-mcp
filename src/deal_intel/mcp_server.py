@@ -234,6 +234,78 @@ def delete_deal(
 
 
 @app.tool()
+def create_sample_data(
+    dataset: str = "weekly_pipeline_demo",
+    demo_database: str = "",
+    confirmed_by_user: bool = False,
+    dry_run: bool = True,
+    overwrite: bool = False,
+) -> dict:
+    """Create fictional onboarding sample deals in a separate demo database.
+
+    Defaults to dry_run=true. Actual writes require confirmed_by_user=true.
+    The demo database must differ from the primary configured database.
+    """
+    try:
+        from deal_intel import _context
+        from deal_intel.storage.mongodb import MongoDBClient
+        from deal_intel.tools import create_sample_data as _t
+        from deal_intel.tools.sample_data import resolve_demo_database
+
+        cfg = _context.config()
+        selection = resolve_demo_database(
+            cfg,
+            demo_database=demo_database or None,
+        )
+        return _t.handle(
+            mongo=MongoDBClient(database=selection.demo_database),
+            cfg=cfg,
+            dataset=dataset,
+            demo_database=selection.demo_database,
+            confirmed_by_user=confirmed_by_user,
+            dry_run=dry_run,
+            overwrite=overwrite,
+        )
+    except Exception as exc:
+        return envelope_from_exception(exc, stage=Stage.STORAGE)
+
+
+@app.tool()
+def delete_sample_data(
+    dataset: str = "weekly_pipeline_demo",
+    demo_database: str = "",
+    confirmed_by_user: bool = False,
+    dry_run: bool = True,
+) -> dict:
+    """Delete fictional onboarding sample deals from the separate demo database.
+
+    Deletes only records with the known sample batch marker. Defaults to
+    dry_run=true. Actual deletes require confirmed_by_user=true.
+    """
+    try:
+        from deal_intel import _context
+        from deal_intel.storage.mongodb import MongoDBClient
+        from deal_intel.tools import delete_sample_data as _t
+        from deal_intel.tools.sample_data import resolve_demo_database
+
+        cfg = _context.config()
+        selection = resolve_demo_database(
+            cfg,
+            demo_database=demo_database or None,
+        )
+        return _t.handle(
+            mongo=MongoDBClient(database=selection.demo_database),
+            cfg=cfg,
+            dataset=dataset,
+            demo_database=selection.demo_database,
+            confirmed_by_user=confirmed_by_user,
+            dry_run=dry_run,
+        )
+    except Exception as exc:
+        return envelope_from_exception(exc, stage=Stage.STORAGE)
+
+
+@app.tool()
 def get_deal(deal_id: str) -> dict:
     """Retrieve a deal with full meeting history and MEDDPICC scores."""
     try:

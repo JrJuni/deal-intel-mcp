@@ -6,6 +6,41 @@ contracts live in [baseline.md](baseline.md) and [metrics.md](metrics.md).
 
 ## Latest Update - 2026-06-09
 
+### BI Reporting Milestone 4.4 onboarding/demo sample data
+
+Implemented:
+
+- Added MCP tools: `create_sample_data`, `delete_sample_data`.
+- FastMCP registration target is now 18 tools.
+- Added `mongodb.demo_database`, default `deal_intel_demo`.
+- Sample tools reject any demo database equal to the primary
+  `mongodb.database`.
+- `create_sample_data` writes fictional `weekly_pipeline_demo` deals only to
+  the resolved demo database.
+- `delete_sample_data` deletes only documents matching `is_sample=true` and
+  the known `sample_batch_id`.
+- Both tools default to `dry_run=true`.
+- Actual create/delete requires `confirmed_by_user=true`.
+- No LLM, embedding, or production database writes are used by the sample-data
+  workflow.
+
+Verification so far:
+
+- Targeted tests with workspace-local temp:
+  `32 passed`
+- Command:
+  `pytest tests/test_sample_data.py tests/test_get_metrics.py tests/test_export_report.py tests/test_get_deal_gaps.py tests/test_deal_lifecycle.py -q --basetemp .tmp\pytest-m44-targeted`
+- Full pytest with workspace-local temp:
+  `197 passed`
+- Ruff:
+  `All checks passed`
+- Live Atlas demo DB dry-run smoke:
+  `create_ok=true`, `create_storage_written=false`,
+  `delete_ok=true`, `delete_storage_written=false`,
+  demo database `deal_intel_demo`, existing sample count `0`
+
+## History
+
 ### BI Reporting Milestone 4.3 deal lifecycle safety layer
 
 Implemented:
@@ -56,13 +91,6 @@ Verification so far:
 - Live Atlas read-only dry-run smoke:
   `ok=true`, `dry_run=true`, `storage_written=false`,
   visible deal count `22`, `would_delete=false`
-
-Deferred:
-
-- `delete_sample_data` is not part of M4.3.
-- Demo/onboarding sample data moves to M4.4 as a paired
-  `create_sample_data` + `delete_sample_data` design in a separate demo DB
-  context.
 
 ### BI Reporting Milestone 4.2 update_deal metadata extension
 

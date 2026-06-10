@@ -6,6 +6,34 @@ contracts live in [baseline.md](baseline.md) and [metrics.md](metrics.md).
 
 ## Latest Update - 2026-06-11
 
+### Zero-config sample mode Z4 startup diagnostics
+
+Implemented:
+
+- Added `deal_intel.storage.diagnostics` with the shared local sample mode hint.
+- Updated Mongo missing-URI `ping()` and runtime errors to explain both paths:
+  set `MONGODB_URI` for Atlas, or use `DEAL_INTEL_STORAGE_BACKEND=local_sample`
+  for bundled sample mode.
+- Added `deal_intel.cli storage-status` for install checks, local demos, and
+  agent smoke tests.
+- Documented the zero-config sample quickstart in README and
+  [storage-backends.md](storage-backends.md).
+
+Verification:
+
+- Z4 targeted tests:
+  `25 passed`
+- Local sample storage-status CLI smoke:
+  `ok=true`, `storage_backend=local_sample`, `deal_count=12`,
+  `snapshot_count=24`
+- Local sample natural-question CLI smoke:
+  `OK: True`, `derived=3`, `direct=5`, `Sensitive failures: none`,
+  `Blocked questions: none`
+- Full pytest:
+  `300 passed`, `1 warning`
+- Ruff:
+  `All checks passed`
+
 ### Zero-config sample mode Z3 local sample backend
 
 Implemented:

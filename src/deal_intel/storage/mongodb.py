@@ -3,6 +3,11 @@ from __future__ import annotations
 import os
 from typing import Any
 
+from deal_intel.storage.diagnostics import (
+    missing_mongodb_uri_message,
+    missing_mongodb_uri_ping,
+)
+
 
 def unarchived_deal_filter() -> dict[str, Any]:
     """Match visible deals, including legacy docs that predate archive fields."""
@@ -37,10 +42,7 @@ class MongoDBClient:
     def _get_db(self) -> Any:
         if self._db is None:
             if not self._uri:
-                raise RuntimeError(
-                    "MONGODB_URI not set. "
-                    "Add MONGODB_URI=mongodb+srv://... to .env (see .env.example)."
-                )
+                raise RuntimeError(missing_mongodb_uri_message())
             from pymongo import MongoClient
             self._client = MongoClient(
                 self._uri,
@@ -115,10 +117,7 @@ class MongoDBClient:
 
     def ping(self) -> dict:
         if not self._uri:
-            return {
-                "status": "missing_uri",
-                "fix": "Set MONGODB_URI in .env (see .env.example)",
-            }
+            return missing_mongodb_uri_ping(database=self._database_name)
         try:
             db = self._get_db()
             db.command("ping")

@@ -104,6 +104,30 @@ get_insights / search_deals / get_customer_themes
 
 ---
 
+## Zero-config sample mode (no MongoDB)
+
+If you only want to try the read-only BI and deal-review flows, you can run the
+bundled sample dataset without MongoDB Atlas, API keys, or Atlas Vector Search.
+
+```powershell
+$env:DEAL_INTEL_STORAGE_BACKEND='local_sample'
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli storage-status
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli smoke-natural-questions --as-of 2026-06-10
+```
+
+For persistent sample mode, add this to `~/.deal-intel/config.yaml`:
+
+```yaml
+storage:
+  backend: local_sample
+```
+
+Sample mode is intentionally read-only. It supports the core dashboard,
+reporting, customer-theme, and deal-review smoke paths, but not real
+create/update/delete workflows or semantic `search_deals`.
+
+---
+
 ## Tool guide (13 tools)
 
 > **Tip**: In Claude Desktop, type the example sentences below verbatim or say something similar. You can find a `deal_id` with `create_deal` or `list_deals`.

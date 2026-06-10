@@ -319,6 +319,21 @@ raw segment별 비교가 된다. M6.4에서는 dashboard 확인만 진행하고,
 
 ---
 
+### Z4 completion note - zero-config sample startup
+
+The MongoDB-free sample mode onboarding path is now implemented:
+
+- `MongoDBClient.ping()` returns a structured `missing_uri` status with a
+  sample-mode hint when `storage.backend=mongo` but `MONGODB_URI` is missing.
+- Missing-URI runtime errors point to
+  `DEAL_INTEL_STORAGE_BACKEND=local_sample`.
+- `deal_intel.cli storage-status` provides a quick user/installer diagnostic.
+- README and [storage-backends.md](storage-backends.md) document the
+  zero-config quickstart and smoke path.
+
+Remaining follow-up: package defaults and optional mutable/resettable sample
+state for a future non-developer distribution.
+
 ## P3
 
 ### #15 event-intel-mcp 연결

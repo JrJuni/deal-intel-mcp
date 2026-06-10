@@ -37,6 +37,53 @@ def login_chatgpt(
     typer.echo(f"ok  model={result['model']}  token_path={result['token_path']}")
 
 
+@app.command("storage-status")
+def storage_status(
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Print structured JSON instead of concise text.",
+    ),
+) -> None:
+    """Check the configured storage backend without starting an MCP client."""
+
+    from deal_intel import _context
+    from deal_intel.storage.diagnostics import local_sample_mode_hint
+
+    try:
+        backend = _context.storage_backend_name()
+        storage = _context.mongo()
+        ping = storage.ping()
+        payload = {
+            "ok": ping.get("status") == "ok",
+            "storage_backend": backend,
+            "database": getattr(storage, "database_name", None),
+            "ping": ping,
+        }
+        if backend == "mongo" and ping.get("status") != "ok":
+            payload["sample_mode_hint"] = ping.get(
+                "sample_mode_hint",
+                local_sample_mode_hint(),
+            )
+    except ValueError as exc:
+        payload = {
+            "ok": False,
+            "storage_backend": None,
+            "database": None,
+            "ping": None,
+            "error": str(exc),
+            "sample_mode_hint": local_sample_mode_hint(),
+        }
+
+    if json_output:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        typer.echo(_format_storage_status(payload))
+
+    if not payload["ok"]:
+        raise typer.Exit(code=1)
+
+
 @app.command("backfill-customer-themes")
 def backfill_customer_themes(
     apply: bool = typer.Option(
@@ -503,6 +550,49 @@ def smoke_natural_questions(
 
     if not payload["ok"]:
         raise typer.Exit(code=2)
+
+
+def _format_storage_status(payload: dict) -> str:
+    status = "OK" if payload.get("ok") else "not ready"
+    lines = [
+        f"Storage status: {status}",
+        f"Backend: {payload.get('storage_backend') or 'unknown'}",
+        f"Database: {payload.get('database') or 'unknown'}",
+    ]
+    ping = payload.get("ping") or {}
+    if ping:
+        lines.append(f"Ping: {ping.get('status')}")
+        if ping.get("sample_dataset"):
+            lines.append(
+                "Sample dataset: "
+                f"{ping.get('sample_dataset')} "
+                f"({ping.get('sample_dataset_version')})"
+            )
+        if ping.get("deal_count") is not None:
+            lines.append(
+                f"Sample rows: deals={ping.get('deal_count')}, "
+                f"snapshots={ping.get('snapshot_count')}"
+            )
+        if ping.get("message"):
+            lines.append(f"Message: {ping.get('message')}")
+        if ping.get("fix"):
+            lines.append(f"Fix: {ping.get('fix')}")
+    if payload.get("error"):
+        lines.append(f"Error: {payload.get('error')}")
+
+    hint = payload.get("sample_mode_hint")
+    if isinstance(hint, dict):
+        lines.extend(
+            [
+                "",
+                "Sample mode:",
+                f"- Temporary PowerShell: {hint.get('powershell')}",
+                f"- Persistent config: add to {hint.get('user_config_path')}",
+                "  storage:",
+                "    backend: local_sample",
+            ]
+        )
+    return "\n".join(lines)
 
 
 def _build_natural_question_smoke_pack(

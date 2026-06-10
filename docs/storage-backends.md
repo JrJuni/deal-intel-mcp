@@ -144,15 +144,55 @@ embedding warmup at MCP startup. `search_deals` returns a structured
 unsupported-mode response before touching the embedding provider because
 semantic search is outside the read-only sample MVP.
 
+## Startup Diagnostics And Quickstart
+
+Z4 adds explicit user-facing diagnostics for MongoDB-free startup.
+
+When `storage.backend` is `mongo` and `MONGODB_URI` is missing,
+`MongoDBClient.ping()` now returns:
+
+- `status: missing_uri`
+- `storage_backend: mongo`
+- the configured database name
+- a message explaining that Atlas-backed storage needs `MONGODB_URI`
+- a `sample_mode_hint` with the temporary env var and persistent config shape
+
+The same hint is used by the missing-URI runtime error so MCP startup or CLI
+smoke failures point users toward the sample path instead of failing silently.
+
+The new CLI command is:
+
+```powershell
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli storage-status
+```
+
+Temporary sample mode:
+
+```powershell
+$env:DEAL_INTEL_STORAGE_BACKEND='local_sample'
+```
+
+Persistent sample mode:
+
+```yaml
+storage:
+  backend: local_sample
+```
+
+`storage-status --json` is intended for installer checks and agent smoke tests.
+It exits with code `1` when Mongo storage is selected but not ready, and exits
+with code `0` in local sample mode.
+
 ## Verification
 
 Current contract checks:
 
 - `tests/test_storage_backend_contract.py`
 - `tests/test_zero_config_sample_fixture.py`
+- `tests/test_storage_diagnostics.py`
 - `SampleReadStorageBackend` runtime protocol
 - `backend_capability_report(...)`
 - `validate_backend_capabilities(...)`
 
-The next implementation step is to add a clearer startup/user-facing hint when
-Mongo is not configured and to document the zero-config quickstart path.
+Next local-sample work should focus on packaging defaults and optional
+mutable/resettable sample state, not on expanding the production Mongo path.

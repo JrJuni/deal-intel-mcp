@@ -30,6 +30,7 @@ scripts/tmp/
 mcpb/*.mcpb
 
 # Testing
+.tmp/
 .pytest_cache/
 .pytest-temp/
 .coverage

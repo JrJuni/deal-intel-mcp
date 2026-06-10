@@ -458,6 +458,8 @@ def _alert_level(
         return "alert"
     if any(status == DataQualityStatus.INVALID for status in data_quality_statuses.values()):
         return "alert"
+    if confirmed_risks:
+        return "watch"
     if actionable_attention or review_band in {
         "promising_but_unproven",
         "unclear_with_risk_signals",

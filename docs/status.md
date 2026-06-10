@@ -6,6 +6,44 @@ contracts live in [baseline.md](baseline.md) and [metrics.md](metrics.md).
 
 ## Latest Update - 2026-06-10
 
+### Deal review audit smoke pack
+
+Implemented:
+
+- Added `deal-intel smoke-deal-review-audit`.
+- The command audits selected deal reviews through the restricted metrics read
+  path without requiring Claude Desktop or another MCP client.
+- Supports `--company`, `--stage`, `--industry`, `--limit`, `--as-of`,
+  `--json`, and `--fail-on-issues`.
+- Summarizes alert levels, uncertainty levels, review bands, warnings, quality
+  issue counts, and top review targets.
+- Added deterministic quality rules for:
+  - win-probability suppression
+  - low-evidence healthy overconfidence
+  - confirmed risk alert consistency
+  - missing information follow-up questions
+  - confirmed risk follow-up actions
+  - closed-deal postmortem gap reporting
+  - accidental percentage estimates in guidance
+  - sensitive field exposure
+- Fixed deal review alert interpretation so any confirmed risk row raises the
+  review to at least `watch`.
+
+Verification:
+
+- Deal review audit CLI targeted tests:
+  `10 passed`
+- Related deal review regression tests:
+  `21 passed`
+- Full pytest with workspace-local temp:
+  `266 passed`
+- Ruff:
+  `All checks passed`
+- Live Atlas read-only audit smoke:
+  `smoke-deal-review-audit --as-of 2026-06-10 --limit 50` reviewed `22`
+  deals, returned `Sensitive field check: passed`, `Quality rules: passed`,
+  and moved confirmed-risk rows from `alert=none` to `watch`
+
 ### Deal review local smoke CLI
 
 Implemented:

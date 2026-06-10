@@ -167,6 +167,27 @@ def test_high_coverage_high_health_is_verified_healthy() -> None:
     assert review["known_signals"]
 
 
+def test_high_coverage_forecast_risk_raises_watch_alert() -> None:
+    review = build_deal_review(
+        _deal(
+            health_pct=88,
+            scores={dim: 4.5 for dim in MEDDPICC_DIMS},
+            gaps=[],
+            amount_status="rough_estimate",
+        ),
+        as_of=AS_OF,
+    )
+
+    interpretation = review["health_interpretation"]
+    assert interpretation["review_band"] == "verified_healthy"
+    assert interpretation["alert_level"] == "watch"
+    assert any(
+        risk["risk_id"] == "forecast:rough_estimate"
+        for risk in review["confirmed_risks"]
+    )
+    assert "confirmed_risk_present" in review["warnings"]
+
+
 def test_low_coverage_low_health_prioritizes_missing_information() -> None:
     review = build_deal_review(
         _deal(

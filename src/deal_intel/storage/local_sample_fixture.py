@@ -331,7 +331,7 @@ _DEALS = [
     ),
     _deal(
         deal_id="sample-pavebridge",
-        company="PaveBridge",
+        company="페이브릿지",
         industry="Fintech",
         stage="negotiation",
         amount=92_000_000,

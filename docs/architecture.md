@@ -183,6 +183,8 @@ src/deal_intel/
                         local_sample_mvp read-only sample mode method surface
     local_sample_fixture.py
                         MongoDB-free zero-config sample deals and snapshots
+    local_sample.py     LocalSampleClient read-only backend for
+                        storage.backend=local_sample
     mongodb.py          MongoDBClient — pymongo lazy import
                         preload_driver()      — main thread에서 pymongo 선행 import
                         ensure_indexes()      — deals/audit/snapshot 인덱스 (idempotent)
@@ -278,6 +280,19 @@ proposal / negotiation 에서 identify_pain 이 낮아지는 것 = Pain이 해�
 1. `config/defaults.yaml` — 소스에 포함된 기본값
 2. `.env` — ANTHROPIC_API_KEY, OPENAI_API_KEY, MONGODB_URI (gitignored)
 3. `~/.deal-intel/config.yaml` — 사용자 override (ML weight 튜닝 등)
+
+Storage backend selection:
+
+```yaml
+storage:
+  backend: mongo        # mongo | local_sample
+```
+
+Temporary smoke override:
+
+```powershell
+$env:DEAL_INTEL_STORAGE_BACKEND='local_sample'
+```
 
 ## Vector Search 흐름
 

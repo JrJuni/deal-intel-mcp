@@ -11,6 +11,9 @@ mongodb:
   demo_database: deal_intel_demo
   vector_search: python_cosine   # python_cosine | atlas (atlas requires M10+ cluster)
 
+storage:
+  backend: mongo                  # mongo | local_sample
+
 reporting:
   timezone: Asia/Seoul
   output_dir: outputs/reports

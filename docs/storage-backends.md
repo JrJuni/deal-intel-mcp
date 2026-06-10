@@ -21,6 +21,16 @@ local write/reset semantics are introduced.
 | `mongo_full` | Production and real demos backed by Atlas | MongoDB Atlas | Full read/write/admin surface |
 | `local_sample_mvp` | Zero-config sample experience | Bundled/local fixture data | Read-only BI/review/report surface |
 
+Runtime config uses:
+
+```yaml
+storage:
+  backend: mongo        # mongo | local_sample
+```
+
+`DEAL_INTEL_STORAGE_BACKEND=local_sample` can be used for temporary smoke
+tests without editing user config.
+
 ## Local Sample MVP Contract
 
 The code contract lives in `src/deal_intel/storage/backend.py`.
@@ -108,8 +118,31 @@ Fixture contract:
 - trend snapshots included for a 7-day pipeline movement smoke
 - no `meetings.raw_notes`, `contacts`, or `summary_embedding`
 
-The fixture is intentionally not a `LocalSampleClient` yet. It is the data
-pack that the next step can wrap with the read-only storage backend contract.
+The fixture remains immutable; `LocalSampleClient` wraps it without adding
+local write/reset semantics yet.
+
+## LocalSampleClient
+
+Z3 adds `src/deal_intel/storage/local_sample.py`.
+
+`LocalSampleClient` wraps the bundled fixture and satisfies the
+`local_sample_mvp` read contract:
+
+- `ping()`
+- `get_deal(deal_id)`
+- `list_deals(stage=None, limit=50)`
+- `list_deals_for_metrics()`
+- `list_analytics_snapshots(start_date, end_date, stage=None, industry=None)`
+
+When `storage.backend` is `local_sample`, `_context.mongo()` returns this
+read-only backend instead of `MongoDBClient`. The existing function name is
+kept for tool compatibility, but the runtime behavior is now storage-backend
+selection rather than Mongo-only construction.
+
+Local sample mode skips Mongo driver preload, Mongo index creation, and
+embedding warmup at MCP startup. `search_deals` returns a structured
+unsupported-mode response before touching the embedding provider because
+semantic search is outside the read-only sample MVP.
 
 ## Verification
 
@@ -121,6 +154,5 @@ Current contract checks:
 - `backend_capability_report(...)`
 - `validate_backend_capabilities(...)`
 
-The next implementation step is to add a `LocalSampleClient` that satisfies
-`local_sample_mvp`, serves this fixture, and then runs zero-config smoke tests
-without `MONGODB_URI`.
+The next implementation step is to add a clearer startup/user-facing hint when
+Mongo is not configured and to document the zero-config quickstart path.

@@ -624,6 +624,20 @@ def search_deals(query: str, limit: int = 5) -> dict:
         from deal_intel import _context
         from deal_intel.tools import search_deals as _t
 
+        if _context.storage_backend_name() == "local_sample":
+            return {
+                "ok": False,
+                "error_code": "CONFIG_ERROR",
+                "stage": "preflight",
+                "message": "search_deals is not supported in local_sample storage mode.",
+                "hint": {
+                    "fix": "Use storage.backend: mongo for semantic search, or use "
+                    "get_metrics/get_deal_gaps/customer theme tools in sample mode."
+                },
+                "retryable": False,
+                "warming_up": False,
+            }
+
         embedding_provider = _context.embedding_provider()
         if embedding_provider is None:
             return {
@@ -701,19 +715,24 @@ def analyze_deal(deal_id: str) -> dict:
 
 
 def main() -> None:
+    from deal_intel import _context
+
+    storage_backend = _context.storage_backend_name()
+
     # Pre-import native modules that can stall when first imported from a
     # background thread on Windows. Combined cold import stays within startup budget.
-    from deal_intel.storage.mongodb import preload_driver
+    if storage_backend == "mongo":
+        from deal_intel.storage.mongodb import preload_driver
 
-    preload_driver()
+        preload_driver()
 
-    try:
-        import numpy  # noqa: F401
-        import scipy  # noqa: F401
-        import sklearn  # noqa: F401
-        import torch  # noqa: F401
-    except ImportError:
-        pass
+        try:
+            import numpy  # noqa: F401
+            import scipy  # noqa: F401
+            import sklearn  # noqa: F401
+            import torch  # noqa: F401
+        except ImportError:
+            pass
 
     # Warm the embedding model in a background thread so the first search_deals
     # call doesn't stall. all-MiniLM-L6-v2 takes ~10s to load cold; warming it
@@ -734,7 +753,8 @@ def main() -> None:
         except Exception as exc:
             print(f"[embed-warmup] FAILED: {exc}", file=sys.stderr, flush=True)
 
-    threading.Thread(target=_warm_embedding, daemon=True, name="embed-warmup").start()
+    if storage_backend == "mongo":
+        threading.Thread(target=_warm_embedding, daemon=True, name="embed-warmup").start()
 
     def _ensure_mongo_indexes() -> None:
         import sys
@@ -744,11 +764,12 @@ def main() -> None:
         except Exception as exc:
             print(f"[mongo-indexes] FAILED: {exc}", file=sys.stderr, flush=True)
 
-    threading.Thread(
-        target=_ensure_mongo_indexes,
-        daemon=True,
-        name="mongo-indexes",
-    ).start()
+    if storage_backend == "mongo":
+        threading.Thread(
+            target=_ensure_mongo_indexes,
+            daemon=True,
+            name="mongo-indexes",
+        ).start()
 
     app.run()
 

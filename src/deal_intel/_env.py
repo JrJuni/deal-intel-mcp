@@ -9,6 +9,7 @@ _ROOT = Path(__file__).resolve().parents[2]  # src/deal_intel → src → repo r
 load_dotenv(_ROOT / ".env", override=False)
 
 _USER_CONFIG_PATH = Path.home() / ".deal-intel" / "config.yaml"
+_VALID_STORAGE_BACKENDS = {"mongo", "local_sample"}
 
 
 def load_config() -> dict:
@@ -30,14 +31,17 @@ def load_config() -> dict:
     provider_env = os.environ.get("DEAL_INTEL_LLM_PROVIDER", "").strip()
     if provider_env in {"chatgpt_oauth", "anthropic", "openai_api"}:
         config.setdefault("llm", {})["provider"] = provider_env
-        return config
+    else:
+        # "true"/"1" -> chatgpt_oauth, "false"/"0" -> anthropic.
+        _oauth_env = os.environ.get("DEAL_INTEL_USE_CHATGPT_OAUTH", "").lower()
+        if _oauth_env in ("true", "1"):
+            config.setdefault("llm", {})["provider"] = "chatgpt_oauth"
+        elif _oauth_env in ("false", "0"):
+            config.setdefault("llm", {})["provider"] = "anthropic"
 
-    # "true"/"1" -> chatgpt_oauth, "false"/"0" -> anthropic.
-    _oauth_env = os.environ.get("DEAL_INTEL_USE_CHATGPT_OAUTH", "").lower()
-    if _oauth_env in ("true", "1"):
-        config.setdefault("llm", {})["provider"] = "chatgpt_oauth"
-    elif _oauth_env in ("false", "0"):
-        config.setdefault("llm", {})["provider"] = "anthropic"
+    storage_backend_env = os.environ.get("DEAL_INTEL_STORAGE_BACKEND", "").strip()
+    if storage_backend_env in _VALID_STORAGE_BACKENDS:
+        config.setdefault("storage", {})["backend"] = storage_backend_env
 
     return config
 

@@ -4,7 +4,36 @@ This file tracks the current workstream and the most recent completed
 milestones. Longer roadmap items live in [backlog.md](backlog.md), and durable
 contracts live in [baseline.md](baseline.md) and [metrics.md](metrics.md).
 
-## Latest Update - 2026-06-10
+## Latest Update - 2026-06-11
+
+### Zero-config sample mode Z3 local sample backend
+
+Implemented:
+
+- Added `deal_intel.storage.local_sample.LocalSampleClient`.
+- Added `storage.backend: mongo | local_sample` to defaults.
+- Added `DEAL_INTEL_STORAGE_BACKEND=local_sample` as a temporary env override.
+- Updated `_context.mongo()` to select `MongoDBClient` or `LocalSampleClient`
+  while preserving the existing tool-call surface.
+- Local sample mode now skips Mongo driver preload, Mongo index creation, and
+  embedding warmup during MCP startup.
+- `search_deals` now returns a structured unsupported-mode response in local
+  sample mode before touching embeddings.
+- Fixed the bundled fixture so the natural-question smoke pack's PayBridge
+  question resolves to `페이브릿지` instead of falling back to the first deal.
+
+Verification:
+
+- Z3 targeted tests:
+  `28 passed`
+- Local sample natural-question CLI smoke:
+  `OK: True`, `derived=3`, `direct=5`, `Sensitive failures: none`,
+  `Blocked questions: none`
+  with `DEAL_INTEL_STORAGE_BACKEND=local_sample`
+- Full pytest with workspace-local temp:
+  `295 passed`
+- Ruff:
+  `All checks passed`
 
 ### Zero-config sample mode Z2 bundled fixture
 

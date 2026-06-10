@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from deal_intel import _context, mcp_server
 from deal_intel.providers.embedding import SentenceTransformerProvider
 from deal_intel.tools import search_deals as search_tool
@@ -21,6 +23,11 @@ class _Embedding:
         }
 
 
+@pytest.fixture(autouse=True)
+def _use_mongo_backend(monkeypatch) -> None:
+    monkeypatch.setattr(_context, "storage_backend_name", lambda: "mongo")
+
+
 def test_search_deals_returns_immediately_while_embedding_warms(monkeypatch) -> None:
     monkeypatch.setattr(_context, "embedding_provider", lambda: _Embedding(ready=False))
     monkeypatch.setattr(
@@ -34,6 +41,29 @@ def test_search_deals_returns_immediately_while_embedding_warms(monkeypatch) -> 
     assert result["ok"] is False
     assert result["warming_up"] is True
     assert result["retryable"] is True
+
+
+def test_search_deals_local_sample_mode_skips_embedding(monkeypatch) -> None:
+    monkeypatch.setattr(_context, "storage_backend_name", lambda: "local_sample")
+    monkeypatch.setattr(
+        _context,
+        "embedding_provider",
+        lambda: (_ for _ in ()).throw(
+            AssertionError("embedding must not be touched")
+        ),
+    )
+    monkeypatch.setattr(
+        _context,
+        "mongo",
+        lambda: (_ for _ in ()).throw(AssertionError("MongoDB must not be touched")),
+    )
+
+    result = mcp_server.search_deals("cost reduction")
+
+    assert result["ok"] is False
+    assert result["error_code"] == "CONFIG_ERROR"
+    assert result["warming_up"] is False
+    assert "local_sample" in result["message"]
 
 
 def test_search_deals_reports_background_load_failure(monkeypatch) -> None:

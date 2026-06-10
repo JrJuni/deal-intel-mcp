@@ -179,6 +179,8 @@ src/deal_intel/
     pipeline_trends.py  pipeline_trend 계산기 (analytics_snapshots 기반)
 
   storage/
+    backend.py          storage backend 계약
+                        local_sample_mvp read-only sample mode method surface
     mongodb.py          MongoDBClient — pymongo lazy import
                         preload_driver()      — main thread에서 pymongo 선행 import
                         ensure_indexes()      — deals/audit/snapshot 인덱스 (idempotent)

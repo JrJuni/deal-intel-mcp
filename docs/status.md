@@ -6,6 +6,30 @@ contracts live in [baseline.md](baseline.md) and [metrics.md](metrics.md).
 
 ## Latest Update - 2026-06-10
 
+### Zero-config sample mode Z1 storage contract
+
+Implemented:
+
+- Added `deal_intel.storage.backend`.
+- Defined the `local_sample_mvp` read-only storage contract before adding a
+  `LocalSampleClient`.
+- Added `SampleReadStorageBackend`, storage method contracts, capability
+  reporting, and validation helpers.
+- Fixed the first sample-mode support boundary:
+  `ping`, `get_deal`, `list_deals`, `list_deals_for_metrics`, and
+  `list_analytics_snapshots`.
+- Documented deferred paths such as Mongo aggregations, semantic search,
+  write tools, and admin/index setup in [storage-backends.md](storage-backends.md).
+
+Verification:
+
+- Storage backend contract tests:
+  `6 passed`
+- Full pytest with workspace-local temp:
+  `275 passed`
+- Ruff:
+  `All checks passed`
+
 ### Natural question smoke CLI
 
 Implemented:

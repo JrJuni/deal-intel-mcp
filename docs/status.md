@@ -6,6 +6,33 @@ contracts live in [baseline.md](baseline.md) and [metrics.md](metrics.md).
 
 ## Latest Update - 2026-06-10
 
+### Zero-config sample mode Z2 bundled fixture
+
+Implemented:
+
+- Added `deal_intel.storage.local_sample_fixture`.
+- Added a safe bundled fictional data pack for MongoDB-free demos and agent
+  smoke tests.
+- Included 12 current deal documents across all canonical stages.
+- Included all deal value statuses:
+  `unknown`, `rough_estimate`, `customer_budget`, `quoted`, and
+  `strategic_zero`.
+- Added 7-day analytics snapshots so `pipeline_trend` can return meaningful
+  movement without Atlas.
+- Kept the fixture free of `meetings.raw_notes`, `contacts`, and
+  `summary_embedding`.
+- Added fixture validation and summary helpers for future zero-config
+  diagnostics.
+
+Verification:
+
+- Zero-config sample fixture tests:
+  `5 passed`
+- Full pytest with workspace-local temp:
+  `280 passed`
+- Ruff:
+  `All checks passed`
+
 ### Zero-config sample mode Z1 storage contract
 
 Implemented:

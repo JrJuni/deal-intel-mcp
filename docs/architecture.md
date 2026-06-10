@@ -181,6 +181,8 @@ src/deal_intel/
   storage/
     backend.py          storage backend 계약
                         local_sample_mvp read-only sample mode method surface
+    local_sample_fixture.py
+                        MongoDB-free zero-config sample deals and snapshots
     mongodb.py          MongoDBClient — pymongo lazy import
                         preload_driver()      — main thread에서 pymongo 선행 import
                         ensure_indexes()      — deals/audit/snapshot 인덱스 (idempotent)

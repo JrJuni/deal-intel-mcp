@@ -33,7 +33,7 @@ The code contract lives in `src/deal_intel/storage/backend.py`.
 | `get_deal(deal_id)` | `get_deal` | Returns one safe sample deal |
 | `list_deals(stage=None, limit=50)` | `list_deals` | Supports stage filter and limit |
 | `list_deals_for_metrics()` | `get_metrics`, `get_deal_gaps`, `get_deal_review`, customer theme tools, weekly report, natural question smoke | Primary LLM-free BI/read path; excludes raw notes, contacts, vectors |
-| `list_analytics_snapshots(start_date, end_date, stage=None, industry=None)` | `pipeline_trend`, trend report | May return an empty list for fixture-only sample mode |
+| `list_analytics_snapshots(start_date, end_date, stage=None, industry=None)` | `pipeline_trend`, trend report | Returns bundled fixture snapshots for sample mode |
 
 This contract supports the first zero-config read stack:
 
@@ -79,14 +79,48 @@ The local sample backend should preserve the same safe read posture as
 Fixture data may include curated meeting summaries and customer-theme evidence,
 but not raw notes or private contacts.
 
+## Bundled Zero-Config Fixture
+
+Z2 adds the bundled fixture in
+`src/deal_intel/storage/local_sample_fixture.py`.
+
+It provides:
+
+- `load_zero_config_sample_deals()`
+- `load_zero_config_sample_snapshots()`
+- `build_zero_config_sample_summary()`
+- `validate_zero_config_sample_fixture()`
+
+Fixture contract:
+
+- dataset: `zero_config_sample`
+- version: `2026-06-10.v1`
+- as-of date: `2026-06-10`
+- trend window start: `2026-06-03`
+- at least 10 fictional deals
+- all canonical stages represented:
+  `discovery`, `qualification`, `proposal`, `negotiation`, `stalled`,
+  `won`, `lost`
+- all deal value statuses represented:
+  `unknown`, `rough_estimate`, `customer_budget`, `quoted`,
+  `strategic_zero`
+- curated meeting summaries and customer-theme evidence included
+- trend snapshots included for a 7-day pipeline movement smoke
+- no `meetings.raw_notes`, `contacts`, or `summary_embedding`
+
+The fixture is intentionally not a `LocalSampleClient` yet. It is the data
+pack that the next step can wrap with the read-only storage backend contract.
+
 ## Verification
 
 Current contract checks:
 
 - `tests/test_storage_backend_contract.py`
+- `tests/test_zero_config_sample_fixture.py`
 - `SampleReadStorageBackend` runtime protocol
 - `backend_capability_report(...)`
 - `validate_backend_capabilities(...)`
 
 The next implementation step is to add a `LocalSampleClient` that satisfies
-`local_sample_mvp` and then run zero-config smoke tests without `MONGODB_URI`.
+`local_sample_mvp`, serves this fixture, and then runs zero-config smoke tests
+without `MONGODB_URI`.

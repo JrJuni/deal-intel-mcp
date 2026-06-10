@@ -247,6 +247,11 @@ workflow:
 "모른다"가 "평균적으로 괜찮다"로 섞여 assistant 답변이 과신할 위험이 있다.
 향후 metric engine 조정 시 다음 방향을 논의한다.
 
+Partial progress: `get_deal_review`는 legacy `health_pct`와
+`evidence_coverage_pct`를 분리하고, `uncertainty_level`, `review_band`,
+`alert_level`을 반환한다. 남은 범위는 기존 metric engine, dashboard, report의
+scoring semantics 전반 조정이다.
+
 - 미습득 정보는 기본 점수 `3`이 아니라 `unknown`으로 유지한다.
 - health/fit score는 확인된 evidence만으로 계산하고, 별도
   `uncertainty_score` 또는 `evidence_coverage`를 함께 노출한다.

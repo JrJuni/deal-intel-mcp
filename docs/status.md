@@ -6,6 +6,38 @@ contracts live in [baseline.md](baseline.md) and [metrics.md](metrics.md).
 
 ## Latest Update - 2026-06-10
 
+### Deal review quality hardening
+
+Implemented:
+
+- Added `get_deal_review` MCP tool.
+- Added deterministic `deal_review` calculation module.
+- Separated legacy `health_pct` from MEDDPICC evidence coverage.
+- Added `uncertainty_level`, `review_band`, and `alert_level`.
+- Added explicit `missing_information`, `confirmed_risks`,
+  `known_signals`, `recommended_questions`, and `recommended_actions`.
+- Suppressed uncalibrated win-probability numbers in review responses.
+- Kept the read path free of LLM calls, embedding calls, and MongoDB writes.
+- Used the restricted metrics projection so raw notes, contacts, and
+  embeddings remain excluded.
+
+Verification:
+
+- `tests/test_deal_review.py`:
+  `10 passed`
+- Related MCP/read-path regression tests:
+  `54 passed`
+- Full pytest with workspace-local temp:
+  `255 passed`
+- Ruff:
+  `All checks passed`
+- FastMCP registration smoke:
+  `21` tools, `get_deal_review` registered
+- Live Atlas read-only smoke:
+  `deal_count=22`, `ok=true`, first reviewed deal returned
+  `review_band=verified_healthy`, `alert_level=none`,
+  `warnings=win_probability_suppressed`
+
 ### BI Reporting Milestone 6.1-M6.3 Customer Themes expansion
 
 Implemented:

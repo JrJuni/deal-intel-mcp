@@ -6,7 +6,7 @@
 [Claude Desktop / Codex — 자연어 입력]
          │ stdio JSON-RPC (FastMCP)
          ▼
-[deal-intel-mcp 서버  20 tools]
+[deal-intel-mcp 서버  21 tools]
          │
          ├─ LLM Provider ──────────────────────────────────────────────────
          │    add_meeting: MEDDPICC + customer_themes 추출 (구조화 JSON)
@@ -34,7 +34,7 @@
                    deal_summary_vector     : summary_embedding cosine 384d
 ```
 
-## 20개 MCP 도구
+## 21개 MCP 도구
 
 | 도구 | LLM 호출 | Embedding | 주요 기능 |
 |---|---|---|---|
@@ -51,6 +51,7 @@
 | `list_deals` | 없음 | 없음 | health, stuck, overdue, attention 사유 집계 |
 | `get_metrics` | 없음 | 없음 | pipeline_health KPI와 pipeline_trend 추세 metric 반환 |
 | `get_deal_gaps` | 없음 | 없음 | 고객 공략에 필요한 미확인 정보와 follow-up question 우선순위화 |
+| `get_deal_review` | 없음 | 없음 | health와 evidence coverage를 분리한 read-only 딜 리뷰 |
 | `export_report` | 없음 | 없음 | weekly_pipeline / pipeline_trend CSV·Markdown 파일 생성 |
 | `get_insights` | 없음 | 없음 | 7가지 BI 집계와 legacy insight query |
 | `get_customer_themes` | 없음 | 없음 | 고객 고민 주제별 고유 딜 수·근거 집계 |
@@ -150,7 +151,7 @@
 
 ```
 src/deal_intel/
-  mcp_server.py         FastMCP 진입점 — 18개 tool 등록
+  mcp_server.py         FastMCP 진입점 — 21개 tool 등록
                         native ML runtime은 main thread pre-import
                         embedding warmup + Mongo index 생성은 background 실행
   cli.py                typer CLI — login-chatgpt / backfill-customer-themes /
@@ -212,6 +213,7 @@ src/deal_intel/
     list_deals.py       _days_in_current_stage() → is_stuck → stuck 우선 / health_pct 역순 정렬
     get_metrics.py      pipeline_health / pipeline_trend MCP metric view
     get_deal_gaps.py    read-only prioritized sales follow-up gaps
+    get_deal_review.py  health quality / evidence coverage 분리 review
     export_report.py    weekly_pipeline / pipeline_trend CSV·Markdown 파일 export
     get_insights.py     7가지 aggregation: pipeline_overview / win_patterns / loss_patterns /
                         compare_won_lost / gap_frequency / industry_benchmark / stage_velocity

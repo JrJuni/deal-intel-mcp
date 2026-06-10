@@ -446,6 +446,31 @@ def get_deal_gaps(
 
 
 @app.tool()
+def get_deal_review(deal_id: str, as_of: str = "") -> dict:
+    """Review one deal with health quality separated from evidence coverage.
+
+    Read-only. Uses restricted BI projection and does not call LLM, embeddings,
+    or write to MongoDB. The response suppresses uncalibrated win-probability
+    numbers and instead returns evidence coverage, uncertainty, missing
+    information, confirmed risks, and recommended questions/actions.
+
+    as_of accepts YYYY-MM-DD for reproducible stuck/overdue calculations.
+    """
+    try:
+        from deal_intel import _context
+        from deal_intel.tools import get_deal_review as _t
+
+        return _t.handle(
+            mongo=_context.mongo(),
+            cfg=_context.config(),
+            deal_id=deal_id,
+            as_of=as_of or None,
+        )
+    except Exception as exc:
+        return envelope_from_exception(exc, stage=Stage.STORAGE)
+
+
+@app.tool()
 def export_report(
     report_type: str = "weekly_pipeline",
     output_dir: str = "",

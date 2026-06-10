@@ -1,0 +1,130 @@
+# Config Profiles
+
+Z5 keeps one repository and one package, but introduces three product profiles:
+`sample`, `full`, and `pro`. The profiles are distribution surfaces, not forks.
+They share the same code and differ by generated config, requirements, and
+first-run guidance.
+
+## Mental Model
+
+- `sample`: safe first-run trial with bundled read-only data.
+- `full`: normal Atlas-backed operating mode for real team data.
+- `pro`: paid-infrastructure upgrade path with Atlas Vector Search and API-key
+  LLM providers.
+
+The default user journey should be sample-first:
+
+1. Start in `sample`.
+2. Run `storage-status`.
+3. Run `smoke-natural-questions`.
+4. Confirm the tool experience works.
+5. Move to `full` only when the user is ready to connect MongoDB.
+6. Move to `pro` only when paid infrastructure is intentional.
+
+## Profile Contract
+
+The source contract lives in `src/deal_intel/config_profiles.py`.
+
+| Profile | Storage | Vector Search | Default LLM Provider | Primary Use |
+|---|---|---|---|---|
+| `sample` | `local_sample` | `python_cosine` | `chatgpt_oauth` | Zero-config read-only trial |
+| `full` | `mongo` | `python_cosine` | `chatgpt_oauth` | Real team data on Atlas |
+| `pro` | `mongo` | `atlas` | `openai_api` | Paid infra and vector search |
+
+Notes:
+
+- `sample` must stay read-only until mutable/resettable sample state is designed.
+- `full` should remain the operational default for real customer data.
+- `pro` is an upgrade path, not the first-run default.
+- `openai_api` in `pro` is a default, not a hard vendor lock. Users may switch
+  to Anthropic in user config.
+
+## Z5 Implementation Units
+
+### Z5.1 Profile Contract
+
+Done when:
+
+- `sample/full/pro` profile definitions are coded and tested.
+- Config patches are deep-copied and reusable by future CLI commands.
+- Current config can be classified as `sample`, `full`, or `pro`.
+
+### Z5.2 Config Inspect CLI
+
+Planned commands:
+
+```bash
+deal-intel config profiles
+deal-intel config show
+```
+
+Done when:
+
+- Current profile is shown.
+- Effective config is summarized without leaking secrets.
+- Profile metadata can be printed for AI agents and humans.
+
+### Z5.3 Config Init/Switch CLI
+
+Planned commands:
+
+```bash
+deal-intel config init --profile sample
+deal-intel config init --profile full
+deal-intel config init --profile pro
+deal-intel config switch sample
+```
+
+Done when:
+
+- User config writes are explicit and tested with temp config paths.
+- Existing user config is preserved or backed up before overwrite.
+- `sample` setup requires no MongoDB or API key.
+
+### Z5.4 Config Doctor
+
+Planned command:
+
+```bash
+deal-intel config doctor
+```
+
+Done when:
+
+- Storage, Mongo URI, vector-search mode, LLM provider, OAuth/API-key readiness,
+  and sample-mode status are checked in one payload.
+- Missing requirements return actionable hints.
+- Live network checks are optional or carefully bounded.
+
+### Z5.5 AI Start Here
+
+Add an AI-readable first-run guide:
+
+```text
+AI_START_HERE.md
+```
+
+Done when:
+
+- AI agents are instructed to start in `sample`.
+- Agents do not ask for MongoDB/API keys before sample smoke succeeds.
+- The guide points to `storage-status`, `config profiles`, and
+  `smoke-natural-questions`.
+
+### Z5.6 Packaging Surface
+
+Done when:
+
+- README and MCP package docs describe sample/full/pro without implying three
+  separate codebases.
+- Sample-first installation is the easiest path.
+- Full/pro requirements are clearly labeled as opt-in.
+
+### Z5.7 Profile Smoke Matrix
+
+Done when:
+
+- `sample` smoke is fully local and deterministic.
+- `full` smoke checks Atlas readiness without mutating data.
+- `pro` smoke verifies config shape and defers live OpenAI/Atlas Vector Search
+  checks when credentials or paid infra are unavailable.

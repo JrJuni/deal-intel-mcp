@@ -6,6 +6,27 @@ contracts live in [baseline.md](baseline.md) and [metrics.md](metrics.md).
 
 ## Latest Update - 2026-06-11
 
+### Config profiles Z5.1 profile contract
+
+Implemented:
+
+- Added `deal_intel.config_profiles` with one-codebase profile definitions for
+  `sample`, `full`, and `pro`.
+- Added reusable profile config patches for future config CLI commands.
+- Added profile inference for effective config:
+  `local_sample` -> `sample`, Mongo + Atlas vector search -> `pro`,
+  otherwise `full`.
+- Documented the Z5 plan in [config-profiles.md](config-profiles.md).
+
+Verification:
+
+- Z5.1 targeted tests:
+  `17 passed`
+- Full pytest:
+  `312 passed`, `1 warning`
+- Ruff:
+  `All checks passed`
+
 ### Zero-config sample mode Z4 startup diagnostics
 
 Implemented:

@@ -153,6 +153,26 @@ Known product questions:
 
 Keep raw meeting notes, contacts, and embeddings excluded from every CSV report.
 
+### Deferred: deployment tool surface vs developer QA tools
+
+Do not split the bundle immediately. For now, keep the current full tool surface
+while the project is still moving quickly.
+
+Future production packaging should separate user-facing MCP tools from
+developer/QA helpers. Natural-language smoke packs are especially better as
+CLI/maintainer checks than as MCP tools because they test whether the agent can
+answer realistic questions; they are not themselves customer workflow tools.
+
+Candidate split:
+
+- Production MCP: create/update/read/analyze/report tools that users and agents
+  call during normal deal work.
+- Developer CLI/QA: natural question smoke packs, regression probes, Atlas chart
+  render helpers, backfills, migrations, and calibration audits.
+
+Goal: keep Claude/Codex tool selection simple in production while preserving
+strong release-time regression checks for natural-language answer quality.
+
 ### #8 Customer Themes 확장
 
 완료: M6.1-M6.3. `get_customer_theme_breakdown`이 stage·industry·dimension별

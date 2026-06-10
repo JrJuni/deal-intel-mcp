@@ -6,6 +6,36 @@ contracts live in [baseline.md](baseline.md) and [metrics.md](metrics.md).
 
 ## Latest Update - 2026-06-10
 
+### Natural question smoke CLI
+
+Implemented:
+
+- Added `deal-intel smoke-natural-questions`.
+- The command runs a deterministic pack of eight realistic natural-language
+  questions without requiring Claude Desktop or another MCP client.
+- The pack combines existing read-only payloads from pipeline metrics, deal
+  review, deal gaps, and customer-theme evidence.
+- It writes `summary.md`, `summary.json`, and per-question JSON files under
+  `outputs/smoke/...`.
+- It is a developer/QA CLI, not a user-facing MCP tool.
+- Raw meeting notes, contacts, and embeddings remain excluded from the saved
+  artifacts.
+
+Verification:
+
+- CLI targeted tests:
+  `12 passed`
+- Full pytest with workspace-local temp:
+  `269 passed`
+- Ruff:
+  `All checks passed`
+- Live Atlas read-only smoke:
+  `smoke-natural-questions --as-of 2026-06-10` returned `OK: True`,
+  `derived=3`, `direct=5`, `Sensitive failures: none`, and
+  `Blocked questions: none`
+- Live smoke artifacts saved locally:
+  `outputs/smoke/natural-question-pack-20260610_200827/summary.md`
+
 ### Deal review Calibration v2
 
 Implemented:

@@ -608,9 +608,11 @@ search_deals
 
 ```
 src/deal_intel/
-  mcp_server.py         FastMCP entry point, registers 13 tools
+  mcp_server.py         FastMCP entry point
   cli.py                typer CLI (login-chatgpt, backfill-customer-themes,
-                        render-atlas-dashboard, crosscheck-weekly-dashboard)
+                        render-atlas-dashboard, crosscheck-weekly-dashboard,
+                        smoke-deal-review, smoke-deal-review-audit,
+                        smoke-natural-questions)
   _env.py               dotenv + 3-tier config merge
   _context.py           LLM / MongoDB / Embedding process singletons
   providers/

@@ -73,6 +73,17 @@ def _deal(
         "meetings": [{"raw_notes": "secret raw note"}],
         "contacts": [{"name": "secret contact"}],
         "summary_embedding": [0.1, 0.2],
+        "customer_themes": [
+            {
+                "theme_key": "compliance_security",
+                "label": "규제·보안·컴플라이언스",
+                "dimension": "decision_criteria",
+                "evidence": "audit log export is mandatory",
+                "importance": 5,
+                "meeting_id": "m1",
+                "meeting_date": "2026-06-01",
+            }
+        ],
     }
 
 
@@ -323,3 +334,74 @@ def test_deal_review_audit_quality_rules_require_closed_gap_reporting() -> None:
 
     assert "closed_actual_close_gap_not_reported" in issue_ids
     assert "lost_close_reason_gap_not_reported" in issue_ids
+
+
+def test_smoke_natural_questions_writes_pack(monkeypatch, tmp_path) -> None:
+    mongo = FakeMongo(
+        [
+            _deal("deal-1", company="페이브릿지", stage="proposal"),
+            _deal("deal-2", company="Beta Works", stage="discovery", filled_count=4),
+            _deal("deal-3", company="Closed Lost", stage="lost"),
+        ]
+    )
+    monkeypatch.setattr(_context, "mongo", lambda: mongo)
+    monkeypatch.setattr(_context, "config", lambda: {})
+    output_dir = tmp_path / "natural-pack"
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "smoke-natural-questions",
+            "--as-of",
+            "2026-06-10",
+            "--output-dir",
+            str(output_dir),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Natural Question Smoke (as_of=2026-06-10, questions=8)" in result.output
+    assert "OK: True" in result.output
+    assert "Sensitive failures: none" in result.output
+    assert (output_dir / "summary.md").exists()
+    summary = json.loads((output_dir / "summary.json").read_text(encoding="utf-8"))
+    assert summary["ok"] is True
+    assert summary["question_count"] == 8
+    assert summary["answerability_counts"] == {"derived": 3, "direct": 5}
+    assert (output_dir / "q01_pipeline_health.json").exists()
+    assert (output_dir / "q08_theme_evidence_drilldown.json").exists()
+    encoded = json.dumps(summary, ensure_ascii=False)
+    assert "raw_notes" not in encoded
+    assert "secret raw note" not in encoded
+    assert "contacts" not in encoded
+    assert "summary_embedding" not in encoded
+    assert mongo.write_count == 0
+
+
+def test_smoke_natural_questions_json_outputs_artifact_path(monkeypatch, tmp_path) -> None:
+    mongo = FakeMongo([_deal("deal-1", company="페이브릿지")])
+    monkeypatch.setattr(_context, "mongo", lambda: mongo)
+    monkeypatch.setattr(_context, "config", lambda: {})
+    output_dir = tmp_path / "natural-pack"
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "smoke-natural-questions",
+            "--as-of",
+            "2026-06-10",
+            "--output-dir",
+            str(output_dir),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["ok"] is True
+    assert payload["output_dir"] == str(output_dir.resolve())
+    assert [row["id"] for row in payload["questions"]][-1] == (
+        "q08_theme_evidence_drilldown"
+    )
+    assert (output_dir / "summary.md").exists()
+    assert mongo.write_count == 0

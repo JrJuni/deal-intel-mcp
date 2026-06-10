@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from collections import Counter
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -447,6 +448,582 @@ def smoke_deal_review_audit(
 
     if fail_on_issues and payload["summary"]["quality_issue_count"] > 0:
         raise typer.Exit(code=2)
+
+
+@app.command("smoke-natural-questions")
+def smoke_natural_questions(
+    as_of: str | None = typer.Option(
+        None,
+        "--as-of",
+        help="Business date for deterministic natural-question smoke checks.",
+    ),
+    output_dir: Path | None = typer.Option(
+        None,
+        "--output-dir",
+        help="Directory for summary.md, summary.json, and per-question JSON files.",
+    ),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Print full structured JSON instead of concise text.",
+    ),
+) -> None:
+    """Run deterministic natural-question smoke checks and save evidence files."""
+    from deal_intel import _context
+
+    cfg = _context.config()
+    mongo = _context.mongo()
+    try:
+        payload = _build_natural_question_smoke_pack(
+            mongo=mongo,
+            cfg=cfg,
+            as_of=as_of,
+        )
+        payload["output_dir"] = str(
+            _write_natural_question_smoke_artifacts(payload, output_dir=output_dir)
+        )
+    except Exception as exc:
+        _emit_smoke_error(
+            {
+                "ok": False,
+                "error_code": "INTERNAL",
+                "stage": "cli",
+                "message": f"{type(exc).__name__}: {exc}",
+                "hint": None,
+                "retryable": False,
+            },
+            json_output=json_output,
+        )
+        raise typer.Exit(code=1) from exc
+
+    if json_output:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+    else:
+        typer.echo(_format_natural_question_smoke(payload))
+
+    if not payload["ok"]:
+        raise typer.Exit(code=2)
+
+
+def _build_natural_question_smoke_pack(
+    *,
+    mongo: Any,
+    cfg: dict,
+    as_of: str | None,
+) -> dict:
+    from deal_intel.errors import MCPError
+    from deal_intel.tools import get_customer_theme_breakdown as _theme_breakdown
+    from deal_intel.tools import get_customer_theme_evidence as _theme_evidence
+    from deal_intel.tools import get_deal_gaps as _get_deal_gaps
+    from deal_intel.tools import get_deal_review as _get_deal_review
+    from deal_intel.tools import get_metrics as _get_metrics
+
+    generated_at = datetime.now().isoformat(timespec="seconds")
+    deals = mongo.list_deals_for_metrics()
+
+    def call(question_id: str, question: str, answerability: str, fn: Any) -> dict:
+        try:
+            payload = fn()
+            sensitive_ok = not _contains_sensitive_result_key(payload)
+            return {
+                "id": question_id,
+                "question": question,
+                "answerability": answerability,
+                "sensitive": "pass" if sensitive_ok else "fail",
+                "file": _natural_question_file_name(question_id),
+                "quick_read": _natural_question_quick_read(question_id, payload),
+                "payload": payload,
+            }
+        except MCPError as exc:
+            return _natural_question_blocked_row(
+                question_id,
+                question,
+                answerability,
+                exc.to_envelope(),
+            )
+        except Exception as exc:
+            return _natural_question_blocked_row(
+                question_id,
+                question,
+                answerability,
+                {
+                    "ok": False,
+                    "error_code": "INTERNAL",
+                    "stage": "cli",
+                    "message": f"{type(exc).__name__}: {exc}",
+                    "hint": None,
+                    "retryable": False,
+                },
+            )
+
+    target_deal = _find_company_deal(deals, ("페이브릿지", "paybridge"))
+    top_theme_key: str | None = None
+
+    questions = [
+        call(
+            "q01_pipeline_health",
+            "현재 파이프라인 건강도 어때?",
+            "direct",
+            lambda: _get_metrics.handle(
+                mongo=mongo,
+                cfg=cfg,
+                metric_type="pipeline_health",
+                as_of=as_of,
+            ),
+        ),
+        call(
+            "q02_company_status_paybridge",
+            "페이브릿지 딜 진행상황 알려줘.",
+            "direct",
+            lambda: _get_deal_review.handle(
+                mongo=mongo,
+                cfg=cfg,
+                deal_id=str((target_deal or {})["deal_id"]),
+                as_of=as_of,
+            ),
+        ),
+        call(
+            "q03_riskiest_deals",
+            "지금 가장 위험하거나 먼저 봐야 하는 딜은 뭐야?",
+            "direct",
+            lambda: _get_deal_gaps.handle(
+                mongo=mongo,
+                cfg=cfg,
+                as_of=as_of,
+                min_priority="high",
+                limit=10,
+            ),
+        ),
+        call(
+            "q04_high_health_uncertain",
+            "health는 높지만 아직 확신하면 안 되는 딜 있어?",
+            "derived",
+            lambda: _build_high_health_uncertain_payload(
+                mongo=mongo,
+                cfg=cfg,
+                deals=deals,
+                as_of=as_of,
+            ),
+        ),
+        call(
+            "q05_closing_candidates_gaps",
+            "클로징 가까운 딜 중 보강할 정보는 뭐야?",
+            "derived",
+            lambda: _build_closing_candidate_gap_payload(
+                _get_deal_gaps.handle(
+                    mongo=mongo,
+                    cfg=cfg,
+                    as_of=as_of,
+                    min_priority="low",
+                    limit=50,
+                )
+            ),
+        ),
+        call(
+            "q06_closed_postmortem_gaps",
+            "won/lost 처리된 딜 중 사후 분석 정보 빠진 것 있어?",
+            "derived",
+            lambda: _build_closed_postmortem_gap_payload(
+                _get_deal_gaps.handle(
+                    mongo=mongo,
+                    cfg=cfg,
+                    as_of=as_of,
+                    min_priority="low",
+                    limit=50,
+                )
+            ),
+        ),
+        call(
+            "q07_decision_criteria_themes",
+            "고객들이 decision criteria로 가장 많이 고민한 건 뭐야?",
+            "direct",
+            lambda: _theme_breakdown.handle(
+                mongo=mongo,
+                dimension="decision_criteria",
+                stage="active",
+                group_by="stage",
+                top_k=5,
+            ),
+        ),
+    ]
+
+    top_theme_key = _top_decision_theme_key(questions[-1].get("payload") or {})
+    questions.append(
+        call(
+            "q08_theme_evidence_drilldown",
+            "그 decision criteria의 대표 evidence를 보여줘.",
+            "direct",
+            lambda: _theme_evidence.handle(
+                mongo=mongo,
+                theme_key=top_theme_key or "other",
+                dimension="decision_criteria",
+                stage="active",
+                limit=12,
+                min_importance=1,
+            ),
+        )
+    )
+
+    sensitive_failures = [
+        row["id"] for row in questions if row.get("sensitive") == "fail"
+    ]
+    blocked_questions = [
+        row["id"] for row in questions if row.get("blocked_reason") is not None
+    ]
+    answerability_counts = _counter_dict(row["answerability"] for row in questions)
+    return {
+        "ok": not sensitive_failures and not blocked_questions,
+        "generated_at": generated_at,
+        "as_of": _first_question_as_of(questions) or as_of,
+        "question_count": len(questions),
+        "answerability_counts": answerability_counts,
+        "sensitive_failures": sensitive_failures,
+        "blocked_questions": blocked_questions,
+        "questions": questions,
+    }
+
+
+def _natural_question_blocked_row(
+    question_id: str,
+    question: str,
+    answerability: str,
+    payload: dict,
+) -> dict:
+    return {
+        "id": question_id,
+        "question": question,
+        "answerability": answerability,
+        "sensitive": "pass",
+        "file": _natural_question_file_name(question_id),
+        "quick_read": "blocked",
+        "blocked_reason": payload.get("message") or payload.get("error_code"),
+        "payload": payload,
+    }
+
+
+def _natural_question_file_name(question_id: str) -> str:
+    return f"{question_id}.json"
+
+
+def _find_company_deal(deals: list[dict], names: tuple[str, ...]) -> dict | None:
+    for name in names:
+        needle = name.casefold()
+        for deal in deals:
+            if needle in str(deal.get("company") or "").casefold():
+                return deal
+    return next(
+        (
+            deal
+            for deal in deals
+            if isinstance(deal.get("deal_id"), str) and deal.get("deal_id")
+        ),
+        None,
+    )
+
+
+def _build_high_health_uncertain_payload(
+    *,
+    mongo: Any,
+    cfg: dict,
+    deals: list[dict],
+    as_of: str | None,
+) -> dict:
+    from deal_intel.tools import get_deal_review as _get_deal_review
+
+    rows = []
+    for deal in deals:
+        deal_id = deal.get("deal_id")
+        if not isinstance(deal_id, str) or not deal_id:
+            continue
+        result = _get_deal_review.handle(
+            mongo=mongo,
+            cfg=cfg,
+            deal_id=deal_id,
+            as_of=as_of,
+        )
+        review = result.get("review") or {}
+        interpretation = review.get("health_interpretation") or {}
+        if interpretation.get("health_band") != "healthy":
+            continue
+        if (
+            interpretation.get("uncertainty_level") == "low"
+            and interpretation.get("review_band") == "verified_healthy"
+        ):
+            continue
+        rows.append(
+            {
+                "deal_id": review.get("deal_id"),
+                "company": review.get("company"),
+                "deal_stage": review.get("deal_stage"),
+                "deal_size_krw": review.get("deal_size_krw"),
+                "review_band": interpretation.get("review_band"),
+                "uncertainty_level": interpretation.get("uncertainty_level"),
+                "evidence_coverage_pct": interpretation.get("evidence_coverage_pct"),
+                "missing_information_count": len(review.get("missing_information") or []),
+                "confirmed_risk_count": len(review.get("confirmed_risks") or []),
+                "warnings": review.get("warnings") or [],
+            }
+        )
+    rows.sort(
+        key=lambda row: (
+            -UNCERTAINTY_RANK.get(row.get("uncertainty_level"), 0),
+            -int(row.get("missing_information_count") or 0),
+            -int(row.get("confirmed_risk_count") or 0),
+            -(row.get("deal_size_krw") or 0),
+            str(row.get("company") or ""),
+        )
+    )
+    return {
+        "ok": True,
+        "as_of": as_of,
+        "summary": {"candidate_count": len(rows), "returned_count": len(rows[:10])},
+        "deals": rows[:10],
+    }
+
+
+def _build_closing_candidate_gap_payload(gap_payload: dict) -> dict:
+    rows = [
+        row
+        for row in gap_payload.get("deals") or []
+        if row.get("deal_stage") not in {"won", "lost"}
+    ]
+    rows.sort(
+        key=lambda row: (
+            _date_sort_value(row.get("expected_close_date")),
+            -float(row.get("priority_score") or 0),
+            -(row.get("deal_size_krw") or 0),
+            str(row.get("company") or ""),
+        )
+    )
+    return {
+        "ok": True,
+        "as_of": gap_payload.get("as_of"),
+        "summary": {"candidate_count": len(rows), "returned_count": len(rows[:10])},
+        "deals": rows[:10],
+        "source_summary": gap_payload.get("summary") or {},
+        "warnings": gap_payload.get("warnings") or [],
+    }
+
+
+def _build_closed_postmortem_gap_payload(gap_payload: dict) -> dict:
+    rows = []
+    for row in gap_payload.get("deals") or []:
+        gaps = row.get("gaps") or []
+        if row.get("deal_stage") in {"won", "lost"} or any(
+            gap.get("impact_area") == "postmortem" for gap in gaps if isinstance(gap, dict)
+        ):
+            rows.append(row)
+    rows.sort(
+        key=lambda row: (
+            0 if row.get("deal_stage") == "lost" else 1,
+            -float(row.get("priority_score") or 0),
+            str(row.get("company") or ""),
+        )
+    )
+    return {
+        "ok": True,
+        "as_of": gap_payload.get("as_of"),
+        "summary": {"candidate_count": len(rows), "returned_count": len(rows[:10])},
+        "deals": rows[:10],
+        "source_summary": gap_payload.get("summary") or {},
+        "warnings": gap_payload.get("warnings") or [],
+    }
+
+
+def _date_sort_value(value: Any) -> str:
+    if isinstance(value, str) and value:
+        return value
+    return "9999-12-31"
+
+
+def _top_decision_theme_key(payload: dict) -> str | None:
+    totals: dict[str, dict] = {}
+    for group in payload.get("groups") or []:
+        for theme in group.get("themes") or []:
+            theme_key = theme.get("theme_key")
+            if not isinstance(theme_key, str) or not theme_key:
+                continue
+            bucket = totals.setdefault(
+                theme_key,
+                {
+                    "theme_key": theme_key,
+                    "deal_count": 0,
+                    "importance_sum": 0.0,
+                    "importance_count": 0,
+                },
+            )
+            deal_count = int(theme.get("deal_count") or 0)
+            bucket["deal_count"] += deal_count
+            bucket["importance_sum"] += float(theme.get("avg_importance") or 0) * deal_count
+            bucket["importance_count"] += deal_count
+    if not totals:
+        return None
+    ranked = sorted(
+        totals.values(),
+        key=lambda item: (
+            -int(item["deal_count"]),
+            -(
+                float(item["importance_sum"]) / int(item["importance_count"])
+                if item["importance_count"]
+                else 0.0
+            ),
+            str(item["theme_key"]),
+        ),
+    )
+    return str(ranked[0]["theme_key"])
+
+
+def _natural_question_quick_read(question_id: str, payload: dict) -> str:
+    if not payload.get("ok", True):
+        return "blocked"
+    if question_id == "q01_pipeline_health":
+        kpis = payload.get("kpis") or {}
+        return (
+            f"active={kpis.get('active_deal_count')}, "
+            f"attention={kpis.get('attention_deal_count')}"
+        )
+    if question_id == "q02_company_status_paybridge":
+        review = payload.get("review") or {}
+        interpretation = review.get("health_interpretation") or {}
+        return (
+            f"{review.get('company')} / {interpretation.get('review_band')} / "
+            f"{interpretation.get('uncertainty_level')}"
+        )
+    if question_id in {
+        "q03_riskiest_deals",
+        "q04_high_health_uncertain",
+        "q05_closing_candidates_gaps",
+        "q06_closed_postmortem_gaps",
+    }:
+        return _format_companies(payload.get("deals") or [], limit=3)
+    if question_id == "q07_decision_criteria_themes":
+        return f"groups={len(payload.get('groups') or [])}"
+    if question_id == "q08_theme_evidence_drilldown":
+        summary = payload.get("summary") or {}
+        return f"evidence={summary.get('evidence_count')}"
+    return "ok"
+
+
+def _first_question_as_of(questions: list[dict]) -> str | None:
+    for question in questions:
+        payload = question.get("payload") or {}
+        value = payload.get("as_of")
+        if isinstance(value, str) and value:
+            return value
+    return None
+
+
+def _write_natural_question_smoke_artifacts(
+    payload: dict,
+    *,
+    output_dir: Path | None,
+) -> Path:
+    output_dir = output_dir or _default_natural_question_output_dir()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    for question in payload["questions"]:
+        file_path = output_dir / question["file"]
+        file_path.write_text(
+            json.dumps(question["payload"], ensure_ascii=False, indent=2, default=str)
+            + "\n",
+            encoding="utf-8",
+        )
+    summary_payload = {
+        key: value
+        for key, value in payload.items()
+        if key != "output_dir"
+    }
+    (output_dir / "summary.json").write_text(
+        json.dumps(summary_payload, ensure_ascii=False, indent=2, default=str) + "\n",
+        encoding="utf-8",
+    )
+    (output_dir / "summary.md").write_text(
+        _format_natural_question_smoke_markdown(payload) + "\n",
+        encoding="utf-8",
+    )
+    return output_dir.resolve()
+
+
+def _default_natural_question_output_dir() -> Path:
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return Path("outputs") / "smoke" / f"natural-question-pack-{stamp}"
+
+
+def _format_natural_question_smoke(payload: dict) -> str:
+    lines = [
+        (
+            "Natural Question Smoke "
+            f"(as_of={payload.get('as_of')}, questions={payload.get('question_count')})"
+        ),
+        f"OK: {payload.get('ok')}",
+        f"Answerability: {_format_counts(payload.get('answerability_counts') or {})}",
+        (
+            "Sensitive failures: "
+            f"{_format_string_list(payload.get('sensitive_failures') or [])}"
+        ),
+        f"Blocked questions: {_format_string_list(payload.get('blocked_questions') or [])}",
+    ]
+    if payload.get("output_dir"):
+        lines.append(f"Output: {payload['output_dir']}")
+    lines.extend(["", "Questions:"])
+    for index, question in enumerate(payload.get("questions") or [], start=1):
+        lines.append(
+            f"{index}. {question.get('question')} | "
+            f"{question.get('answerability')} | "
+            f"{question.get('sensitive')} | "
+            f"{question.get('quick_read')}"
+        )
+    return "\n".join(lines)
+
+
+def _format_natural_question_smoke_markdown(payload: dict) -> str:
+    lines = [
+        "# Natural Question Smoke Pack",
+        "",
+        f"- Generated at: {payload.get('generated_at')}",
+        f"- As of: {payload.get('as_of')}",
+        f"- Questions: {payload.get('question_count')}",
+        f"- OK: {payload.get('ok')}",
+        f"- Answerability: {payload.get('answerability_counts')}",
+        (
+            "- Sensitive failures: "
+            f"{_format_string_list(payload.get('sensitive_failures') or [])}"
+        ),
+        f"- Blocked questions: {_format_string_list(payload.get('blocked_questions') or [])}",
+        "",
+        "## Questions",
+        "",
+        "| # | question | answerability | sensitive | file | quick read |",
+        "|---:|---|---|:---:|---|---|",
+    ]
+    for index, question in enumerate(payload.get("questions") or [], start=1):
+        lines.append(
+            "| "
+            f"{index} | "
+            f"{question.get('question')} | "
+            f"{question.get('answerability')} | "
+            f"{question.get('sensitive')} | "
+            f"{question.get('file')} | "
+            f"{question.get('quick_read')} |"
+        )
+    lines.extend(
+        [
+            "",
+            "## Notes",
+            "",
+            "- This pack does not call an LLM. It checks whether deterministic tool "
+            "payloads can support natural-language answers.",
+            "- `derived` questions are answerable after deterministic filtering/sorting "
+            "over existing tool payloads.",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def _format_companies(rows: list[dict], *, limit: int = 3) -> str:
+    values = [str(row.get("company")) for row in rows if row.get("company")]
+    if not values:
+        return "none"
+    return "; ".join(values[:limit])
 
 
 def _select_deal_review_smoke_deals(

@@ -597,6 +597,7 @@ def _audit_deal_review_quality(review: dict) -> list[dict]:
     risks = review.get("confirmed_risks") or []
     questions = review.get("recommended_questions") or []
     actions = review.get("recommended_actions") or []
+    data_quality = review.get("data_quality") or {}
     review_band = interpretation.get("review_band")
     alert_level = interpretation.get("alert_level")
     health_band = interpretation.get("health_band")
@@ -646,6 +647,42 @@ def _audit_deal_review_quality(review: dict) -> list[dict]:
                     "confirmed_risk_without_risk_rows",
                     "high",
                     "Confirmed risk reviews must include concrete risk rows.",
+                )
+            )
+
+    if review_band == "verified_healthy":
+        if missing or risks:
+            issues.append(
+                _quality_issue(
+                    "verified_healthy_with_open_items",
+                    "high",
+                    "Verified healthy reviews must not have open gaps or risk rows.",
+                )
+            )
+        if data_quality.get("is_confirmed_complete") is False:
+            issues.append(
+                _quality_issue(
+                    "verified_healthy_without_confirmed_data",
+                    "medium",
+                    "Verified healthy reviews require confirmed data quality.",
+                )
+            )
+
+    if interpretation.get("uncertainty_level") == "low":
+        if missing:
+            issues.append(
+                _quality_issue(
+                    "low_uncertainty_with_missing_information",
+                    "medium",
+                    "Low uncertainty reviews must not contain missing information.",
+                )
+            )
+        if data_quality.get("is_confirmed_complete") is False:
+            issues.append(
+                _quality_issue(
+                    "low_uncertainty_without_confirmed_data",
+                    "medium",
+                    "Low uncertainty reviews require confirmed data quality.",
                 )
             )
 

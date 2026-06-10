@@ -72,6 +72,7 @@ def build_deal_review(
         health_thresholds=health_thresholds,
         timing_settings=timing_settings,
     )
+    missing_information = _missing_information(gaps)
     confirmed_risks = _confirmed_risks(
         meddpicc_latest,
         health_band=health_band,
@@ -84,10 +85,16 @@ def build_deal_review(
         coverage_pct=coverage["coverage_pct"],
         health_band=health_band,
         data_quality=data_quality,
+        missing_information=missing_information,
+        value_status=value.status,
+        value_valid=value.is_valid,
     )
     review_band = _review_band(
         health_band=health_band,
         coverage_pct=coverage["coverage_pct"],
+        missing_information=missing_information,
+        confirmed_risks=confirmed_risks,
+        data_quality=data_quality,
     )
     alert_level = _alert_level(
         review_band=review_band,
@@ -122,6 +129,10 @@ def build_deal_review(
             "uncertainty_level": uncertainty_level,
             "review_band": review_band,
             "alert_level": alert_level,
+            "forecast_confidence": _forecast_confidence(
+                value_status=value.status,
+                value_valid=value.is_valid,
+            ),
             "explanation": _interpretation_text(
                 review_band=review_band,
                 alert_level=alert_level,
@@ -129,7 +140,7 @@ def build_deal_review(
         },
         "scorecard": scorecard,
         "attention_reasons": attention_reasons,
-        "missing_information": _missing_information(gaps),
+        "missing_information": missing_information,
         "confirmed_risks": confirmed_risks,
         "known_signals": _known_signals(scorecard, value_status=value.status),
         "recommended_questions": _recommended_questions(gaps, scorecard),
@@ -409,19 +420,37 @@ def _uncertainty_level(
     coverage_pct: float | None,
     health_band: HealthBand,
     data_quality: Any,
+    missing_information: list[dict],
+    value_status: DealValueStatus | None,
+    value_valid: bool,
 ) -> str:
     if coverage_pct is None or coverage_pct < COVERAGE_LOW_MAX:
         return "high"
     if health_band == HealthBand.UNASSESSED:
         return "high"
+    if not value_valid:
+        return "high"
+    if any(status == DataQualityStatus.INVALID for status in data_quality.field_statuses.values()):
+        return "high"
     if coverage_pct < COVERAGE_HIGH_MIN:
         return "medium"
-    if data_quality.confirmed_coverage_pct is not None and data_quality.confirmed_coverage_pct < 70:
+    if missing_information:
+        return "medium"
+    if value_status == DealValueStatus.ROUGH_ESTIMATE:
+        return "medium"
+    if not data_quality.is_confirmed_complete:
         return "medium"
     return "low"
 
 
-def _review_band(*, health_band: HealthBand, coverage_pct: float | None) -> str:
+def _review_band(
+    *,
+    health_band: HealthBand,
+    coverage_pct: float | None,
+    missing_information: list[dict],
+    confirmed_risks: list[dict],
+    data_quality: Any,
+) -> str:
     if coverage_pct is None or coverage_pct < COVERAGE_LOW_MAX:
         if health_band == HealthBand.HEALTHY:
             return "promising_but_unproven"
@@ -429,8 +458,15 @@ def _review_band(*, health_band: HealthBand, coverage_pct: float | None) -> str:
     if health_band == HealthBand.UNASSESSED:
         return "insufficient_evidence"
     if health_band == HealthBand.HEALTHY:
-        if coverage_pct >= COVERAGE_HIGH_MIN:
+        if (
+            coverage_pct >= COVERAGE_HIGH_MIN
+            and not missing_information
+            and not confirmed_risks
+            and data_quality.is_confirmed_complete
+        ):
             return "verified_healthy"
+        if confirmed_risks:
+            return "watch_with_evidence"
         return "promising_but_unproven"
     if health_band == HealthBand.AT_RISK:
         if coverage_pct >= COVERAGE_HIGH_MIN:
@@ -470,6 +506,24 @@ def _alert_level(
     if review_band == "insufficient_evidence":
         return "info"
     return "none"
+
+
+def _forecast_confidence(
+    *,
+    value_status: DealValueStatus | None,
+    value_valid: bool,
+) -> str:
+    if not value_valid:
+        return "invalid"
+    if value_status == DealValueStatus.QUOTED:
+        return "quoted"
+    if value_status == DealValueStatus.STRATEGIC_ZERO:
+        return "strategic_zero"
+    if value_status == DealValueStatus.CUSTOMER_BUDGET:
+        return "customer_indicated"
+    if value_status == DealValueStatus.ROUGH_ESTIMATE:
+        return "estimated"
+    return "unknown"
 
 
 def _warnings(

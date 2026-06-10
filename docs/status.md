@@ -6,6 +6,50 @@ contracts live in [baseline.md](baseline.md) and [metrics.md](metrics.md).
 
 ## Latest Update - 2026-06-10
 
+### Deal review Calibration v2
+
+Implemented:
+
+- Tightened `verified_healthy`.
+  - It now requires high evidence coverage, no missing information, no
+    confirmed risk rows, and confirmed data quality.
+  - Healthy-looking deals with open questions are downgraded to
+    `promising_but_unproven`.
+  - Healthy-looking deals with confirmed risk rows are downgraded to
+    `watch_with_evidence`.
+- Tightened `low` uncertainty.
+  - Missing information, rough estimates, invalid value classification, or
+    unconfirmed data quality now prevent `low` uncertainty.
+- Added `forecast_confidence` to deal review interpretation.
+  - Values include `quoted`, `strategic_zero`, `customer_indicated`,
+    `estimated`, `unknown`, and `invalid`.
+- Extended the audit smoke rules so `verified_healthy` and `low` uncertainty
+  cannot hide open gaps, risk rows, or unconfirmed data.
+
+Verification:
+
+- Calibration targeted tests:
+  `22 passed`
+- Full pytest with workspace-local temp:
+  `267 passed`
+- Ruff:
+  `All checks passed`
+- Live Atlas read-only audit smoke:
+  `smoke-deal-review-audit --as-of 2026-06-10 --limit 50` reviewed `22`
+  deals and returned `Sensitive field check: passed`, `Quality rules: passed`
+- 10-set live smoke artifacts saved locally:
+  `outputs/smoke/deal-review-calibration-v2-20260610_175009/summary.md`
+
+Observed calibration delta:
+
+- Before v2:
+  `verified_healthy=19`, `watch_with_evidence=2`, `low uncertainty=21`,
+  `medium uncertainty=0`, `watch alert=8`
+- After v2:
+  `verified_healthy=10`, `watch_with_evidence=8`,
+  `promising_but_unproven=3`, `low uncertainty=12`,
+  `medium uncertainty=9`, `watch alert=11`
+
 ### Deal review audit smoke pack
 
 Implemented:

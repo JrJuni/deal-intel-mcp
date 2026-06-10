@@ -142,7 +142,7 @@ def test_high_coverage_low_health_is_confirmed_alert() -> None:
 
     interpretation = review["health_interpretation"]
     assert interpretation["evidence_coverage_pct"] == 100.0
-    assert interpretation["uncertainty_level"] == "low"
+    assert interpretation["uncertainty_level"] == "medium"
     assert interpretation["review_band"] == "confirmed_risk"
     assert interpretation["alert_level"] == "alert"
     assert any(risk["risk_id"] == "confirmed_meddpicc_risk" for risk in review["confirmed_risks"])
@@ -179,13 +179,36 @@ def test_high_coverage_forecast_risk_raises_watch_alert() -> None:
     )
 
     interpretation = review["health_interpretation"]
-    assert interpretation["review_band"] == "verified_healthy"
+    assert interpretation["review_band"] == "watch_with_evidence"
     assert interpretation["alert_level"] == "watch"
+    assert interpretation["uncertainty_level"] == "medium"
+    assert interpretation["forecast_confidence"] == "estimated"
     assert any(
         risk["risk_id"] == "forecast:rough_estimate"
         for risk in review["confirmed_risks"]
     )
     assert "confirmed_risk_present" in review["warnings"]
+
+
+def test_high_coverage_estimated_close_is_not_verified_or_low_uncertainty() -> None:
+    review = build_deal_review(
+        _deal(
+            health_pct=88,
+            scores={dim: 4.5 for dim in MEDDPICC_DIMS},
+            gaps=[],
+            expected_close_source="config_default",
+        ),
+        as_of=AS_OF,
+    )
+
+    interpretation = review["health_interpretation"]
+    assert interpretation["review_band"] == "promising_but_unproven"
+    assert interpretation["alert_level"] == "watch"
+    assert interpretation["uncertainty_level"] == "medium"
+    assert any(
+        item["field"] == "expected_close_date"
+        for item in review["missing_information"]
+    )
 
 
 def test_low_coverage_low_health_prioritizes_missing_information() -> None:

@@ -12,6 +12,31 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-11
 
+### O1 Index / query / projection audit
+
+Implemented:
+
+- Added [query-audit.md](query-audit.md) as the current MongoDB read-path audit.
+- Inventoried storage read methods, main MCP/report/chart consumers, query
+  shapes, projection policy, and current index coverage.
+- Confirmed that the main BI/metric/report/deal-review/deal-gap paths use
+  restricted projections through `list_deals_for_metrics()` or
+  `list_analytics_snapshots()`.
+- Confirmed intentional full/raw read exceptions:
+  `get_deal` for single-deal detail and `backfill-customer-themes` for
+  maintainer LLM backfill.
+- Identified O2 follow-up candidates:
+  harden `list_deals()` projection, convert metrics projection to allowlist,
+  and add archived visibility filters to Weekly Pipeline Atlas chart specs.
+- Identified O3 follow-up candidates:
+  list-view compound index and trend `as_of` range/sort index.
+
+Verification:
+
+- Documentation map updated.
+- Diff whitespace check:
+  `git diff --check`
+
 ### Z5.12 MCP bundle packaging contract check
 
 Implemented:

@@ -35,6 +35,7 @@ These are active source-adjacent contracts.
 | `config-profiles.md` | Changing `sample`, `full`, or `pro` profile behavior |
 | `tool-surfaces.md` | Changing which MCP tools appear in sample, standard, or developer surfaces |
 | `atlas-charts.md` | Changing Atlas dashboard aggregation specs or UI runbooks |
+| `query-audit.md` | Auditing MongoDB read paths, projections, and index implications |
 | `architecture.md` | Needing deeper architecture context after reading this map |
 | `../mcpb/README.md` | Building or installing the Claude Desktop MCP bundle |
 

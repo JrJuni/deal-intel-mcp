@@ -5,6 +5,10 @@ from collections.abc import Iterable
 from datetime import date, datetime
 from typing import Any
 
+from deal_intel.schema.gap_actionability import (
+    CTA_POLICY_ALLOWED,
+    annotate_gap_actionability,
+)
 from deal_intel.schema.metrics import (
     ACTIVE_STAGES,
     OPEN_STAGES,
@@ -257,6 +261,13 @@ def _build_deal_gap_row(
     )
     gaps = _dedupe_gaps(gaps)
     priority_score = max((gap.pop("_score") for gap in gaps), default=0)
+    gaps = [annotate_gap_actionability(gap) for gap in gaps]
+    actionable_gaps = [
+        gap for gap in gaps if gap.get("cta_policy") == CTA_POLICY_ALLOWED
+    ]
+    gap_observations = [
+        gap for gap in gaps if gap.get("cta_policy") != CTA_POLICY_ALLOWED
+    ]
 
     return {
         "deal_id": deal.get("deal_id"),
@@ -272,6 +283,8 @@ def _build_deal_gap_row(
         "priority_score": priority_score,
         "priority_band": _priority_band(priority_score),
         "gaps": gaps,
+        "actionable_gaps": actionable_gaps,
+        "gap_observations": gap_observations,
     }
 
 

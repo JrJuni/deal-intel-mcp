@@ -63,12 +63,20 @@ Terminal deals, `won` and `lost`, are excluded from weekly pipeline rows.
 - `primary_pain`
 - `primary_decision_criteria`
 - `attention_reasons`
+- `objective_action_items`
+- `gap_observations`
 - `data_quality`
 
 `primary_pain` is selected from `customer_themes` where
 `dimension == "identify_pain"`. `primary_decision_criteria` is selected where
 `dimension == "decision_criteria"`. Selection order is highest `importance`,
 then latest `meeting_date`.
+
+`objective_action_items` contains only CTA-safe gaps such as overdue close
+dates, stuck stages, and explicitly stalled deals. `gap_observations` contains
+judgment-sensitive gaps such as MEDDPICC competition, champion, economic buyer,
+decision criteria, and at-risk health observations. Consumers should not flatten
+`gap_observations` into prescriptive next actions.
 
 ### Sorting
 
@@ -249,6 +257,8 @@ The fixed metric surface includes:
 - `assessed_health_count`
 - `health_coverage_pct`
 - `attention_deal_count`
+- `objective_action_item_count`
+- `gap_observation_count`
 - `overdue_count`
 - `stuck_count`
 - `stalled_count`
@@ -267,10 +277,16 @@ The generated body includes:
 
 1. KPI table
 2. Risk deals table, based on `attention_reasons`
-3. Data quality table
-4. Warning code list
+3. Objective Action Items table, based only on `objective_action_items`
+4. Gap Observations table, based on `gap_observations`
+5. Data quality table
+6. Warning code list
 
 Risk deal tables escape Markdown table separators and newlines in cell values.
+The Objective Action Items section is for objective CTA triggers. The Gap
+Observations section is for judgment-sensitive gaps and includes
+`actionability` so readers can decide the next move without the report
+over-prescribing qualitative BD judgment.
 
 ### Non-Goals
 

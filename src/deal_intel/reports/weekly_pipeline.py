@@ -4,6 +4,11 @@ from collections.abc import Iterable
 from datetime import date, datetime
 from typing import Any
 
+from deal_intel.schema.deal_gaps import MEDDPICC_FIELD_LABELS
+from deal_intel.schema.gap_actionability import (
+    CTA_POLICY_ALLOWED,
+    annotate_gap_actionability,
+)
 from deal_intel.schema.metrics import (
     OPEN_STAGES,
     VALID_STAGES,
@@ -43,6 +48,8 @@ COLUMNS = [
     "primary_pain",
     "primary_decision_criteria",
     "attention_reasons",
+    "objective_action_items",
+    "gap_observations",
     "data_quality",
 ]
 
@@ -118,6 +125,11 @@ def _build_row(
         health_band=health_band,
         timing=timing,
     )
+    meddpicc_gaps = _meddpicc_gaps(meddpicc_latest)
+    attention_gaps = _attention_gap_rows(
+        timing=timing,
+        attention_reasons=attention_reasons,
+    )
     themes = _theme_candidates(deal)
     return {
         "deal_id": deal.get("deal_id"),
@@ -139,7 +151,7 @@ def _build_row(
             else None
         ),
         "health_band": health_band.value,
-        "meddpicc_gaps": _meddpicc_gaps(meddpicc_latest),
+        "meddpicc_gaps": meddpicc_gaps,
         "last_meeting_date": _last_meeting_date(deal),
         "primary_pain": _select_primary_theme(themes, THEME_DIMENSION_PAIN),
         "primary_decision_criteria": _select_primary_theme(
@@ -147,6 +159,17 @@ def _build_row(
             THEME_DIMENSION_DECISION_CRITERIA,
         ),
         "attention_reasons": attention_reasons,
+        "objective_action_items": [
+            gap for gap in attention_gaps if gap["cta_policy"] == CTA_POLICY_ALLOWED
+        ],
+        "gap_observations": [
+            *[
+                gap
+                for gap in attention_gaps
+                if gap["cta_policy"] != CTA_POLICY_ALLOWED
+            ],
+            *_meddpicc_gap_observations(meddpicc_gaps),
+        ],
         "data_quality": assess_deal_data_quality(deal).to_dict(),
     }
 
@@ -156,6 +179,103 @@ def _meddpicc_gaps(meddpicc_latest: dict) -> list[str]:
     if not isinstance(gaps, list):
         return []
     return [str(item) for item in gaps]
+
+
+def _meddpicc_gap_observations(gaps: list[str]) -> list[dict]:
+    rows = []
+    for gap_name in gaps:
+        label = MEDDPICC_FIELD_LABELS.get(gap_name, gap_name)
+        rows.append(
+            annotate_gap_actionability(
+                {
+                    "gap_id": f"meddpicc:{gap_name}",
+                    "field": f"meddpicc.{gap_name}",
+                    "label": label,
+                    "status": "missing",
+                    "impact_area": "sales_action",
+                    "severity": "medium",
+                    "reason": f"MEDDPICC gap remains open: {label}.",
+                }
+            )
+        )
+    return rows
+
+
+def _attention_gap_rows(
+    *,
+    timing: Any,
+    attention_reasons: list[str],
+) -> list[dict]:
+    rows = []
+    if "overdue" in attention_reasons:
+        rows.append(
+            annotate_gap_actionability(
+                {
+                    "gap_id": "attention:overdue",
+                    "field": "expected_close_date",
+                    "label": "Overdue close date",
+                    "status": "attention",
+                    "impact_area": "sales_action",
+                    "severity": "high",
+                    "reason": (
+                        "Expected close date is overdue by "
+                        f"{timing.overdue_days or 0} day(s)."
+                    ),
+                    "recommended_action": "review_close_plan",
+                }
+            )
+        )
+    if "stuck" in attention_reasons:
+        rows.append(
+            annotate_gap_actionability(
+                {
+                    "gap_id": "attention:stuck",
+                    "field": "deal_stage",
+                    "label": "Stage is stuck",
+                    "status": "attention",
+                    "impact_area": "sales_action",
+                    "severity": "medium",
+                    "reason": (
+                        "Deal has stayed in the current active stage past the "
+                        "stuck threshold."
+                    ),
+                    "recommended_action": "review_next_step",
+                }
+            )
+        )
+    if "stalled" in attention_reasons:
+        rows.append(
+            annotate_gap_actionability(
+                {
+                    "gap_id": "attention:stalled",
+                    "field": "deal_stage",
+                    "label": "Stage is stalled",
+                    "status": "attention",
+                    "impact_area": "sales_action",
+                    "severity": "medium",
+                    "reason": "Deal is explicitly marked stalled.",
+                    "recommended_action": "review_reactivation_path",
+                }
+            )
+        )
+    if "at_risk" in attention_reasons:
+        rows.append(
+            annotate_gap_actionability(
+                {
+                    "gap_id": "attention:at_risk",
+                    "field": "meddpicc.health",
+                    "label": "At-risk health",
+                    "status": "weak_signal",
+                    "impact_area": "sales_action",
+                    "severity": "high",
+                    "reason": (
+                        "MEDDPICC health is at risk; review the underlying "
+                        "evidence before prescribing an action."
+                    ),
+                }
+            )
+        )
+    return rows
 
 
 def _last_meeting_date(deal: dict) -> str | None:

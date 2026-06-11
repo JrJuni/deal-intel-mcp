@@ -107,6 +107,10 @@ def test_negotiation_meddpicc_gap_is_high_priority() -> None:
     assert row["priority_band"] == "high"
     assert gap["severity"] == "high"
     assert gap["recommended_action"] == "ask_in_next_meeting"
+    assert gap["actionability"] == "needs_human_judgment"
+    assert gap["cta_policy"] == "observation_only"
+    assert row["actionable_gaps"] == []
+    assert row["gap_observations"][0]["gap_id"] == "meddpicc:champion"
 
 
 def test_overdue_deal_includes_suggested_question() -> None:
@@ -126,6 +130,9 @@ def test_overdue_deal_includes_suggested_question() -> None:
     assert "overdue" in row["attention_reasons"]
     assert gap["suggested_question"]
     assert gap["recommended_action"] == "review_close_plan"
+    assert gap["actionability"] == "cta_allowed"
+    assert gap["cta_policy"] == "cta_allowed"
+    assert row["actionable_gaps"][0]["gap_id"] == "attention:overdue"
 
 
 def test_terminal_deals_require_postmortem_fields() -> None:
@@ -229,3 +236,9 @@ def test_configurable_health_thresholds_feed_attention_reason() -> None:
 
     assert result["deals"][0]["health_band"] == "at_risk"
     assert "at_risk" in result["deals"][0]["attention_reasons"]
+    assert result["deals"][0]["actionable_gaps"] == []
+    assert result["deals"][0]["gap_observations"][0]["gap_id"] == "attention:at_risk"
+    assert (
+        result["deals"][0]["gap_observations"][0]["actionability"]
+        == "needs_human_judgment"
+    )

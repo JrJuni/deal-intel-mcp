@@ -12,6 +12,35 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-11
 
+### Deal review v2 rendering alignment
+
+Implemented:
+
+- Added shared gap actionability classification.
+- Reused it in `get_deal_gaps`, `get_deal_review`, weekly pipeline rows, and
+  weekly Markdown reports.
+- `get_deal_gaps` rows now expose `actionable_gaps` and `gap_observations` in
+  addition to the original `gaps` list.
+- Weekly pipeline rows now expose `objective_action_items` and
+  `gap_observations`.
+- Weekly Markdown now renders separate Objective Action Items and Gap
+  Observations sections.
+- `attention:overdue`, stuck, and stalled are CTA-safe. MEDDPICC gaps and
+  `attention:at_risk` are observation-only because they require account/BD
+  judgment before prescribing action.
+
+Verification:
+
+- Targeted rendering/gaps/deal-review tests: `53 passed`, `1 warning`
+- Targeted Ruff: `All checks passed`
+- Local sample `export_report(weekly_pipeline)` smoke: passed, generated CSV
+  and Markdown under `.tmp/v2-rendering-smoke-2`
+- Local sample `smoke-natural-questions`: passed, `8` questions, no sensitive
+  failures, final payload under `.tmp/natural-v2-rendering-smoke-3`
+- Local sample `smoke-deal-review`: passed for `2` deals
+- Full pytest: `408 passed`, `1 warning`
+- Full Ruff: `All checks passed`
+
 ### Deal review quality v2
 
 Implemented:

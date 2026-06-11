@@ -86,6 +86,12 @@ def _summarize_rows(rows: list[dict]) -> dict:
         "assessed_health_count": len(health_values),
         "health_coverage_pct": _pct(len(health_values), row_count),
         "attention_deal_count": attention_deal_count,
+        "objective_action_item_count": sum(
+            len(row.get("objective_action_items") or []) for row in rows
+        ),
+        "gap_observation_count": sum(
+            len(row.get("gap_observations") or []) for row in rows
+        ),
         "overdue_count": sum(row.get("is_overdue") is True for row in rows),
         "stuck_count": sum(row.get("is_stuck") is True for row in rows),
         "stalled_count": sum(row.get("deal_stage") == "stalled" for row in rows),
@@ -164,6 +170,11 @@ def _build_markdown(
                     ),
                 ],
                 ["Attention deals", str(metrics["attention_deal_count"])],
+                [
+                    "Objective action items",
+                    str(metrics["objective_action_item_count"]),
+                ],
+                ["Gap observations", str(metrics["gap_observation_count"])],
                 ["Overdue", str(metrics["overdue_count"])],
                 ["Stuck", str(metrics["stuck_count"])],
                 ["At risk", str(metrics["at_risk_count"])],
@@ -174,6 +185,14 @@ def _build_markdown(
         "## Risk Deals",
         "",
         *_risk_deal_section(rows),
+        "",
+        "## Objective Action Items",
+        "",
+        *_objective_action_section(rows),
+        "",
+        "## Gap Observations",
+        "",
+        *_gap_observation_section(rows),
         "",
         "## Data Quality",
         "",
@@ -217,7 +236,15 @@ def _risk_deal_section(rows: list[dict]) -> list[str]:
     if not risk_rows:
         return ["No risk deals."]
     return _table(
-        ["Company", "Stage", "Amount", "Expected close", "Health", "Reasons"],
+        [
+            "Company",
+            "Stage",
+            "Amount",
+            "Expected close",
+            "Health",
+            "Reasons",
+            "Objective actions",
+        ],
         [
             [
                 row.get("company"),
@@ -226,10 +253,66 @@ def _risk_deal_section(rows: list[dict]) -> list[str]:
                 row.get("expected_close_date") or "N/A",
                 _format_health(row),
                 ", ".join(str(reason) for reason in row.get("attention_reasons", [])),
+                _format_action_items(row.get("objective_action_items") or []),
             ]
             for row in risk_rows
         ],
     )
+
+
+def _objective_action_section(rows: list[dict]) -> list[str]:
+    action_rows = [
+        (row, action)
+        for row in rows
+        for action in row.get("objective_action_items") or []
+        if isinstance(action, dict)
+    ]
+    if not action_rows:
+        return ["No objective action items."]
+    return _table(
+        ["Company", "Trigger", "Recommended action", "Reason"],
+        [
+            [
+                row.get("company"),
+                action.get("label") or action.get("gap_id"),
+                action.get("recommended_action") or "review",
+                action.get("reason"),
+            ]
+            for row, action in action_rows
+        ],
+    )
+
+
+def _gap_observation_section(rows: list[dict]) -> list[str]:
+    observation_rows = [
+        (row, observation)
+        for row in rows
+        for observation in row.get("gap_observations") or []
+        if isinstance(observation, dict)
+    ]
+    if not observation_rows:
+        return ["No gap observations."]
+    return _table(
+        ["Company", "Gap", "Actionability", "Reason"],
+        [
+            [
+                row.get("company"),
+                observation.get("label") or observation.get("field"),
+                observation.get("actionability"),
+                observation.get("reason"),
+            ]
+            for row, observation in observation_rows
+        ],
+    )
+
+
+def _format_action_items(actions: list[dict]) -> str:
+    values = [
+        str(action.get("recommended_action") or action.get("gap_id"))
+        for action in actions
+        if isinstance(action, dict)
+    ]
+    return ", ".join(values) if values else "none"
 
 
 def _valid_amount(row: dict) -> int:

@@ -26,6 +26,7 @@ def _deal(
     expected_close_date: str | None = "2026-06-30",
     meetings: list[dict] | None = None,
     customer_themes: list[dict] | None = None,
+    meddpicc_gaps: list[str] | None = None,
 ) -> dict:
     return {
         "deal_id": deal_id,
@@ -47,7 +48,7 @@ def _deal(
             {
                 "filled_count": 1,
                 "health_pct": health_pct,
-                "gaps": ["economic_buyer"],
+                "gaps": meddpicc_gaps if meddpicc_gaps is not None else ["economic_buyer"],
             }
             if health_pct is not None
             else {}
@@ -148,6 +149,8 @@ def test_weekly_pipeline_markdown_summarizes_kpis_and_matches_csv(tmp_path) -> N
     assert "PayBridge" in markdown
     assert "LuminoAI" in markdown
     assert "`missing_expected_close_date`" in markdown
+    assert "## Objective Action Items" in markdown
+    assert "## Gap Observations" in markdown
 
 
 def test_weekly_pipeline_markdown_handles_empty_report() -> None:
@@ -184,6 +187,31 @@ def test_weekly_pipeline_markdown_escapes_table_cells() -> None:
     )["markdown"]
 
     assert "Pipe \\| Newline Co" in markdown
+
+
+def test_weekly_pipeline_markdown_keeps_judgment_gaps_out_of_ctas() -> None:
+    report = build_weekly_pipeline_rows(
+        [
+            _deal(
+                "competition",
+                company="GreenLogistics",
+                stage="negotiation",
+                health_pct=82,
+                expected_close_date="2026-06-01",
+                meddpicc_gaps=["competition"],
+            )
+        ],
+        as_of=AS_OF,
+    )
+
+    markdown = build_weekly_pipeline_markdown(
+        report,
+        generated_at=GENERATED_AT,
+    )["markdown"]
+
+    assert "| GreenLogistics | Overdue close date | review_close_plan |" in markdown
+    assert "| GreenLogistics | Competition | needs_human_judgment |" in markdown
+    assert "ask_in_next_meeting" not in markdown
 
 
 def test_weekly_pipeline_markdown_validates_input_contract() -> None:

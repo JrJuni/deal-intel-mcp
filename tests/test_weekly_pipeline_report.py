@@ -25,6 +25,7 @@ def _deal(
     expected_close_date_source: str | None = "user_provided",
     meetings: list[dict] | None = None,
     customer_themes: list[dict] | None = None,
+    meddpicc_gaps: list[str] | None = None,
 ) -> dict:
     return {
         "deal_id": deal_id,
@@ -46,7 +47,7 @@ def _deal(
             {
                 "filled_count": 1,
                 "health_pct": health_pct,
-                "gaps": ["economic_buyer"],
+                "gaps": meddpicc_gaps if meddpicc_gaps is not None else ["economic_buyer"],
             }
             if health_pct is not None
             else {}
@@ -168,6 +169,38 @@ def test_weekly_pipeline_sorting_prioritizes_attention_then_close_date_and_value
     assert result["rows"][0]["attention_reasons"] == ["overdue"]
     assert result["rows"][1]["attention_reasons"] == ["stuck"]
     assert result["rows"][2]["attention_reasons"] == ["stalled"]
+
+
+def test_weekly_pipeline_rows_split_objective_actions_from_gap_observations() -> None:
+    result = build_weekly_pipeline_rows(
+        [
+            _deal(
+                "judgment-gap",
+                stage="negotiation",
+                health_pct=82,
+                expected_close_date="2026-06-01",
+                meddpicc_gaps=["competition"],
+            )
+        ],
+        as_of=AS_OF,
+    )
+
+    row = result["rows"][0]
+    assert row["meddpicc_gaps"] == ["competition"]
+    assert [item["gap_id"] for item in row["objective_action_items"]] == [
+        "attention:overdue"
+    ]
+    assert all(
+        not item["field"].startswith("meddpicc.")
+        for item in row["objective_action_items"]
+    )
+
+    observation = next(
+        item for item in row["gap_observations"]
+        if item["field"] == "meddpicc.competition"
+    )
+    assert observation["actionability"] == "needs_human_judgment"
+    assert observation["cta_policy"] == "observation_only"
 
 
 def test_stage_and_industry_filters_apply_before_row_generation() -> None:

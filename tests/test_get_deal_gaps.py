@@ -88,6 +88,8 @@ def test_get_deal_gaps_valid_filters_return_shape_and_exclude_sensitive_fields()
     assert result["summary"]["deal_count"] == 1
     assert result["summary"]["returned_deal_count"] == 1
     assert result["deals"][0]["deal_id"] == "deal-1"
+    assert "actionable_gaps" in result["deals"][0]
+    assert "gap_observations" in result["deals"][0]
     serialized = json.dumps(result, ensure_ascii=False)
     assert "raw_notes" not in serialized
     assert "contacts" not in serialized

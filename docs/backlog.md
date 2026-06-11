@@ -63,10 +63,14 @@ Backlog items:
     like mandatory next actions. Example: "competition gap exists" is safer
     than "prepare competitor comparison and close negotiation" unless the
     account evidence objectively supports that action.
-  - Current implementation: gap rows include `actionability` and `cta_policy`;
-    `get_deal_review` exposes `actionable_gaps` and `gap_observations`.
-  - Remaining follow-up: weekly report and document rendering should use the
-    same distinction instead of flattening all gaps into recommended actions.
+  - Current implementation: `get_deal_gaps` and `get_deal_review` gap rows
+    include `actionability` and `cta_policy`; both expose `actionable_gaps` and
+    `gap_observations`.
+  - Weekly pipeline rows and Markdown reports render objective action items
+    separately from gap observations.
+  - Remaining follow-up: future document/Word renderers and LLM answer
+    templates should keep the same distinction instead of flattening all gaps
+    into recommended actions.
 
 ### Customer Interaction Intake
 

@@ -411,3 +411,17 @@ The tool reuses the shared metric primitives:
 It is read-only, uses `list_deals_for_metrics()`, and does not call LLMs,
 embedding providers, or MongoDB writes. Raw meeting notes, contacts, and vectors
 stay out of the response.
+
+Each gap row includes `actionability` and `cta_policy`:
+
+- `cta_allowed`: objective enough to become a recommended action, such as an
+  overdue close date, stuck or stalled stage, missing terminal close metadata,
+  or invalid/estimated forecast field.
+- `needs_human_judgment` with `observation_only`: useful gap context that
+  should not be automatically turned into a prescriptive CTA. MEDDPICC gaps
+  such as competition, champion quality, economic buyer mapping, decision
+  criteria, and at-risk health signals fall here unless a later feature adds
+  stronger account evidence.
+
+Deal rows also expose `actionable_gaps` and `gap_observations` so downstream
+reports and agents can render the two classes differently.

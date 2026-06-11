@@ -10,6 +10,7 @@ from deal_intel.schema.deal_gaps import (
     QUESTION_BY_MEDDPICC_GAP,
     build_deal_gaps_summary,
 )
+from deal_intel.schema.gap_actionability import annotate_gap_actionability
 from deal_intel.schema.metrics import (
     DataQualityStatus,
     DealValueStatus,
@@ -364,40 +365,7 @@ def _gap_rows(
 
 
 def _with_gap_actionability(gap: dict) -> dict:
-    annotated = dict(gap)
-    actionability = _gap_actionability(annotated)
-    annotated["actionability"] = actionability
-    annotated["cta_policy"] = (
-        "cta_allowed" if actionability == "cta_allowed" else "observation_only"
-    )
-    return annotated
-
-
-def _gap_actionability(gap: dict) -> str:
-    gap_id = str(gap.get("gap_id") or "")
-    field = str(gap.get("field") or "")
-
-    if gap_id.startswith("meddpicc:") or field.startswith("meddpicc."):
-        return "needs_human_judgment"
-    if gap_id in {
-        "attention:overdue",
-        "attention:stuck",
-        "attention:stalled",
-    }:
-        return "cta_allowed"
-    if field in {
-        "actual_close_date",
-        "close_reason",
-        "expected_close_date",
-        "deal_value",
-        "stage_history",
-        "meetings",
-        "health_assessment",
-    }:
-        return "cta_allowed"
-    if gap.get("status") in {"invalid", "attention"}:
-        return "cta_allowed"
-    return "needs_human_judgment"
+    return annotate_gap_actionability(gap)
 
 
 def _missing_information(gaps: list[dict]) -> list[dict]:

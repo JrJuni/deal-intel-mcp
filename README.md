@@ -234,7 +234,9 @@ The bundled fictional fixture is immutable. After local personal deals exist,
 the fixture is hidden from active reads instead of being mixed with your data.
 The dry-run-first local-to-MongoDB migration command lets users graduate from
 sample/local mode to `full` without retyping deals. It migrates only
-user-created local personal deals, never bundled fixture records.
+user-created local personal deals, never bundled fixture records. If no local
+personal deals exist yet, the dry-run returns immediately and skips MongoDB
+target readiness checks.
 
 ---
 

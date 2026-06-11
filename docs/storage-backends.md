@@ -197,6 +197,12 @@ deal-intel local-data migrate-to-mongo --apply
 deal-intel local-data migrate-to-mongo --apply --overwrite
 ```
 
+If the source local personal store has zero deals and the command is a dry-run,
+the migration returns an empty no-write preview without pinging MongoDB. This
+keeps the zero-config first-run path fast and avoids network timeouts before a
+user has anything to migrate. Once local deals exist, dry-run still checks the
+target so it can classify create/overwrite/skip actions.
+
 Non-goals:
 
 - No automatic background sync.

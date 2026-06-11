@@ -12,6 +12,29 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-11
 
+### Zero-config sample/local UX polish
+
+Implemented:
+
+- Improved local-to-Mongo dry-run UX for empty local personal stores.
+- `migrate_local_data` now skips target MongoDB readiness checks when
+  `dry_run=true` and there are no local personal deals to migrate.
+- Documented the skip behavior in README and the local storage contract.
+
+Verification:
+
+- Targeted local-data/storage/profile regression:
+  `22 passed`, `1 warning`
+- Local sample CLI smoke:
+  `local-data migrate-to-mongo` returns an empty dry-run preview without DNS
+  timeout when there are no local personal deals.
+- Targeted Ruff:
+  `All checks passed`
+- Full pytest:
+  `428 passed`, `1 warning`
+- Ruff:
+  `All checks passed`
+
 ### MVP readiness checklist
 
 Implemented:

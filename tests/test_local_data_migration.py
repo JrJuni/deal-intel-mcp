@@ -25,8 +25,10 @@ class FakeMongo:
         self.existing = deepcopy(existing or {})
         self.upserted: list[dict] = []
         self.ping_status = ping_status
+        self.ping_count = 0
 
     def ping(self) -> dict:
+        self.ping_count += 1
         return {"status": self.ping_status, "database": self.database_name}
 
     def get_deal(self, deal_id: str) -> dict | None:
@@ -90,6 +92,23 @@ def test_migration_dry_run_classifies_creates_without_writing(tmp_path) -> None:
     assert "private raw note sentinel" not in payload
     assert "private@example.com" not in payload
     assert "summary_embedding" not in payload
+
+
+def test_migration_dry_run_without_local_deals_skips_target_ping(tmp_path) -> None:
+    store = LocalPersonalStore(tmp_path / "local-data")
+    mongo = FakeMongo(ping_status="error")
+
+    result = migrate_local_data.handle(source_store=store, target_mongo=mongo)
+
+    assert result["ok"] is True
+    assert result["dry_run"] is True
+    assert result["counts"]["source_deals"] == 0
+    assert result["target"]["readiness"] == "not_checked_no_source_deals"
+    assert mongo.ping_count == 0
+    assert {warning["code"] for warning in result["warnings"]} == {
+        "no_local_personal_deals",
+        "target_not_checked_no_source_deals",
+    }
 
 
 def test_migration_apply_requires_confirmation(tmp_path) -> None:

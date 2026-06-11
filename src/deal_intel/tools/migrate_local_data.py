@@ -31,6 +31,50 @@ def handle(
             hint="Run a dry-run first, then retry with confirmed_by_user=true.",
         )
 
+    deals = source_store.load_deals()
+    audit_logs = source_store.load_delete_audit_logs()
+
+    if dry_run and not deals:
+        counts = _count_rows([])
+        warnings = _build_warnings(
+            source_deals=0,
+            delete_audit_log_count=len(audit_logs),
+            skipped_existing=0,
+        )
+        warnings.append(
+            {
+                "code": "target_not_checked_no_source_deals",
+                "message": (
+                    "Target MongoDB readiness was not checked because there "
+                    "are no local personal deals to migrate."
+                ),
+            }
+        )
+        return {
+            "ok": True,
+            "migration_type": MIGRATION_TYPE,
+            "dry_run": dry_run,
+            "storage_written": False,
+            "source": {
+                "dataset": "local_personal",
+                "data_dir": str(source_store.data_dir),
+                "deals_path": str(source_store.deals_path),
+                "deal_count": 0,
+                "delete_audit_log_count": len(audit_logs),
+            },
+            "target": {
+                "storage_backend": "mongo",
+                "database": getattr(target_mongo, "database_name", None),
+                "readiness": "not_checked_no_source_deals",
+            },
+            "options": {
+                "overwrite": overwrite,
+            },
+            "counts": counts,
+            "deals": [],
+            "warnings": warnings,
+        }
+
     target_ping = _safe_ping(target_mongo)
     if target_ping.get("status") != "ok":
         raise MCPError(
@@ -40,8 +84,6 @@ def handle(
             hint=target_ping,
         )
 
-    deals = source_store.load_deals()
-    audit_logs = source_store.load_delete_audit_logs()
     rows = [_build_row(target_mongo, deal, overwrite=overwrite) for deal in deals]
     counts = _count_rows(rows)
     warnings = _build_warnings(

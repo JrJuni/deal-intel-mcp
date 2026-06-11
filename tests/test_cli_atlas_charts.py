@@ -24,7 +24,8 @@ def test_render_atlas_dashboard_cli_prints_single_chart_pipeline() -> None:
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
     assert isinstance(payload, list)
-    assert payload[0]["$addFields"]["_as_of"]["$dateFromString"]["dateString"] == (
+    assert payload[0]["$match"]["archived"] == {"$ne": True}
+    assert payload[1]["$addFields"]["_as_of"]["$dateFromString"]["dateString"] == (
         "2026-06-09T00:00:00Z"
     )
     assert "{{" not in result.stdout

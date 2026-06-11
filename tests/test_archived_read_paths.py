@@ -73,6 +73,13 @@ def test_storage_read_paths_apply_legacy_safe_archived_filter() -> None:
             "summary_embedding": {"$exists": True, "$ne": None},
         },
     ]
+    list_projection = db.deals.find_calls[0][1]
+    assert list_projection == {
+        "_id": 0,
+        "meetings.raw_notes": 0,
+        "contacts": 0,
+        "summary_embedding": 0,
+    }
 
 
 def test_atlas_vector_search_pipeline_excludes_archived_deals() -> None:

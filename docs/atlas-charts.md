@@ -143,6 +143,16 @@ This dashboard is intentionally exploratory. It should help answer:
 
 ## Chart Contract
 
+Weekly Pipeline chart pipelines start with:
+
+```json
+{"$match": {"archived": {"$ne": true}}}
+```
+
+If you already created the dashboard manually in Atlas, re-render and re-paste
+the Weekly Pipeline chart pipelines after this contract changes. Existing Atlas
+Charts do not automatically update from repository JSON files.
+
 | Chart ID | Title | Chart Type | Primary Fields |
 |---|---|---|---|
 | `pipeline_kpis` | Pipeline KPIs | Table | `deal_count`, `active_deal_count`, `open_deal_count`, `active_pipeline_value_krw`, `open_pipeline_value_krw`, `avg_health_pct`, `health_coverage_pct`, `stuck_deal_count`, `overdue_deal_count`, `attention_deal_count` |

@@ -140,9 +140,13 @@ class MongoDBClient:
         query = with_unarchived_deal_filter()
         if stage:
             query["deal_stage"] = stage
-        cursor = db.deals.find(query, {"_id": 0, "meetings.raw_notes": 0}).sort(
-            "updated_at", -1
-        ).limit(limit)
+        projection = {
+            "_id": 0,
+            "meetings.raw_notes": 0,
+            "contacts": 0,
+            "summary_embedding": 0,
+        }
+        cursor = db.deals.find(query, projection).sort("updated_at", -1).limit(limit)
         return list(cursor)
 
     def list_deals_for_metrics(self) -> list[dict]:

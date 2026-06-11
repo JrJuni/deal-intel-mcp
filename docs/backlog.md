@@ -108,14 +108,13 @@ and Atlas Charts.
 
 Next candidate units:
 
-1. O2 BI read projection hardening.
-   - Convert `list_deals()` to exclude contacts/vectors or use an allowlist.
-   - Convert `list_deals_for_metrics()` from blacklist-style projection to
-     allowlist-style projection.
-   - Add `archived != true` to every Weekly Pipeline Atlas chart pipeline.
-2. O3 index contract.
+1. O3 index contract.
    - Add or document `(archived, deal_stage, updated_at desc)` for list views.
    - Add or document `(as_of, occurred_at, created_at)` for trend reads.
+2. Deferred BI metrics allowlist projection.
+   - Convert `list_deals_for_metrics()` from blacklist-style projection to
+     allowlist-style projection after BI/review/report field contracts
+     stabilize.
 
 Audit record:
 

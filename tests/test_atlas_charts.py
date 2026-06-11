@@ -145,7 +145,8 @@ def test_chart_pipeline_rendering_returns_single_pipeline_and_rejects_unknown_id
     )
 
     assert isinstance(pipeline, list)
-    assert pipeline[0]["$addFields"]["_as_of"]["$dateFromString"]["dateString"] == (
+    assert pipeline[0]["$match"]["archived"] == {"$ne": True}
+    assert pipeline[1]["$addFields"]["_as_of"]["$dateFromString"]["dateString"] == (
         "2026-06-09T00:00:00Z"
     )
     with pytest.raises(ValueError, match="chart_id"):
@@ -180,6 +181,13 @@ def test_chart_pipeline_rendering_supports_customer_themes_dashboard() -> None:
     assert pipeline[0]["$match"]["archived"] == {"$ne": True}
     assert pipeline[0]["$match"]["deal_stage"] == {"$nin": ["won", "lost"]}
     assert pipeline[-1]["$project"]["theme_key"] == "$_id"
+
+
+def test_weekly_pipeline_chart_pipelines_exclude_archived_deals_first() -> None:
+    rendered = render_weekly_pipeline_dashboard_spec({}, as_of="2026-06-09")
+
+    for chart in rendered["charts"]:
+        assert chart["pipeline"][0] == {"$match": {"archived": {"$ne": True}}}
 
 
 def test_atlas_chart_pipelines_do_not_touch_sensitive_fields() -> None:

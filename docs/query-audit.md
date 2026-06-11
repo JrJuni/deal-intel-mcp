@@ -28,8 +28,8 @@ belongs in O2/O3:
 | Method | Main Consumers | Query Shape | Projection | Index Coverage | Audit Notes |
 |---|---|---|---|---|---|
 | `get_deal(deal_id)` | `get_deal`, mutation tools | `{deal_id}` | `_id` excluded only | `deal_id_unique` | Intentional full-detail path. May include raw meeting notes because the user asked for one deal. |
-| `list_deals(stage, limit)` | `list_deals` | `archived != true`, optional `deal_stage`, sort `updated_at desc`, limit | excludes `_id`, `meetings.raw_notes` | partial: `archived_updated`, `stage_updated` | Candidate for O2 allowlist or exclusion of `contacts` and `summary_embedding`. Candidate for O3 compound index `(archived, deal_stage, updated_at desc)`. |
-| `list_deals_for_metrics()` | `get_metrics:pipeline_health`, `get_deal_gaps`, `get_deal_review`, `get_customer_theme_breakdown`, `get_customer_theme_evidence`, `export_report:weekly_pipeline`, `get_insights:pipeline_overview` | `archived != true` | excludes `_id`, `meetings.raw_notes`, `contacts`, `summary_embedding` | `archived_updated` can support archived filter | Primary LLM-free BI read path. Safe today, but still blacklist-style; O2 can convert to allowlist. |
+| `list_deals(stage, limit)` | `list_deals` | `archived != true`, optional `deal_stage`, sort `updated_at desc`, limit | excludes `_id`, `meetings.raw_notes`, `contacts`, `summary_embedding` | partial: `archived_updated`, `stage_updated` | Hardened in O2. Candidate for O3 compound index `(archived, deal_stage, updated_at desc)`. |
+| `list_deals_for_metrics()` | `get_metrics:pipeline_health`, `get_deal_gaps`, `get_deal_review`, `get_customer_theme_breakdown`, `get_customer_theme_evidence`, `export_report:weekly_pipeline`, `get_insights:pipeline_overview` | `archived != true` | excludes `_id`, `meetings.raw_notes`, `contacts`, `summary_embedding` | `archived_updated` can support archived filter | Primary LLM-free BI read path. Safe today, but still blacklist-style. Allowlist conversion is deferred until BI/review/report field contracts stabilize. |
 | `list_analytics_snapshots(start,end,stage,industry)` | `get_metrics:pipeline_trend`, `export_report:pipeline_trend` | `as_of` range, optional `deal_stage`, optional `industry`, sort `as_of`, `occurred_at` | allowlist-style projection | partial: `analytics_snapshot_deal_occurred`, `analytics_snapshot_event_occurred`; no direct `as_of` index | Candidate for O3 index `(as_of, occurred_at, created_at)` and optionally `(as_of, deal_stage, industry)`. |
 | `aggregate_deals(pipeline)` | legacy `get_customer_themes`, Atlas chart smoke/crosscheck | caller-supplied aggregation | caller-supplied | depends on pipeline | Needs pipeline-by-pipeline audit. Customer Themes specs are safer than Weekly Pipeline specs. |
 | `aggregate_analytics_snapshots(pipeline)` | Atlas trend chart smoke | `as_of` range and sort in chart specs | aggregation projects only chart rows | same as trend snapshots | O3 should align index to `as_of` range + sort. |
@@ -60,16 +60,10 @@ belongs in O2/O3:
 
 ### Weekly Pipeline Review
 
-The Weekly Pipeline chart spec computes useful summaries but does not currently
-apply a leading `archived != true` visibility filter consistently. This creates
-two risks:
-
-- archived deals may still be counted in Atlas charts,
-- Charts can drift from `get_metrics`, CSV, and MCP read paths after lifecycle
-  tools archive deals.
-
-O2 should add a leading `$match: {archived: {$ne: true}}` to every Weekly
-Pipeline chart pipeline and update chart/crosscheck tests.
+The Weekly Pipeline chart spec now applies a leading
+`$match: {archived: {$ne: true}}` to every chart pipeline. This keeps Atlas
+Charts aligned with `get_metrics`, CSV, and MCP read paths after lifecycle
+tools archive deals.
 
 ### Customer Themes Review
 
@@ -108,16 +102,23 @@ exposure. O3 should consider an index that matches this range + sort shape.
 - `analytics_snapshots.analytics_snapshot_event_occurred`: `(event_type,
   occurred_at desc)`.
 
-## O2 Candidates
+## O2 Outcome
 
-1. Convert `list_deals()` to a safer projection.
-   - Minimum: also exclude `contacts` and `summary_embedding`.
-   - Better: introduce a user-list allowlist projection.
-2. Convert `list_deals_for_metrics()` from blacklist-style to allowlist-style.
-   This would make accidental future heavy fields safe by default.
-3. Add `archived != true` to every Weekly Pipeline Atlas chart pipeline.
-4. Add tests that inspect rendered Weekly Pipeline chart pipelines for the
-   visibility filter and sensitive-field exclusion.
+Completed:
+
+1. `list_deals()` now excludes `contacts` and `summary_embedding` in addition
+   to `_id` and `meetings.raw_notes`.
+2. Every Weekly Pipeline Atlas chart pipeline starts with
+   `archived != true`.
+3. Tests inspect the list projection and rendered Weekly Pipeline chart
+   visibility filter.
+
+Deferred:
+
+- Convert `list_deals_for_metrics()` from blacklist-style to allowlist-style.
+  The current blacklist projection excludes known heavy/sensitive fields and
+  keeps BI/review/report development flexible. Revisit when metric contracts
+  reach v1 stability or data size makes broad BI reads costly.
 
 ## O3 Candidates
 
@@ -133,9 +134,11 @@ exposure. O3 should consider an index that matches this range + sort shape.
 
 ## Current Risk Summary
 
-- High: Weekly Pipeline Atlas Charts may include archived deals.
-- Medium: `list_deals()` reads more fields than the list response needs.
+- Fixed in O2: Weekly Pipeline Atlas Charts exclude archived deals.
+- Fixed in O2: `list_deals()` excludes contacts and vectors.
 - Medium: trend chart/snapshot range reads do not have a direct `as_of` index.
 - Low at current scale: legacy aggregation paths can scan the small `deals`
   collection.
+- Deferred: `list_deals_for_metrics()` remains blacklist-style until metric
+  field contracts stabilize.
 - Intentional: `get_deal` and customer-theme backfill can read full/raw fields.

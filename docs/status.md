@@ -12,6 +12,37 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-11
 
+### O2 BI read projection and Atlas visibility hardening
+
+Implemented:
+
+- Added leading `archived != true` filters to every Weekly Pipeline Atlas chart
+  pipeline.
+- Hardened `MongoDBClient.list_deals()` projection to exclude
+  `contacts` and `summary_embedding` in addition to `_id` and
+  `meetings.raw_notes`.
+- Added regression tests for Weekly Pipeline chart visibility filters and
+  list-view projection.
+- Deferred `list_deals_for_metrics()` allowlist conversion until
+  BI/review/report field contracts stabilize.
+- Updated [query-audit.md](query-audit.md), [atlas-charts.md](atlas-charts.md),
+  and [backlog.md](backlog.md).
+
+Verification so far:
+
+- O2 targeted regression:
+  `31 passed`, `1 warning`
+- Targeted Ruff:
+  `All checks passed`
+- Full pytest:
+  `402 passed`, `1 warning`
+- Final Ruff:
+  `All checks passed`
+- Diff whitespace check:
+  `git diff --check`
+- CLI render smoke:
+  `render-atlas-dashboard --as-of 2026-06-09 --chart-id pipeline_kpis --output .tmp/pipeline_kpis_o2.json`
+
 ### O1 Index / query / projection audit
 
 Implemented:

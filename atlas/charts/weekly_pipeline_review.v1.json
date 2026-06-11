@@ -24,6 +24,13 @@
       "description": "Single-row KPI surface aligned with get_metrics pipeline_health.",
       "pipeline": [
         {
+          "$match": {
+            "archived": {
+              "$ne": true
+            }
+          }
+        },
+        {
           "$addFields": {
             "_as_of": {
               "$dateFromString": {
@@ -677,6 +684,13 @@
       "description": "Stage-level count, open value, health, stuck, and overdue metrics.",
       "pipeline": [
         {
+          "$match": {
+            "archived": {
+              "$ne": true
+            }
+          }
+        },
+        {
           "$addFields": {
             "_as_of": {
               "$dateFromString": {
@@ -1215,6 +1229,13 @@
       "description": "MEDDPICC health band distribution across the current collection.",
       "pipeline": [
         {
+          "$match": {
+            "archived": {
+              "$ne": true
+            }
+          }
+        },
+        {
           "$addFields": {
             "_health_pct": "$meddpicc_latest.health_pct",
             "_health_assessed": {
@@ -1290,6 +1311,13 @@
       "chart_type": "table",
       "description": "Deal-level attention list for weekly review.",
       "pipeline": [
+        {
+          "$match": {
+            "archived": {
+              "$ne": true
+            }
+          }
+        },
         {
           "$addFields": {
             "_as_of": {
@@ -1620,6 +1648,13 @@
       "chart_type": "bar",
       "description": "Open-deal MEDDPICC gap frequency.",
       "pipeline": [
+        {
+          "$match": {
+            "archived": {
+              "$ne": true
+            }
+          }
+        },
         {
           "$match": {
             "deal_stage": {

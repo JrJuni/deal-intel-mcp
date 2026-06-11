@@ -51,6 +51,11 @@ Backlog items:
   probability contract exists.
 - Use smoke packs to compare natural-language deal reviews across multiple
   companies.
+- Natural Smoke QA expanded to 12 deterministic questions covering pipeline
+  health, specific deal review, riskiest deals, high-health uncertainty,
+  closing gaps, postmortem gaps, decision criteria themes, evidence drill-down,
+  email/interview-backed themes, pipeline trend, actionability separation, and
+  interaction source coverage.
 - Implemented in v2, with follow-up rendering work still useful: separate
   objective CTA triggers from judgment-sensitive gap observations.
   - Objective triggers can produce explicit CTAs: overdue close dates,

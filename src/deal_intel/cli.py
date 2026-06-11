@@ -1594,6 +1594,40 @@ def _build_natural_question_smoke_pack(
         )
     )
 
+    questions.extend(
+        [
+            call(
+                "q10_pipeline_trend",
+                "지난 7일 파이프라인 흐름은 좋아졌어 나빠졌어?",
+                "direct",
+                lambda: _get_metrics.handle(
+                    mongo=mongo,
+                    cfg=cfg,
+                    metric_type="pipeline_trend",
+                    as_of=as_of,
+                    lookback_days=7,
+                ),
+            ),
+            call(
+                "q11_deal_review_actionability",
+                "딜 리뷰에서 바로 행동할 것과 관찰만 할 gap이 구분돼?",
+                "derived",
+                lambda: _build_deal_review_actionability_payload(
+                    mongo=mongo,
+                    cfg=cfg,
+                    deals=deals,
+                    as_of=as_of,
+                ),
+            ),
+            call(
+                "q12_interaction_source_coverage",
+                "샘플 데이터에는 회의, 이메일, 인터뷰 evidence가 모두 들어있어?",
+                "derived",
+                lambda: _build_interaction_source_coverage_payload(deals),
+            ),
+        ]
+    )
+
     sensitive_failures = [
         row["id"] for row in questions if row.get("sensitive") == "fail"
     ]
@@ -1793,6 +1827,124 @@ def _build_interaction_source_evidence_payload(
     }
 
 
+def _build_deal_review_actionability_payload(
+    *,
+    mongo: Any,
+    cfg: dict,
+    deals: list[dict],
+    as_of: str | None,
+) -> dict:
+    from deal_intel.tools import get_deal_review as _get_deal_review
+
+    rows = []
+    for deal in deals:
+        deal_id = deal.get("deal_id")
+        if not isinstance(deal_id, str) or not deal_id:
+            continue
+        result = _get_deal_review.handle(
+            mongo=mongo,
+            cfg=cfg,
+            deal_id=deal_id,
+            as_of=as_of,
+        )
+        review = result.get("review") or {}
+        interpretation = review.get("health_interpretation") or {}
+        rows.append(
+            {
+                "deal_id": review.get("deal_id"),
+                "company": review.get("company"),
+                "deal_stage": review.get("deal_stage"),
+                "review_band": interpretation.get("review_band"),
+                "alert_level": interpretation.get("alert_level"),
+                "uncertainty_level": interpretation.get("uncertainty_level"),
+                "actionable_gap_count": len(review.get("actionable_gaps") or []),
+                "gap_observation_count": len(review.get("gap_observations") or []),
+                "recommended_action_count": len(
+                    review.get("recommended_actions") or []
+                ),
+                "recommended_question_count": len(
+                    review.get("recommended_questions") or []
+                ),
+                "missing_information_count": len(
+                    review.get("missing_information") or []
+                ),
+                "confirmed_risk_count": len(review.get("confirmed_risks") or []),
+                "warnings": review.get("warnings") or [],
+            }
+        )
+    rows.sort(
+        key=lambda row: (
+            -int(row.get("confirmed_risk_count") or 0),
+            -int(row.get("actionable_gap_count") or 0),
+            -int(row.get("gap_observation_count") or 0),
+            -UNCERTAINTY_RANK.get(row.get("uncertainty_level"), 0),
+            str(row.get("company") or ""),
+        )
+    )
+    return {
+        "ok": True,
+        "as_of": as_of,
+        "summary": {
+            "reviewed_count": len(rows),
+            "deals_with_actionable_gaps": sum(
+                1 for row in rows if row["actionable_gap_count"] > 0
+            ),
+            "deals_with_gap_observations": sum(
+                1 for row in rows if row["gap_observation_count"] > 0
+            ),
+            "deals_with_confirmed_risks": sum(
+                1 for row in rows if row["confirmed_risk_count"] > 0
+            ),
+            "deals_with_missing_information": sum(
+                1 for row in rows if row["missing_information_count"] > 0
+            ),
+        },
+        "deals": rows[:12],
+        "warnings": [],
+    }
+
+
+def _build_interaction_source_coverage_payload(deals: list[dict]) -> dict:
+    from deal_intel.schema.interactions import iter_interactions
+
+    rows = []
+    for deal in deals:
+        for interaction in iter_interactions(deal):
+            rows.append(
+                {
+                    "deal_id": deal.get("deal_id"),
+                    "company": deal.get("company"),
+                    "interaction_id": interaction.get("interaction_id"),
+                    "interaction_type": interaction.get("interaction_type"),
+                    "direction": interaction.get("direction"),
+                    "source_confidence": interaction.get("source_confidence"),
+                    "scoring_applied": interaction.get("scoring_applied"),
+                    "subject": interaction.get("subject"),
+                    "date": interaction.get("date"),
+                }
+            )
+    return {
+        "ok": True,
+        "summary": {
+            "interaction_count": len(rows),
+            "deal_count": len(
+                {str(row.get("deal_id") or "") for row in rows if row.get("deal_id")}
+            ),
+            "interaction_type_counts": _counter_dict(
+                str(row.get("interaction_type") or "unknown") for row in rows
+            ),
+            "source_confidence_counts": _counter_dict(
+                str(row.get("source_confidence") or "unknown") for row in rows
+            ),
+            "scoring_applied_counts": _counter_dict(
+                str(row.get("scoring_applied")) for row in rows
+            ),
+        },
+        "interactions": rows[:20],
+        "warnings": [] if rows else ["no_interactions_found"],
+    }
+
+
 def _date_sort_value(value: Any) -> str:
     if isinstance(value, str) and value:
         return value
@@ -1871,6 +2023,22 @@ def _natural_question_quick_read(question_id: str, payload: dict) -> str:
             f"source_evidence={summary.get('evidence_count')} "
             f"({_format_counts(counts)})"
         )
+    if question_id == "q10_pipeline_trend":
+        delta = payload.get("delta") or {}
+        return (
+            f"open_value_delta={_format_krw(delta.get('open_pipeline_value_krw'))}, "
+            f"won_delta={delta.get('won_deal_count')}"
+        )
+    if question_id == "q11_deal_review_actionability":
+        summary = payload.get("summary") or {}
+        return (
+            f"actionable={summary.get('deals_with_actionable_gaps')}, "
+            f"observations={summary.get('deals_with_gap_observations')}, "
+            f"risks={summary.get('deals_with_confirmed_risks')}"
+        )
+    if question_id == "q12_interaction_source_coverage":
+        summary = payload.get("summary") or {}
+        return _format_counts(summary.get("interaction_type_counts") or {})
     return "ok"
 
 

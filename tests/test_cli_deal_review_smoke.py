@@ -20,14 +20,32 @@ MEDDPICC_DIMS = (
 
 
 class FakeMongo:
-    def __init__(self, deals: list[dict]) -> None:
+    def __init__(self, deals: list[dict], snapshots: list[dict] | None = None) -> None:
         self.deals = deepcopy(deals)
+        self.snapshots = deepcopy(snapshots or [])
         self.read_count = 0
         self.write_count = 0
 
     def list_deals_for_metrics(self) -> list[dict]:
         self.read_count += 1
         return deepcopy(self.deals)
+
+    def list_analytics_snapshots(
+        self,
+        *,
+        start_date: str,
+        end_date: str,
+        stage: str | None = None,
+        industry: str | None = None,
+    ) -> list[dict]:
+        self.read_count += 1
+        return [
+            deepcopy(snapshot)
+            for snapshot in self.snapshots
+            if start_date <= str(snapshot.get("as_of") or "") <= end_date
+            and (stage is None or snapshot.get("deal_stage") == stage)
+            and (industry is None or snapshot.get("industry") == industry)
+        ]
 
     def upsert_deal(self, deal: dict) -> None:
         self.write_count += 1
@@ -360,7 +378,7 @@ def test_smoke_natural_questions_writes_pack(monkeypatch, tmp_path) -> None:
     )
 
     assert result.exit_code == 0
-    assert "Natural Question Smoke (as_of=2026-06-10, questions=9)" in result.output
+    assert "Natural Question Smoke (as_of=2026-06-10, questions=12)" in result.output
     assert "OK: True" in result.output
     assert "Sensitive failures: none" in result.output
     assert (output_dir / "summary.md").exists()
@@ -369,11 +387,14 @@ def test_smoke_natural_questions_writes_pack(monkeypatch, tmp_path) -> None:
     assert "Meeting" in summary_markdown
     summary = json.loads((output_dir / "summary.json").read_text(encoding="utf-8"))
     assert summary["ok"] is True
-    assert summary["question_count"] == 9
-    assert summary["answerability_counts"] == {"derived": 4, "direct": 5}
+    assert summary["question_count"] == 12
+    assert summary["answerability_counts"] == {"derived": 6, "direct": 6}
     assert (output_dir / "q01_pipeline_health.json").exists()
     assert (output_dir / "q08_theme_evidence_drilldown.json").exists()
     assert (output_dir / "q09_interaction_source_evidence.json").exists()
+    assert (output_dir / "q10_pipeline_trend.json").exists()
+    assert (output_dir / "q11_deal_review_actionability.json").exists()
+    assert (output_dir / "q12_interaction_source_coverage.json").exists()
     encoded = json.dumps(summary, ensure_ascii=False)
     assert "raw_notes" not in encoded
     assert "secret raw note" not in encoded
@@ -405,7 +426,7 @@ def test_smoke_natural_questions_json_outputs_artifact_path(monkeypatch, tmp_pat
     assert payload["ok"] is True
     assert payload["output_dir"] == str(output_dir.resolve())
     assert [row["id"] for row in payload["questions"]][-1] == (
-        "q09_interaction_source_evidence"
+        "q12_interaction_source_coverage"
     )
     assert (output_dir / "summary.md").exists()
     assert mongo.write_count == 0

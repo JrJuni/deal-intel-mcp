@@ -12,6 +12,33 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-11
 
+### Natural Smoke QA expansion
+
+Implemented:
+
+- Expanded `smoke-natural-questions` from 9 to 12 deterministic questions.
+- Added coverage for pipeline trend, deal-review actionability separation, and
+  interaction source coverage.
+- Kept the pack LLM-free and read-only against deal data; it only writes local
+  smoke artifacts.
+- Updated tests so the smoke pack fails if the expanded question set shrinks,
+  blocks, or leaks sensitive fields.
+
+Verification:
+
+- Targeted natural-smoke/trend/metrics regression:
+  `34 passed`, `1 warning`
+- Targeted Ruff:
+  `All checks passed`
+- Local sample natural-question smoke:
+  `questions=12`, `answerability=derived=6,direct=6`,
+  `source_evidence=2 (email_thread=1, user_interview=1)`,
+  `actionable=4`, `observations=6`, `risks=3`
+- Full pytest:
+  `427 passed`, `1 warning`
+- Ruff:
+  `All checks passed`
+
 ### P3.7 interaction intake MVP closeout
 
 Implemented:

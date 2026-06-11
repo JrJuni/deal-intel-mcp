@@ -26,8 +26,13 @@ def test_sample_profile_is_zero_config_read_only_default() -> None:
 
     assert profile.config_patch["storage"]["backend"] == "local_sample"
     assert profile.config_patch["mongodb"]["vector_search"] == "python_cosine"
+    assert "feature-test" in profile.description
     assert any("No MongoDB" in item for item in profile.requirements)
-    assert any("Read-only" in item for item in profile.limitations)
+    assert any("sample testing" in item for item in profile.requirements)
+    assert any("intentionally unavailable" in item for item in profile.limitations)
+    assert any("read-only" in item for item in profile.limitations)
+    assert any("Local personal" in item for item in profile.limitations)
+    assert any("MongoDB-backed full mode" in item for item in profile.limitations)
 
 
 def test_full_profile_uses_mongo_without_atlas_vector_search() -> None:

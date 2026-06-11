@@ -4,10 +4,13 @@
 
 A B2B sales-support MCP server: paste a meeting note and it scores the deal on MEDDPICC, then turns the result into pipeline metrics, reports, dashboards, and deal-review prompts.
 
-You can start with a bundled read-only sample dataset and no MongoDB. When you
-are ready for real team data, switch the same package to MongoDB Atlas-backed
-full mode or to the paid-infra pro path. Drive it by talking - in Claude
-Desktop, or in Codex with the MCP connected. No separate CRM app.
+You can start with a bundled sample dataset and no MongoDB to test the product
+flow. Some tools are intentionally limited in sample mode today, but the sample
+path is meant to grow into lightweight local personal use. The real team
+operating path assumes MongoDB-backed deal data: when you are ready for shared
+team use, switch the same package to MongoDB Atlas-backed full mode or to the
+paid-infra pro path. Drive it by talking - in Claude Desktop, or in Codex with
+the MCP connected. No separate CRM app.
 
 ---
 
@@ -58,12 +61,16 @@ One repo, one package, three operating profiles:
 
 | Profile | Use it for | Requires |
 |---|---|---|
-| `sample` | First-run trial, friend review, agent smoke tests | Python package only |
+| `sample` | Feature testing, friend review, agent smoke tests, and future lightweight local personal use | Python package only |
 | `full` | Real team data on MongoDB Atlas | `MONGODB_URI`, plus ChatGPT OAuth or an API key for LLM tools |
 | `pro` | Paid-infra upgrade with Atlas Vector Search and API-key LLMs | Atlas M10+, vector index, `OPENAI_API_KEY` by default |
 
-Start in `sample`. Move to `full` only when you are ready to connect real
-storage. Move to `pro` only when paid infrastructure is intentional.
+Start in `sample` to verify the experience. The current MVP uses bundled
+fictional data and hides or blocks some persistence, search, and LLM-heavy
+paths. The intended next step is mutable/resettable local personal data for
+people who want to try their own small dataset before MongoDB. Move to `full`
+when you are ready to connect real MongoDB-backed team storage. Move to `pro`
+only when paid infrastructure is intentional.
 
 ---
 
@@ -126,7 +133,9 @@ deal-intel smoke-natural-questions --as-of 2026-06-10
 ```
 
 This path uses bundled fictional data. It does not require MongoDB, paid APIs,
-Atlas Vector Search, or writes.
+Atlas Vector Search, or writes. It is for feature testing and lightweight
+evaluation. The project direction is to let sample mode support small personal
+local data later; real team usage assumes MongoDB-backed full mode.
 
 **Step 5 - Optional: connect Claude Desktop**
 
@@ -169,8 +178,9 @@ get_customer_theme_evidence / search_deals / analyze_deal
 
 ## Zero-config sample mode (no MongoDB)
 
-If you only want to try the read-only BI and deal-review flows, you can run the
-bundled sample dataset without MongoDB Atlas, API keys, or Atlas Vector Search.
+If you only want to test the BI and deal-review flows, you can run the bundled
+fictional sample dataset without MongoDB Atlas, API keys, or Atlas Vector
+Search.
 
 Temporary PowerShell session:
 
@@ -187,9 +197,16 @@ deal-intel config init --profile sample --dry-run
 deal-intel config init --profile sample
 ```
 
-Sample mode is intentionally read-only. It supports the core dashboard,
-reporting, customer-theme, and deal-review smoke paths, but not real
-create/update/delete workflows or semantic `search_deals`.
+Sample mode is intentionally limited today. The current MVP is read-first and
+supports the core dashboard, reporting, customer-theme, and deal-review smoke
+paths, but not real create/update/delete workflows or semantic `search_deals`.
+
+For personal temporary use beyond the bundled fictional data, the intended
+sample-mode upgrade is a mutable/resettable local data file. Until that lands,
+use a small MongoDB database through `full` mode. This project is designed so AI
+coding assistants can help with that migration: inspect `config profiles`, set
+`MONGODB_URI`, run `config doctor`, and then move the same MCP tools from
+sample data to real data.
 
 ---
 
@@ -653,7 +670,7 @@ Current source of truth:
          |          -> runs locally / no API key / 384 dims
          |
          `-- Storage
-               |-- local_sample  : bundled read-only fictional dataset
+               |-- local_sample  : bundled read-first fictional dataset
                `-- MongoDB Atlas : real deals collection and analytics snapshots
 
 search_deals

@@ -147,7 +147,7 @@ STORAGE_METHOD_CONTRACTS: tuple[StorageMethodContract, ...] = (
             "analyze_deal",
             "backfill-customer-themes",
         ),
-        notes="Local write support is intentionally deferred beyond read-only MVP.",
+        notes="Local write support is deferred to the local personal sample target.",
     ),
     StorageMethodContract(
         name="upsert_analytics_snapshot",
@@ -182,14 +182,14 @@ STORAGE_METHOD_CONTRACTS: tuple[StorageMethodContract, ...] = (
         mode="write",
         local_sample_mvp=False,
         consumers=("delete_deal",),
-        notes="Hard delete audit logging is not part of read-only sample MVP.",
+        notes="Hard delete audit logging belongs to the local personal sample target.",
     ),
     StorageMethodContract(
         name="hard_delete_deal",
         mode="write",
         local_sample_mvp=False,
         consumers=("delete_deal",),
-        notes="Hard delete is not part of read-only sample MVP.",
+        notes="Hard delete belongs to the local personal sample target.",
     ),
     StorageMethodContract(
         name="ensure_indexes",

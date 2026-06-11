@@ -12,6 +12,51 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-11
 
+### Config profiles Z5.8a tool surface contract
+
+Implemented:
+
+- Added `deal_intel.tool_surfaces` as the source contract for MCP tool
+  visibility surfaces.
+- Defined non-developer-first surfaces:
+  `sample`, `standard`, and `developer`.
+- Mapped `sample` profile to the `sample` surface, and `full`/`pro`/`custom`
+  to the `standard` surface.
+- Kept `sample` read-first: no DB writes, no LLM calls, no semantic search,
+  and no Atlas demo-database seed/cleanup tools.
+- Kept real operator admin tools such as `delete_deal` in `standard`, relying
+  on their existing dry-run, confirmation, exact-company, archive-gate safety
+  contracts.
+- Added [tool-surfaces.md](tool-surfaces.md) and linked it from the docs map.
+- Updated [config-profiles.md](config-profiles.md) and [backlog.md](backlog.md)
+  to mark Z5.8a as contract-only and make mutable local personal storage the
+  next sample-mode implementation target.
+- Clarified user-facing sample-mode positioning: sample is a limited
+  feature-test path with bundled fictional data, while real operation assumes
+  MongoDB-backed `full` mode.
+- Revised that positioning so `sample` is not permanently read-only: the next
+  sample-mode target is mutable/resettable local personal data for small user
+  datasets before MongoDB.
+- Added `sample_local_personal_target` to the tool surface matrix. It promotes
+  safe non-LLM write/admin tools after mutable local storage exists while still
+  excluding LLM-heavy analysis, semantic search, and Atlas demo-database
+  maintenance.
+- Reordered the Z5 plan tree: the originally planned next step was
+  config-driven MCP tool filtering, but mutable/resettable local personal
+  storage now comes first so the filtered `sample` surface is actually useful
+  for small user datasets.
+
+Verification:
+
+- Tool surface/config/profile regression:
+  `61 passed`, `1 warning`
+- Full pytest:
+  `375 passed`, `1 warning`
+- Diff whitespace check:
+  `git diff --check`
+- Ruff:
+  `All checks passed`
+
 ### Config profiles Z5.7b smoke-profile CLI
 
 Implemented:

@@ -34,8 +34,8 @@ _PROFILES: dict[ConfigProfileName, ConfigProfile] = {
         name="sample",
         title="Sample",
         description=(
-            "Zero-config read-only demo mode for first-run trials, friend "
-            "reviews, and agent smoke tests."
+            "Zero-config feature-test mode with bundled fictional data, intended "
+            "to grow into lightweight local personal use before MongoDB setup."
         ),
         config_patch={
             "storage": {"backend": "local_sample"},
@@ -43,13 +43,15 @@ _PROFILES: dict[ConfigProfileName, ConfigProfile] = {
             "llm": {"provider": "chatgpt_oauth"},
         },
         requirements=(
-            "No MongoDB Atlas project required.",
+            "No MongoDB Atlas project required for sample testing.",
             "No API key required for LLM-free BI/reporting smoke paths.",
             "ChatGPT OAuth is only needed for LLM tools such as analyze_deal.",
         ),
         limitations=(
-            "Read-only bundled fictional data.",
-            "No real create/update/delete persistence.",
+            "Feature-test surface with some tools intentionally unavailable.",
+            "Bundled fictional data is read-only in the current MVP.",
+            "Local personal create/update/delete persistence is planned next.",
+            "Team/shared operation assumes MongoDB-backed full mode.",
             "No semantic search in the local sample MVP.",
         ),
         first_run_commands=(

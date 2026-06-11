@@ -13,14 +13,18 @@ infrastructure until the bundled sample smoke path works.
 
 The project has one package and three profiles:
 
-- `sample`: local bundled read-only data, no MongoDB, no API key required for
-  BI/reporting smoke.
+- `sample`: local bundled fictional data for feature testing, intended to grow
+  into lightweight personal/local data use. Some persistence, search, and
+  LLM-heavy paths are intentionally unavailable in the current MVP.
 - `full`: MongoDB Atlas-backed real team data.
 - `pro`: paid-infrastructure path with Atlas Vector Search and API-key LLM
   providers.
 
 Your first job is not to configure production. Your first job is to prove the
-tool experience works in `sample`.
+tool experience works in `sample`. For team/shared operation, the real
+operating path assumes MongoDB-backed deal data. For solo experiments, prefer
+the future local personal sample path once available; until then, help the user
+migrate to `full` only after the sample smoke succeeds.
 
 ## Step 1 - Inspect, Do Not Guess
 
@@ -75,7 +79,8 @@ Then run the profile smoke and storage status:
 ```
 
 In `sample`, storage status should use `local_sample` and should not require
-MongoDB.
+MongoDB. Tell the user that this is a limited feature-test mode, not the full
+operating mode.
 
 ## Step 4 - Run The Sample Smoke
 
@@ -96,6 +101,12 @@ After sample succeeds, ask what the user wants next:
 - Move to `full` for real MongoDB Atlas-backed team data.
 - Move to `pro` only when paid Atlas Vector Search and API-key LLM providers
   are intentional.
+
+If the user wants to try their own temporary data, explain the current state:
+the bundled sample fixture is read-first today, while mutable/resettable local
+personal data is the intended sample-mode upgrade. Until that lands, recommend
+`full` mode with a small MongoDB database. You can help them inspect profiles,
+set `MONGODB_URI`, and run `config doctor`.
 
 Only request `MONGODB_URI`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or Atlas
 Vector Search setup after the user chooses `full` or `pro`.

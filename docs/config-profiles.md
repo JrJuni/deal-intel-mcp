@@ -7,7 +7,8 @@ first-run guidance.
 
 ## Mental Model
 
-- `sample`: safe first-run trial with bundled read-only data.
+- `sample`: safe feature-test mode with bundled fictional data, designed to
+  grow into lightweight local personal use.
 - `full`: normal Atlas-backed operating mode for real team data.
 - `pro`: paid-infrastructure upgrade path with Atlas Vector Search and API-key
   LLM providers.
@@ -18,8 +19,14 @@ The default user journey should be sample-first:
 2. Run `storage-status`.
 3. Run `smoke-natural-questions`.
 4. Confirm the tool experience works.
-5. Move to `full` only when the user is ready to connect MongoDB.
+5. Move to `full` when the user is ready to connect MongoDB-backed real data.
 6. Move to `pro` only when paid infrastructure is intentional.
+
+The product is fundamentally designed for MongoDB-backed team operation.
+`sample` exists so users and AI agents can test the workflow before setup, and
+it should also become useful for lightweight personal/local experiments. The
+current bundled fixture path is read-only; local personal persistence is the
+next design target.
 
 ## Profile Contract
 
@@ -27,13 +34,15 @@ The source contract lives in `src/deal_intel/config_profiles.py`.
 
 | Profile | Storage | Vector Search | Default LLM Provider | Primary Use |
 |---|---|---|---|---|
-| `sample` | `local_sample` | `python_cosine` | `chatgpt_oauth` | Zero-config read-only trial |
+| `sample` | `local_sample` | `python_cosine` | `chatgpt_oauth` | Zero-config feature test |
 | `full` | `mongo` | `python_cosine` | `chatgpt_oauth` | Real team data on Atlas |
 | `pro` | `mongo` | `atlas` | `openai_api` | Paid infra and vector search |
 
 Notes:
 
-- `sample` must stay read-only until mutable/resettable sample state is designed.
+- `sample` should stay safe by default, but it should not be permanently
+  read-only. The next local milestone should add mutable/resettable personal
+  data without requiring MongoDB.
 - `full` should remain the operational default for real customer data.
 - `pro` is an upgrade path, not the first-run default.
 - `openai_api` in `pro` is a default, not a hard vendor lock. Users may switch
@@ -99,7 +108,8 @@ Implemented behavior:
 - `--dry-run` previews the change without writing files.
 - Secret values are not printed; output includes only profile-managed values
   and an offline doctor preview.
-- `sample` setup requires no MongoDB or API key.
+- `sample` setup requires no MongoDB or API key, but it is a limited feature
+  test path rather than the full operating mode.
 
 ### Z5.4 Config Doctor
 
@@ -183,3 +193,95 @@ Result:
   report from the matrix and shared config doctor.
 - `--offline` skips storage ping.
 - `--json` returns the same structured report shape for agents.
+
+### Z5.8 Tool Surface Split
+
+Implemented contract:
+
+- `src/deal_intel/tool_surfaces.py` is the source contract.
+- Tool surfaces are optimized for non-developer first-run clarity:
+  `sample`, `standard`, and `developer`.
+- `sample` is a bundled read-first surface. It exposes only LLM-free,
+  DB-write-free tools that work against local sample data.
+- The sample local-personal target promotes safe non-LLM write/admin tools once
+  mutable local storage exists: `create_deal`, `update_stage`, `update_deal`,
+  `archive_deal`, `restore_deal`, and `delete_deal`.
+- `standard` is the normal real-data operating surface for `full`, `pro`, and
+  custom Mongo-backed configs.
+- `developer` contains every MCP tool, including Atlas demo-database seed and
+  cleanup helpers.
+
+Default mapping:
+
+| Profile | Default Tool Surface |
+|---|---|
+| `sample` | `sample` |
+| `full` | `standard` |
+| `pro` | `standard` |
+| `custom` | `standard` |
+
+Non-goals for Z5.8a:
+
+- No MCP registration filtering yet.
+- No tool hiding in the current runtime yet.
+- No mutable local sample storage yet.
+- No CLI command regrouping yet.
+
+Result:
+
+- `build_tool_surface_matrix()` returns a serializable surface matrix.
+- Targeted tests verify that all 22 registered MCP tools are classified.
+- Targeted tests verify that `sample` excludes persistence, LLM, semantic
+  search, and Mongo demo-database maintenance tools.
+- Targeted tests verify the future local-personal sample target includes safe
+  non-LLM write/admin tools but still excludes LLM-heavy, semantic-search, and
+  demo-database maintenance tools.
+- Detailed policy lives in `docs/tool-surfaces.md`.
+
+### Z5.9 Local Personal Sample Storage
+
+Planned scope:
+
+- Add mutable/resettable local personal storage on top of the current
+  `local_sample` experience.
+- Keep bundled fictional fixture data immutable.
+- Store user-created local data separately from bundled fixture data.
+- Support enough persistence for:
+  `create_deal`, `update_stage`, `update_deal`, `archive_deal`,
+  `restore_deal`, and `delete_deal`.
+- Preserve existing safety gates:
+  `confirmed_by_user`, exact company checks, dry-run defaults, archive-before-
+  hard-delete, and safe delete audit snapshots.
+- Add reset/export behavior so a non-developer can recover from messy local
+  testing.
+
+Non-goals for Z5.9:
+
+- No LLM meeting ingestion in local personal mode yet.
+- No semantic `search_deals` in local personal mode yet.
+- No Mongo aggregation compatibility.
+- No Atlas demo-database seed/cleanup behavior.
+
+Why this comes before MCP filtering:
+
+- If `sample` is filtered too early, first-run users only see read-only demo
+  behavior.
+- Local personal storage lets `sample` become useful for a small personal
+  dataset before asking for MongoDB.
+- Once local write support exists, Z5.10 can safely expose the right sample
+  write/admin tools through config-driven MCP filtering.
+
+### Z5.10 Config-Driven MCP Tool Filtering
+
+Planned scope:
+
+- Apply the Z5.8 tool surface contract to actual FastMCP registration.
+- Default `sample` profile to the `sample` surface.
+- Default `full`, `pro`, and `custom` profiles to the `standard` surface.
+- Allow explicit maintainer override such as `tools.surface: developer`.
+- Keep developer/QA/smoke helpers out of the default non-developer surface.
+
+Dependency:
+
+- Z5.9 should land first so the `sample` surface can include useful local
+  personal write/admin tools instead of staying read-only.

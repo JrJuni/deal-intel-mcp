@@ -1,25 +1,27 @@
 # Storage Backends
 
 This document records the storage contract for the MongoDB-free zero-config
-sample mode.
+sample and local-personal modes.
 
 ## Goal
 
-The production backend remains MongoDB Atlas. The local sample backend is a
-separate zero-config experience for demos, friend reviews, and agent smoke
-tests when `MONGODB_URI`, Atlas Charts, paid API keys, and Atlas Vector Search
-are not available.
+The team/shared production backend remains MongoDB Atlas. The local sample
+backend is a separate zero-config experience for demos, friend reviews, agent
+smoke tests, and future lightweight personal use when `MONGODB_URI`, Atlas
+Charts, paid API keys, and Atlas Vector Search are not available.
 
-The first sample-mode milestone is intentionally read-only. It proves that the
-core BI and deal-review read paths can run over bundled fixture data before any
-local write/reset semantics are introduced.
+The first sample-mode milestone was intentionally read-only. It proved that the
+core BI and deal-review read paths can run over bundled fixture data. The next
+sample-mode storage milestone should add mutable/resettable local personal data
+for users who want to try their own small dataset before MongoDB.
 
 ## Backend Kinds
 
 | Backend | Purpose | Persistence | Scope |
 |---|---|---|---|
 | `mongo_full` | Production and real demos backed by Atlas | MongoDB Atlas | Full read/write/admin surface |
-| `local_sample_mvp` | Zero-config sample experience | Bundled/local fixture data | Read-only BI/review/report surface |
+| `local_sample_mvp` | Zero-config sample experience | Bundled/local fixture data | Read-first BI/review/report surface |
+| `local_personal` | Future personal trial mode | Local resettable user data file | Safe non-LLM create/update/stage/lifecycle surface |
 
 Runtime config uses:
 
@@ -59,23 +61,52 @@ This contract supports the first zero-config read stack:
 - `export_report(report_type="pipeline_trend")`
 - `smoke-natural-questions`
 
-## Deferred From Local Sample MVP
+## Local Personal Target
 
-The first sample backend does not need to implement:
+The next local storage target should add enough persistence for a user to try
+their own small dataset without MongoDB. Candidate methods:
+
+- `upsert_deal`
+- `upsert_analytics_snapshot`
+- `insert_delete_audit_log`
+- `hard_delete_deal`
+
+Candidate MCP tools to enable after that storage exists:
+
+- `create_deal`
+- `update_stage`
+- `update_deal`
+- `archive_deal`
+- `restore_deal`
+- `delete_deal`
+
+This target should still defer LLM-heavy and semantic-search paths until their
+runtime requirements are clear:
+
+- `add_meeting`
+- `analyze_deal`
+- `search_deals`
+
+Reset/export behavior must be explicit before local personal writes ship:
+
+- where the local data file lives,
+- whether bundled fixture data and personal data are merged or separated,
+- how users reset only their personal data,
+- whether local delete audit logs are retained after reset.
+
+## Still Deferred From Local Sample
+
+The sample/local-personal backend does not need to implement:
 
 - Mongo aggregation compatibility: `aggregate_deals`,
   `aggregate_analytics_snapshots`
 - Legacy aggregate-heavy tools: `get_customer_themes`,
   non-`pipeline_overview` `get_insights` query types
 - Semantic/vector search: `get_deals_for_search`, `search_by_embedding`
-- Writes: `upsert_deal`, `upsert_deals`, `upsert_analytics_snapshot`,
-  `insert_delete_audit_log`, `hard_delete_deal`, `delete_sample_deals`
+- Atlas demo database writes: `upsert_deals`, `delete_sample_deals`
 - Admin paths: `ensure_indexes`, `ensure_vector_index`
 
-Those paths can be added after the read-only experience is stable. In
-particular, local write support requires separate product decisions about
-where mutable sample state lives, whether it survives restarts, and how reset
-works.
+Those paths are not required for lightweight personal use.
 
 ## Privacy Contract
 
@@ -118,8 +149,8 @@ Fixture contract:
 - trend snapshots included for a 7-day pipeline movement smoke
 - no `meetings.raw_notes`, `contacts`, or `summary_embedding`
 
-The fixture remains immutable; `LocalSampleClient` wraps it without adding
-local write/reset semantics yet.
+The fixture remains immutable. Future local personal data should be stored as a
+separate resettable overlay rather than mutating the bundled fixture.
 
 ## LocalSampleClient
 
@@ -134,15 +165,15 @@ Z3 adds `src/deal_intel/storage/local_sample.py`.
 - `list_deals_for_metrics()`
 - `list_analytics_snapshots(start_date, end_date, stage=None, industry=None)`
 
-When `storage.backend` is `local_sample`, `_context.mongo()` returns this
-read-only backend instead of `MongoDBClient`. The existing function name is
-kept for tool compatibility, but the runtime behavior is now storage-backend
-selection rather than Mongo-only construction.
+When `storage.backend` is `local_sample`, `_context.mongo()` returns this local
+backend instead of `MongoDBClient`. The existing function name is kept for tool
+compatibility, but the runtime behavior is now storage-backend selection rather
+than Mongo-only construction.
 
 Local sample mode skips Mongo driver preload, Mongo index creation, and
 embedding warmup at MCP startup. `search_deals` returns a structured
 unsupported-mode response before touching the embedding provider because
-semantic search is outside the read-only sample MVP.
+semantic search is outside the current sample MVP.
 
 ## Startup Diagnostics And Quickstart
 
@@ -194,5 +225,5 @@ Current contract checks:
 - `backend_capability_report(...)`
 - `validate_backend_capabilities(...)`
 
-Next local-sample work should focus on packaging defaults and optional
-mutable/resettable sample state, not on expanding the production Mongo path.
+Next local-sample work should focus on mutable/resettable local personal state,
+not on expanding the production Mongo path.

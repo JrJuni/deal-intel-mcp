@@ -37,7 +37,7 @@ The project uses one repository and one package with three profiles:
 
 | Profile | Storage | Search | Default LLM | Purpose |
 |---|---|---|---|---|
-| `sample` | `local_sample` | no semantic search | `chatgpt_oauth` | Zero-config read-only demo |
+| `sample` | `local_sample` | no semantic search | `chatgpt_oauth` | Zero-config feature test, future local personal use |
 | `full` | MongoDB Atlas | Python cosine | `chatgpt_oauth` | Real team data |
 | `pro` | MongoDB Atlas | Atlas Vector Search | `openai_api` | Paid infra path |
 

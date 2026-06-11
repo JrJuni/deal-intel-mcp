@@ -6,8 +6,9 @@ def local_sample_mode_hint() -> dict[str, str]:
 
     return {
         "purpose": (
-            "Use the bundled read-only sample dataset when MongoDB Atlas is not "
-            "configured yet."
+            "Use the bundled sample dataset when MongoDB Atlas is not configured "
+            "yet. The current fixture is read-first; local personal data is the "
+            "next sample-mode target."
         ),
         "temporary_env": "DEAL_INTEL_STORAGE_BACKEND=local_sample",
         "powershell": "$env:DEAL_INTEL_STORAGE_BACKEND='local_sample'",

@@ -24,9 +24,12 @@ and `pro`.
 
 Next candidate units:
 
-1. Release packaging check: rebuild/validate the `.mcpb` artifact once the
+1. Mutable/resettable local personal data for `sample`, so users can try their
+   own small dataset before MongoDB.
+2. Config-driven MCP tool filtering from the Z5.8a tool surface contract, after
+   local personal write support exists.
+3. Release packaging check: rebuild/validate the `.mcpb` artifact once the
    `mcpb` CLI is available.
-2. Production/developer tool split for external release bundles.
 
 Principle: agents and new users should start in `sample` before being asked for
 MongoDB, paid APIs, or Atlas Vector Search.
@@ -84,10 +87,17 @@ Backlog items:
 - Keep one repository and one package.
 - Expose `sample`, `full`, and `pro` through config profiles, not separate
   repositories.
-- Separate production MCP tools from developer QA/smoke helpers before a
-  stable external release.
+- Use the Z5.8a tool surface contract to separate `sample`, `standard`, and
+  `developer` MCP tool lists before a stable external release.
+- Add mutable/resettable local personal mode for temporary user data. The
+  current `sample` profile starts with bundled fictional read-first data, but
+  should support personal create/update/stage/lifecycle flows before external
+  release. Real team/shared operation uses MongoDB-backed `full`.
 - Consider whether natural-language smoke tools should remain CLI-only in
   production bundles.
+- After local personal sample storage lands, apply config-driven MCP filtering
+  so default users see the relevant `sample` or `standard` tool list instead of
+  every maintainer/debug tool.
 - Rebuild and attach a fresh `.mcpb` artifact after bundle manifest changes.
 
 ### Pro Infrastructure

@@ -33,6 +33,7 @@ These are active source-adjacent contracts.
 | `reports.md` | Changing CSV/Markdown exports or report row shapes |
 | `storage-backends.md` | Changing Mongo/local sample storage behavior |
 | `config-profiles.md` | Changing `sample`, `full`, or `pro` profile behavior |
+| `tool-surfaces.md` | Changing which MCP tools appear in sample, standard, or developer surfaces |
 | `atlas-charts.md` | Changing Atlas dashboard aggregation specs or UI runbooks |
 | `architecture.md` | Needing deeper architecture context after reading this map |
 | `../mcpb/README.md` | Building or installing the Claude Desktop MCP bundle |
@@ -87,7 +88,8 @@ If archived content conflicts with code or active contract docs, prefer:
 ## Current Product Streams
 
 - Z5 profile/config work: `sample`, `full`, `pro` in one package.
-- Zero-config sample mode: MongoDB-free read-only demo path.
+- Zero-config sample mode: MongoDB-free read-first demo path, with local
+  personal data as the next target.
 - Full mode: Atlas-backed real team data.
 - Pro mode: paid-infrastructure path for API-key LLM providers and Atlas Vector
   Search.

@@ -9,6 +9,7 @@ ZERO_CONFIG_SAMPLE_AS_OF = "2026-06-10"
 ZERO_CONFIG_SAMPLE_WINDOW_START = "2026-06-03"
 
 SENSITIVE_FIELD_NAMES = frozenset({"raw_notes", "contacts", "summary_embedding"})
+FIXTURE_SENSITIVE_FIELD_NAMES = SENSITIVE_FIELD_NAMES | {"raw_content"}
 
 
 def load_zero_config_sample_deals() -> list[dict]:
@@ -118,15 +119,35 @@ def _deal(
     pain_theme: tuple[str, str, int],
     decision_theme: tuple[str, str, int],
     metric_theme: tuple[str, str, int],
+    extra_interactions: list[dict] | None = None,
 ) -> dict:
     meeting_id = f"{deal_id}-m1"
+    meeting_subject = f"{company} customer meeting"
     themes = _themes(
         meeting_id=meeting_id,
         meeting_date=meeting_date,
+        interaction_id=meeting_id,
+        interaction_date=meeting_date,
+        interaction_type="meeting",
+        source_confidence="customer_stated",
+        subject=meeting_subject,
         pain_theme=pain_theme,
         decision_theme=decision_theme,
         metric_theme=metric_theme,
     )
+    meddpicc = _meeting_meddpicc(
+        metric=metric_theme[1],
+        pain=pain_theme[1],
+        decision=decision_theme[1],
+    )
+    extra_interactions = extra_interactions or []
+    extra_themes = [
+        theme
+        for interaction in extra_interactions
+        for theme in interaction.get("customer_themes", [])
+        if isinstance(theme, dict)
+    ]
+    all_themes = [*themes, *extra_themes]
     return {
         "deal_id": deal_id,
         "company": company,
@@ -153,15 +174,29 @@ def _deal(
                     f"{company} discussed {pain_theme[1]} and will evaluate "
                     f"{decision_theme[1]}."
                 ),
-                "meddpicc": _meeting_meddpicc(
-                    metric=metric_theme[1],
-                    pain=pain_theme[1],
-                    decision=decision_theme[1],
-                ),
+                "meddpicc": meddpicc,
                 "customer_themes": themes,
             }
         ],
-        "customer_themes": themes,
+        "interactions": [
+            _interaction(
+                interaction_id=meeting_id,
+                date=meeting_date,
+                interaction_type="meeting",
+                direction="inbound",
+                source_confidence="customer_stated",
+                subject=meeting_subject,
+                summary=(
+                    f"{company} discussed {pain_theme[1]} and will evaluate "
+                    f"{decision_theme[1]}."
+                ),
+                meddpicc=meddpicc,
+                themes=themes,
+                scoring_applied=True,
+            ),
+            *extra_interactions,
+        ],
+        "customer_themes": all_themes,
         "meddpicc_latest": _meddpicc_latest(
             health_pct=health_pct,
             scores=meddpicc_scores,
@@ -219,6 +254,11 @@ def _themes(
     *,
     meeting_id: str,
     meeting_date: str,
+    interaction_id: str | None = None,
+    interaction_date: str | None = None,
+    interaction_type: str | None = None,
+    source_confidence: str | None = None,
+    subject: str | None = None,
     pain_theme: tuple[str, str, int],
     decision_theme: tuple[str, str, int],
     metric_theme: tuple[str, str, int],
@@ -232,6 +272,11 @@ def _themes(
             importance=pain_theme[2],
             meeting_id=meeting_id,
             meeting_date=meeting_date,
+            interaction_id=interaction_id,
+            interaction_date=interaction_date,
+            interaction_type=interaction_type,
+            source_confidence=source_confidence,
+            subject=subject,
         ),
         _theme(
             theme_key=decision_theme[0],
@@ -241,6 +286,11 @@ def _themes(
             importance=decision_theme[2],
             meeting_id=meeting_id,
             meeting_date=meeting_date,
+            interaction_id=interaction_id,
+            interaction_date=interaction_date,
+            interaction_type=interaction_type,
+            source_confidence=source_confidence,
+            subject=subject,
         ),
         _theme(
             theme_key=metric_theme[0],
@@ -250,6 +300,11 @@ def _themes(
             importance=metric_theme[2],
             meeting_id=meeting_id,
             meeting_date=meeting_date,
+            interaction_id=interaction_id,
+            interaction_date=interaction_date,
+            interaction_type=interaction_type,
+            source_confidence=source_confidence,
+            subject=subject,
         ),
     ]
 
@@ -263,8 +318,13 @@ def _theme(
     importance: int,
     meeting_id: str,
     meeting_date: str,
+    interaction_id: str | None = None,
+    interaction_date: str | None = None,
+    interaction_type: str | None = None,
+    source_confidence: str | None = None,
+    subject: str | None = None,
 ) -> dict:
-    return {
+    theme = {
         "theme_key": theme_key,
         "label": label,
         "dimension": dimension,
@@ -273,6 +333,110 @@ def _theme(
         "meeting_id": meeting_id,
         "meeting_date": meeting_date,
     }
+    if interaction_id:
+        theme["interaction_id"] = interaction_id
+    if interaction_date:
+        theme["interaction_date"] = interaction_date
+    if interaction_type:
+        theme["interaction_type"] = interaction_type
+    if source_confidence:
+        theme["source_confidence"] = source_confidence
+    if subject:
+        theme["subject"] = subject
+    return theme
+
+
+def _interaction(
+    *,
+    interaction_id: str,
+    date: str,
+    interaction_type: str,
+    direction: str,
+    source_confidence: str,
+    subject: str,
+    summary: str,
+    meddpicc: dict,
+    themes: list[dict],
+    scoring_applied: bool,
+) -> dict:
+    return {
+        "interaction_id": interaction_id,
+        "meeting_id": interaction_id if interaction_type == "meeting" else None,
+        "date": date,
+        "interaction_type": interaction_type,
+        "direction": direction,
+        "source_confidence": source_confidence,
+        "participants": [],
+        "subject": subject,
+        "summary": summary,
+        "meddpicc": meddpicc,
+        "customer_themes": themes,
+        "unconfirmed_meddpicc": {},
+        "unconfirmed_customer_themes": [],
+        "scoring_applied": scoring_applied,
+        "custom_fields": {},
+    }
+
+
+def _source_interaction(
+    *,
+    deal_id: str,
+    suffix: str,
+    date: str,
+    interaction_type: str,
+    direction: str,
+    source_confidence: str,
+    subject: str,
+    summary: str,
+    theme_specs: list[tuple[str, str, str, int]],
+) -> dict:
+    interaction_id = f"{deal_id}-{suffix}"
+    themes = [
+        _theme(
+            theme_key=theme_key,
+            label=_label(theme_key),
+            dimension=dimension,
+            evidence=evidence,
+            importance=importance,
+            meeting_id=interaction_id,
+            meeting_date=date,
+            interaction_id=interaction_id,
+            interaction_date=date,
+            interaction_type=interaction_type,
+            source_confidence=source_confidence,
+            subject=subject,
+        )
+        for theme_key, dimension, evidence, importance in theme_specs
+    ]
+    return _interaction(
+        interaction_id=interaction_id,
+        date=date,
+        interaction_type=interaction_type,
+        direction=direction,
+        source_confidence=source_confidence,
+        subject=subject,
+        summary=summary,
+        meddpicc=_meddpicc_from_theme_specs(theme_specs),
+        themes=themes,
+        scoring_applied=source_confidence in {"customer_stated", "mixed"},
+    )
+
+
+def _meddpicc_from_theme_specs(
+    theme_specs: list[tuple[str, str, str, int]],
+) -> dict:
+    meddpicc: dict[str, dict] = {}
+    for _theme_key, dimension, evidence, importance in theme_specs:
+        if dimension not in {"metrics", "decision_criteria", "identify_pain"}:
+            continue
+        meddpicc.setdefault(
+            dimension,
+            {
+                "score": max(1, min(int(importance), 5)),
+                "evidence": evidence,
+            },
+        )
+    return meddpicc
 
 
 def _label(theme_key: str) -> str:
@@ -328,6 +492,35 @@ _DEALS = [
             4,
         ),
         metric_theme=("operational_efficiency", "reduce report prep time by 60%", 3),
+        extra_interactions=[
+            _source_interaction(
+                deal_id="sample-northstar-ai",
+                suffix="u1",
+                date="2026-06-09",
+                interaction_type="user_interview",
+                direction="inbound",
+                source_confidence="customer_stated",
+                subject="Ops lead user interview",
+                summary=(
+                    "Ops lead described weekly reporting prep as a recurring "
+                    "manual burden and asked for source links in executive summaries."
+                ),
+                theme_specs=[
+                    (
+                        "reporting_visibility",
+                        "identify_pain",
+                        "weekly reporting takes most of Monday morning and lacks source links",
+                        5,
+                    ),
+                    (
+                        "operational_efficiency",
+                        "metrics",
+                        "save three to four hours per reporting cycle",
+                        4,
+                    ),
+                ],
+            )
+        ],
     ),
     _deal(
         deal_id="sample-pavebridge",
@@ -405,6 +598,41 @@ _DEALS = [
         ),
         decision_theme=("scalability", "regional rollout without custom services", 4),
         metric_theme=("reporting_visibility", "weekly SLA report by region", 4),
+        extra_interactions=[
+            _source_interaction(
+                deal_id="sample-greenlogistics",
+                suffix="e1",
+                date="2026-06-07",
+                interaction_type="email_thread",
+                direction="inbound",
+                source_confidence="customer_stated",
+                subject="Re: Regional SLA dashboard rollout",
+                summary=(
+                    "Operations director confirmed that regional SLA dashboards "
+                    "must reconcile warehouse and carrier data before rollout."
+                ),
+                theme_specs=[
+                    (
+                        "data_quality_governance",
+                        "identify_pain",
+                        "warehouse and carrier SLA data disagree by region",
+                        5,
+                    ),
+                    (
+                        "reporting_visibility",
+                        "metrics",
+                        "regional SLA report must refresh every Friday",
+                        4,
+                    ),
+                    (
+                        "scalability",
+                        "decision_criteria",
+                        "rollout must cover five regions without custom services",
+                        4,
+                    ),
+                ],
+            )
+        ],
     ),
     _deal(
         deal_id="sample-civicgov",
@@ -725,7 +953,7 @@ def _sensitive_paths(value: Any, *, prefix: str) -> list[str]:
     if isinstance(value, dict):
         for key, item in value.items():
             path = f"{prefix}.{key}"
-            if key in SENSITIVE_FIELD_NAMES:
+            if key in FIXTURE_SENSITIVE_FIELD_NAMES:
                 paths.append(path)
             paths.extend(_sensitive_paths(item, prefix=path))
     elif isinstance(value, list):

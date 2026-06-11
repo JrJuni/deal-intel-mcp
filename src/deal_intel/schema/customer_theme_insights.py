@@ -194,7 +194,7 @@ def build_customer_theme_evidence(
                 str(deal.get("deal_id") or ""),
                 record["dimension"],
                 record["evidence"],
-                str(record.get("meeting_id") or ""),
+                str(record.get("interaction_id") or record.get("meeting_id") or ""),
             )
             if identity in seen:
                 continue
@@ -212,13 +212,18 @@ def build_customer_theme_evidence(
                     "importance": record["importance"],
                     "meeting_id": record.get("meeting_id"),
                     "meeting_date": record.get("meeting_date"),
+                    "interaction_id": record.get("interaction_id"),
+                    "interaction_date": record.get("interaction_date"),
+                    "interaction_type": record.get("interaction_type"),
+                    "source_confidence": record.get("source_confidence"),
+                    "subject": record.get("subject"),
                 }
             )
 
     rows.sort(
         key=lambda row: (
             -int(row.get("importance") or 0),
-            -_date_ordinal(row.get("meeting_date")),
+            -_date_ordinal(row.get("interaction_date") or row.get("meeting_date")),
             str(row.get("company") or ""),
             str(row.get("evidence") or ""),
         )
@@ -328,6 +333,11 @@ def _coerce_theme(theme: dict) -> dict | None:
         "importance": importance,
         "meeting_id": theme.get("meeting_id"),
         "meeting_date": theme.get("meeting_date"),
+        "interaction_id": _optional_text(theme.get("interaction_id")),
+        "interaction_date": _optional_text(theme.get("interaction_date")),
+        "interaction_type": _optional_text(theme.get("interaction_type")),
+        "source_confidence": _optional_text(theme.get("source_confidence")),
+        "subject": _optional_text(theme.get("subject")),
     }
 
 
@@ -407,3 +417,10 @@ def _date_ordinal(value: Any) -> int:
         return date.fromisoformat(value).toordinal()
     except ValueError:
         return 0
+
+
+def _optional_text(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    stripped = value.strip()
+    return stripped or None

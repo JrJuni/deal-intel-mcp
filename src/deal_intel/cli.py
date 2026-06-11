@@ -1562,6 +1562,24 @@ def _build_natural_question_smoke_pack(
         )
     )
 
+    questions.append(
+        call(
+            "q09_interaction_source_evidence",
+            "Which customer themes are supported by email or user interview evidence?",
+            "derived",
+            lambda: _build_interaction_source_evidence_payload(
+                _theme_evidence.handle(
+                    mongo=mongo,
+                    theme_key="reporting_visibility",
+                    dimension="all",
+                    stage="active",
+                    limit=50,
+                    min_importance=1,
+                )
+            ),
+        )
+    )
+
     sensitive_failures = [
         row["id"] for row in questions if row.get("sensitive") == "fail"
     ]
@@ -1728,6 +1746,34 @@ def _build_closed_postmortem_gap_payload(gap_payload: dict) -> dict:
     }
 
 
+def _build_interaction_source_evidence_payload(evidence_payload: dict) -> dict:
+    source_types = {"email_thread", "user_interview"}
+    rows = [
+        row
+        for row in evidence_payload.get("evidence") or []
+        if row.get("interaction_type") in source_types
+    ]
+    unique_deals = {str(row.get("deal_id") or "") for row in rows}
+    unique_deals.discard("")
+    return {
+        "ok": True,
+        "filters": {
+            **(evidence_payload.get("filters") or {}),
+            "interaction_types": sorted(source_types),
+        },
+        "summary": {
+            "evidence_count": len(rows),
+            "unique_deal_count": len(unique_deals),
+            "source_type_counts": _counter_dict(
+                str(row.get("interaction_type") or "unknown") for row in rows
+            ),
+        },
+        "evidence": rows,
+        "source_summary": evidence_payload.get("summary") or {},
+        "warnings": [] if rows else ["no_email_or_user_interview_theme_evidence"],
+    }
+
+
 def _date_sort_value(value: Any) -> str:
     if isinstance(value, str) and value:
         return value
@@ -1799,6 +1845,13 @@ def _natural_question_quick_read(question_id: str, payload: dict) -> str:
     if question_id == "q08_theme_evidence_drilldown":
         summary = payload.get("summary") or {}
         return f"evidence={summary.get('evidence_count')}"
+    if question_id == "q09_interaction_source_evidence":
+        summary = payload.get("summary") or {}
+        counts = summary.get("source_type_counts") or {}
+        return (
+            f"source_evidence={summary.get('evidence_count')} "
+            f"({_format_counts(counts)})"
+        )
     return "ok"
 
 

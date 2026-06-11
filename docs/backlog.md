@@ -141,6 +141,14 @@ Current implementation note:
 - `outbound_unconfirmed` and `internal` inputs are stored with source metadata
   but do not update MEDDPICC health or customer-theme counts unless the caller
   explicitly marks the source as stronger evidence.
+- P3.4 added source-aware sample evidence:
+  - bundled fixture deals now include canonical `interactions` records while
+    preserving legacy `meetings` for compatibility,
+  - one inbound `email_thread` and one `user_interview` are included as
+    curated evidence examples,
+  - customer-theme evidence rows expose safe source metadata so agents can
+    distinguish meeting, email, and interview support without reading raw
+    content.
 
 #### P3.3 cleanup: single public intake surface
 

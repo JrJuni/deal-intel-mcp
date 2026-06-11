@@ -37,8 +37,11 @@ def _theme(
     *,
     importance: int = 4,
     meeting_date: str = "2026-06-01",
+    interaction_type: str | None = None,
+    source_confidence: str | None = None,
+    subject: str | None = None,
 ) -> dict:
-    return {
+    theme = {
         "theme_key": theme_key,
         "label": theme_key,
         "dimension": dimension,
@@ -47,6 +50,15 @@ def _theme(
         "meeting_id": f"m-{theme_key}-{dimension}-{meeting_date}",
         "meeting_date": meeting_date,
     }
+    if interaction_type:
+        theme["interaction_id"] = f"i-{theme_key}-{dimension}-{meeting_date}"
+        theme["interaction_date"] = meeting_date
+        theme["interaction_type"] = interaction_type
+    if source_confidence:
+        theme["source_confidence"] = source_confidence
+    if subject:
+        theme["subject"] = subject
+    return theme
 
 
 def _deal(
@@ -133,6 +145,9 @@ def _deals() -> list[dict]:
                     "won because security passed",
                     importance=5,
                     meeting_date="2026-06-06",
+                    interaction_type="user_interview",
+                    source_confidence="customer_stated",
+                    subject="Win review interview",
                 )
             ],
         ),
@@ -202,8 +217,12 @@ def test_customer_theme_evidence_returns_curated_snippets_only() -> None:
         "returned_count": 2,
     }
     assert [row["company"] for row in result["evidence"]] == ["Gamma", "Alpha"]
+    assert result["evidence"][0]["interaction_type"] == "user_interview"
+    assert result["evidence"][0]["source_confidence"] == "customer_stated"
+    assert result["evidence"][0]["subject"] == "Win review interview"
     payload = json.dumps(result, ensure_ascii=False)
     assert "raw_notes" not in payload
+    assert "raw_content" not in payload
     assert "contacts" not in payload
     assert "summary_embedding" not in payload
     assert "do not leak" not in payload

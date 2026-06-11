@@ -12,6 +12,29 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-11
 
+### P3.4 sample interaction evidence UX
+
+Implemented:
+
+- Added canonical `interactions` records to the bundled zero-config fixture
+  while keeping legacy `meetings` for read compatibility.
+- Added one inbound `email_thread` sample and one `user_interview` sample with
+  curated customer-theme evidence, source confidence, subject, and interaction
+  metadata.
+- Extended `get_customer_theme_evidence` rows with safe source metadata:
+  `interaction_id`, `interaction_date`, `interaction_type`,
+  `source_confidence`, and `subject`.
+- Added natural-question smoke coverage for:
+  "Which customer themes are supported by email or user interview evidence?"
+
+Verification:
+
+- Targeted fixture/theme/smoke regression:
+  `25 passed`, `1 warning`
+- Local sample natural-question smoke:
+  `questions=9`, `answerability=derived=4,direct=5`,
+  `source_evidence=2 (email_thread=1, user_interview=1)`
+
 ### P3.3 single public interaction intake
 
 Implemented:

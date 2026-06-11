@@ -360,16 +360,17 @@ def test_smoke_natural_questions_writes_pack(monkeypatch, tmp_path) -> None:
     )
 
     assert result.exit_code == 0
-    assert "Natural Question Smoke (as_of=2026-06-10, questions=8)" in result.output
+    assert "Natural Question Smoke (as_of=2026-06-10, questions=9)" in result.output
     assert "OK: True" in result.output
     assert "Sensitive failures: none" in result.output
     assert (output_dir / "summary.md").exists()
     summary = json.loads((output_dir / "summary.json").read_text(encoding="utf-8"))
     assert summary["ok"] is True
-    assert summary["question_count"] == 8
-    assert summary["answerability_counts"] == {"derived": 3, "direct": 5}
+    assert summary["question_count"] == 9
+    assert summary["answerability_counts"] == {"derived": 4, "direct": 5}
     assert (output_dir / "q01_pipeline_health.json").exists()
     assert (output_dir / "q08_theme_evidence_drilldown.json").exists()
+    assert (output_dir / "q09_interaction_source_evidence.json").exists()
     encoded = json.dumps(summary, ensure_ascii=False)
     assert "raw_notes" not in encoded
     assert "secret raw note" not in encoded
@@ -401,7 +402,7 @@ def test_smoke_natural_questions_json_outputs_artifact_path(monkeypatch, tmp_pat
     assert payload["ok"] is True
     assert payload["output_dir"] == str(output_dir.resolve())
     assert [row["id"] for row in payload["questions"]][-1] == (
-        "q08_theme_evidence_drilldown"
+        "q09_interaction_source_evidence"
     )
     assert (output_dir / "summary.md").exists()
     assert mongo.write_count == 0

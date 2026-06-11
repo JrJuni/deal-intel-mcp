@@ -54,6 +54,13 @@ def test_zero_config_sample_fixture_is_safe_and_varied() -> None:
         "quoted",
         "strategic_zero",
     }
+    interaction_types = {
+        interaction.get("interaction_type")
+        for deal in deals
+        for interaction in deal.get("interactions", [])
+        if isinstance(interaction, dict)
+    }
+    assert {"meeting", "email_thread", "user_interview"} <= interaction_types
 
     payload = json.dumps(
         {"deals": deals, "snapshots": snapshots},
@@ -61,6 +68,7 @@ def test_zero_config_sample_fixture_is_safe_and_varied() -> None:
     )
     for field_name in SENSITIVE_FIELD_NAMES:
         assert field_name not in payload
+    assert "raw_content" not in payload
 
 
 def test_zero_config_sample_fixture_drives_pipeline_metrics_and_report() -> None:
@@ -124,6 +132,24 @@ def test_zero_config_sample_fixture_drives_customer_theme_views() -> None:
     assert breakdown["summary"]["deals_with_evidence"] > 0
     assert evidence["summary"]["returned_count"] > 0
     assert all("raw_notes" not in row for row in evidence["evidence"])
+
+    source_evidence = build_customer_theme_evidence(
+        deals,
+        theme_key="reporting_visibility",
+        dimension="all",
+        stage="active",
+        limit=20,
+        min_importance=1,
+    )
+    source_types = {
+        row.get("interaction_type")
+        for row in source_evidence["evidence"]
+        if row.get("interaction_type") in {"email_thread", "user_interview"}
+    }
+    assert source_types == {"email_thread", "user_interview"}
+    encoded = json.dumps(source_evidence, ensure_ascii=False)
+    assert "raw_notes" not in encoded
+    assert "raw_content" not in encoded
 
 
 def test_zero_config_sample_fixture_drives_pipeline_trend() -> None:

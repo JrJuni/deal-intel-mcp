@@ -213,8 +213,9 @@ The local sample backend should preserve the same safe read posture as
 - no `contacts`
 - no `summary_embedding`
 
-Fixture data may include curated meeting summaries and customer-theme evidence,
-but not raw notes or private contacts.
+Fixture data may include curated meeting summaries, source-aware interaction
+metadata, and customer-theme evidence, but not raw notes, raw interaction
+content, or private contacts.
 
 ## Bundled Zero-Config Fixture
 
@@ -241,7 +242,8 @@ Fixture contract:
 - all deal value statuses represented:
   `unknown`, `rough_estimate`, `customer_budget`, `quoted`,
   `strategic_zero`
-- curated meeting summaries and customer-theme evidence included
+- curated meeting summaries, source-aware interaction metadata, and
+  customer-theme evidence included
 - trend snapshots included for a 7-day pipeline movement smoke
 - no `meetings.raw_notes`, `interactions.raw_content`, `contacts`, or
   `summary_embedding`

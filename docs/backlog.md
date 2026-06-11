@@ -24,9 +24,8 @@ and `pro`.
 
 Next candidate units:
 
-1. AI start-here guide
-2. Packaging docs for sample-first onboarding
-3. Profile smoke matrix
+1. Packaging docs for sample-first onboarding
+2. Profile smoke matrix
 
 Principle: agents and new users should start in `sample` before being asked for
 MongoDB, paid APIs, or Atlas Vector Search.

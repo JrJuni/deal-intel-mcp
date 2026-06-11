@@ -123,18 +123,22 @@ Implemented behavior:
 
 ### Z5.5 AI Start Here
 
-Add an AI-readable first-run guide:
+Implemented AI-readable first-run guide:
 
 ```text
 AI_START_HERE.md
 ```
 
-Done when:
+Implemented behavior:
 
 - AI agents are instructed to start in `sample`.
 - Agents do not ask for MongoDB/API keys before sample smoke succeeds.
 - The guide points to `storage-status`, `config profiles`, and
   `smoke-natural-questions`.
+- The guide tells agents to preview `config init --profile sample --dry-run`
+  before writing user config.
+- Existing config is protected: agents must preview `config switch sample
+  --dry-run` and use `--force` only after explicit user approval.
 
 ### Z5.6 Packaging Surface
 

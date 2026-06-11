@@ -10,9 +10,11 @@ Read these first for normal work:
 
 1. `../AGENTS.md` or `../CLAUDE.md`
    - Current agent rules, workflow, tool count, and architecture guardrails.
-2. `status.md`
+2. `../AI_START_HERE.md`
+   - First-run AI onboarding path for sample-first evaluation.
+3. `status.md`
    - Latest completed work and current verification notes.
-3. `baseline.md`
+4. `baseline.md`
    - MCP tool contracts, input/output shape, persistence behavior, and current
      registration expectations.
 

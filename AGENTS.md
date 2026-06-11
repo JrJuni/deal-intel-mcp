@@ -21,10 +21,11 @@ The product direction is one repository / one package with three profiles:
 Do not read every doc by default. Start here:
 
 1. `AGENTS.md` or `CLAUDE.md` for agent rules.
-2. `docs/README.md` for the documentation map and current reading order.
-3. `docs/status.md` for the latest completed work.
-4. `docs/baseline.md` for MCP tool contracts.
-5. `docs/metrics.md`, `docs/reports.md`, `docs/storage-backends.md`, or
+2. `AI_START_HERE.md` when onboarding a new user or first-run agent.
+3. `docs/README.md` for the documentation map and current reading order.
+4. `docs/status.md` for the latest completed work.
+5. `docs/baseline.md` for MCP tool contracts.
+6. `docs/metrics.md`, `docs/reports.md`, `docs/storage-backends.md`, or
    `docs/config-profiles.md` only when the task touches that area.
 
 Append-only or historical docs such as `docs/lesson-learned.md` and old

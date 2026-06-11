@@ -12,6 +12,27 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-11
 
+### Config profiles Z5.5 AI start-here guide
+
+Implemented:
+
+- Added root-level `AI_START_HERE.md` for AI agents onboarding a new user.
+- The guide enforces a sample-first flow before asking for MongoDB, API keys,
+  Atlas Vector Search, or paid infrastructure.
+- It points agents to `config profiles`, `config show`,
+  `config init --profile sample --dry-run`, `config doctor --offline`,
+  `storage-status`, and `smoke-natural-questions`.
+- It tells agents to avoid overwriting existing user config and to use
+  `config switch ... --force` only after explicit user approval.
+- Linked the guide from `AGENTS.md`, `CLAUDE.md`, `docs/README.md`, and
+  [config-profiles.md](config-profiles.md).
+
+Verification:
+
+- Docs are ASCII-only.
+- Ruff:
+  `All checks passed`
+
 ### Config profiles Z5.3 init/switch CLI
 
 Implemented:

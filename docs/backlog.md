@@ -48,6 +48,107 @@ Backlog items:
   probability contract exists.
 - Use smoke packs to compare natural-language deal reviews across multiple
   companies.
+- Separate objective CTA triggers from judgment-sensitive gap observations.
+  - Objective triggers can produce explicit CTAs: overdue close dates,
+    missed commitments, missing actual close dates for won/lost deals, missing
+    close reasons for lost deals, or clearly required initiation steps.
+  - Judgment-sensitive MEDDPICC gaps should usually be shown as gap points
+    rather than prescriptive actions: competition, champion quality, economic
+    buyer mapping, or decision criteria can depend on account context and BD
+    strategy.
+  - Reporting language should avoid making uncertain qualitative gaps sound
+    like mandatory next actions. Example: "competition gap exists" is safer
+    than "prepare competitor comparison and close negotiation" unless the
+    account evidence objectively supports that action.
+  - Possible implementation: add `actionability` or `cta_policy` to gap rows
+    (`cta_allowed`, `observation_only`, `needs_human_judgment`) and let
+    Markdown/report builders render them differently.
+
+### Customer Interaction Intake
+
+Goal: expand from "meeting-note intake" to a lightweight customer interaction
+intelligence layer that can ingest emails, interviews, call summaries, and
+internal notes without pretending every input is the same kind of evidence.
+
+Priority: high, after the current Deal Review Quality loop and before deeper
+Reporting/Pro infrastructure work. This improves local mode usefulness and
+real-world data capture more than another dashboard/report would right now.
+
+Candidate implementation units:
+
+1. `add_interaction` read/write contract.
+   - Inputs: `deal_id`, `date`, `interaction_type`, `direction`, `content`,
+     optional `participants`, `subject`, `source_confidence`.
+   - Interaction types: `meeting`, `email_thread`, `user_interview`,
+     `call_summary`, `internal_note`.
+   - Direction: `inbound`, `outbound`, `mixed`, `internal`.
+   - Store source metadata so later scoring can distinguish customer-stated
+     evidence from AE/internal notes or outbound claims.
+2. Storage compatibility.
+   - Keep `add_meeting` as a backward-compatible wrapper.
+   - Decide whether new records live under `interactions` while old
+     `meetings` remain supported, or whether `meetings` is migrated later.
+   - BI/report/search paths must continue to exclude raw content unless the
+     user asks for single-deal detail.
+3. Extraction prompt update.
+   - Replace "meeting notes" assumptions with "customer interaction content".
+   - Treat inbound customer email and direct user interview quotes as stronger
+     evidence than outbound email or internal notes.
+   - Outbound/internal-only content should create suggested follow-up questions
+     or uncertainty, not confirmed MEDDPICC strength.
+4. Evidence and uncertainty model.
+   - Feed interaction source metadata into the unknown-first scoring work.
+   - Distinguish confirmed risk, missing information, unconfirmed internal
+     hypothesis, and customer-stated evidence.
+5. Sample/local UX.
+   - Add at least one sample email thread and one user interview fixture.
+   - Add smoke questions such as "What did customers say in emails?" and
+     "Which interview quotes support this pain?".
+
+Open decision points:
+
+- Whether to expose a new MCP tool only (`add_interaction`) or also add CLI
+  import helpers for pasted email/interview files.
+- Whether raw email bodies should be retained by default in local mode, or
+  summarized and optionally redacted for privacy.
+- Whether outbound emails should update MEDDPICC scores immediately or only
+  create weak/unconfirmed evidence.
+
+### Account People Graph
+
+Goal: eventually track customer-side people and relationships as queryable
+deal intelligence, especially Champion, Economic Buyer, decision committee,
+procurement, security, legal, and blockers.
+
+Priority: medium-long term. Do not implement before the deal review quality and
+interaction intake work, but keep the design in mind because it will become a
+natural query key for BD workflows.
+
+Possible shape:
+
+- Store people in a separate local NoSQL/Mongo collection or RDBMS-like table
+  keyed by normalized company/account identity.
+- Link people to deals by `company`/`account_id` and optionally `deal_id`.
+- Track role labels such as `champion`, `economic_buyer`, `decision_maker`,
+  `influencer`, `blocker`, `procurement`, `security`, and `legal`.
+- Track confidence and evidence source:
+  direct customer statement, meeting note, email thread, internal AE note, or
+  inferred/unconfirmed.
+- Let BD ask questions like:
+  "Who is the champion at this account?",
+  "Do we know the economic buyer?",
+  "Who blocks security approval?",
+  "Which accounts lack a mapped decision committee?".
+
+Implementation cautions:
+
+- Avoid turning this into a full CRM too early.
+- Keep raw contact details out of default BI/report paths.
+- Prefer explicit source/confidence metadata over silently treating every
+  extracted person as confirmed.
+- Decide later whether this belongs in MongoDB collections, local JSON/SQLite,
+  or a small relational layer. The key requirement is account/company-indexed
+  lookup and safe links back to deals.
 
 ### Customer Themes
 

@@ -12,6 +12,52 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-11
 
+### Planning note: customer interaction intake
+
+Added to [backlog.md](backlog.md):
+
+- A high-priority Customer Interaction Intake stream.
+- Direction: keep `add_meeting` compatible, then introduce `add_interaction`
+  for meeting notes, email threads, user interviews, call summaries, and
+  internal notes.
+- Rationale: local/sample mode is useful enough that broadening the input
+  surface is now more valuable than another dashboard/report. Source metadata
+  also supports the upcoming unknown-first scoring and uncertainty work.
+
+Recommended priority:
+
+1. Finish/continue Deal Review Quality calibration.
+2. Implement `add_interaction` contract and source-aware extraction.
+3. Then return to reporting polish, Pro infrastructure, or MongoDB ecosystem
+   upgrades.
+
+### Planning note: CTA eligibility for gaps
+
+Added to [backlog.md](backlog.md):
+
+- Deal Review/Reporting should separate objective CTA triggers from
+  judgment-sensitive gap observations.
+- Objective triggers can still become explicit actions: overdue dates, missed
+  commitments, missing terminal close metadata, or obvious initiation steps.
+- Qualitative MEDDPICC gaps such as competition, champion quality, economic
+  buyer mapping, or decision criteria should usually be rendered as gap points
+  unless the account evidence makes the next action objectively clear.
+- Candidate implementation: add `actionability` or `cta_policy` to gap rows
+  so reports can render `cta_allowed`, `observation_only`, and
+  `needs_human_judgment` differently.
+
+### Planning note: account people graph
+
+Added to [backlog.md](backlog.md):
+
+- Medium-long-term Account People Graph stream.
+- Direction: eventually track Champion, Economic Buyer, decision committee,
+  procurement, security, legal, and blockers as company/account-indexed people
+  intelligence.
+- Keep it deferred until deal review quality and customer interaction intake
+  are stable. The near-term design constraint is only to preserve source and
+  confidence metadata so people extraction can become trustworthy later.
+
 ### MCPB Claude Desktop smoke and UTF-8 hardening
 
 Observed:

@@ -130,7 +130,6 @@ Local sample mode does not support semantic search in the first MVP.
 ### Write and Lifecycle
 
 - `create_deal`
-- `add_meeting`
 - `add_interaction`
 - `update_stage`
 - `update_deal`
@@ -142,18 +141,18 @@ Write tools are conservative by default. Destructive or corrective operations
 require explicit confirmation, reasons, and safe audit behavior where
 applicable.
 
-`add_meeting` and `add_interaction` never change `deal_stage`. They may return
+`add_interaction` never changes `deal_stage`. It may return
 `stage_suggestion`, but stage mutation happens only through `update_stage`
 after user confirmation.
 
 `deal.interactions` is the canonical intake store for new customer evidence.
-`add_meeting` is a compatibility wrapper that writes `interaction_type:
-meeting`; legacy `deal.meetings` remains a read fallback for existing data.
 `add_interaction` stores source metadata for `meeting`, `email_thread`,
 `user_interview`, `call_summary`, `internal_note`, and config-registered
-custom types. Outbound-only and internal-only content is stored as
-unconfirmed interaction evidence and does not update MEDDPICC health by
-default.
+custom types. `add_meeting` remains a developer-surface deprecated
+compatibility alias for `interaction_type: meeting`. Legacy `deal.meetings`
+remains a read fallback for existing data. Outbound-only and internal-only
+content is stored as unconfirmed interaction evidence and does not update
+MEDDPICC health by default.
 
 ### Demo Data
 

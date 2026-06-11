@@ -69,14 +69,14 @@ MCP_TOOL_SURFACE_CONTRACTS: tuple[MCPToolSurfaceContract, ...] = (
     MCPToolSurfaceContract(
         name="add_meeting",
         category="core_write",
-        surfaces=_SAMPLE,
-        user_facing=True,
+        surfaces=_DEVELOPER,
+        user_facing=False,
         db_writes=True,
         llm_calls=True,
         notes=(
-            "Adds notes and extracted signals but never auto-updates stage. "
-            "In sample mode this works for user-created local personal deals "
-            "when the configured LLM provider is ready."
+            "Deprecated compatibility alias for add_interaction with "
+            "interaction_type='meeting'. Kept temporarily for developer "
+            "compatibility tests; new integrations should not call it."
         ),
     ),
     MCPToolSurfaceContract(
@@ -87,8 +87,8 @@ MCP_TOOL_SURFACE_CONTRACTS: tuple[MCPToolSurfaceContract, ...] = (
         db_writes=True,
         llm_calls=True,
         notes=(
-            "Adds email/interview/call/internal interaction content with source "
-            "metadata through canonical interaction storage."
+            "Adds meeting/email/interview/call/internal interaction content "
+            "with source metadata through canonical interaction storage."
         ),
     ),
     MCPToolSurfaceContract(

@@ -175,12 +175,13 @@ You're done when the MCP tool list loads. The current server exposes 24 tools;
 
 ```
 config_doctor
-create_deal / add_meeting / add_interaction / get_deal / update_stage / update_deal
+create_deal / add_interaction / get_deal / update_stage / update_deal
 archive_deal / restore_deal / delete_deal / migrate_local_data
 create_sample_data / delete_sample_data
 list_deals / get_insights / get_metrics / get_deal_gaps / get_deal_review
 export_report / get_customer_themes / get_customer_theme_breakdown
 get_customer_theme_evidence / search_deals / analyze_deal
+developer-only deprecated alias: add_meeting
 ```
 
 ---
@@ -208,10 +209,11 @@ deal-intel config init --profile sample
 
 Sample mode is intentionally limited, but it is no longer purely read-only.
 Core dashboard, reporting, customer-theme, deal-review, create/update/stage,
-meeting-ingestion, and lifecycle flows can run against local personal data.
-`add_meeting` requires a ready LLM provider and works on user-created local
-deals; local sample mode skips embedding storage and does not persist raw
-notes. Semantic `search_deals`, Atlas Charts, and shared team operation still
+interaction-ingestion, and lifecycle flows can run against local personal data.
+`add_interaction` requires a ready LLM provider and works on user-created local
+deals; use `interaction_type: meeting` for meeting notes. Local sample mode
+skips embedding storage and does not expose raw content in list/BI/report
+paths. Semantic `search_deals`, Atlas Charts, and shared team operation still
 belong to MongoDB-backed `full` or `pro` mode.
 
 Local personal data defaults to `~/.deal-intel/local-data` and can be changed
@@ -300,16 +302,18 @@ Industry overrides apply on a case-insensitive exact match against the free-form
 
 ---
 
-### 2. `add_meeting` - add a meeting note
+### 2. `add_interaction` - add a customer interaction
 
-**When to use**: Right after a customer meeting. Paste the note as-is and the LLM extracts MEDDPICC automatically.
+**When to use**: Right after a customer meeting, email reply, user interview, call summary, or internal note. Paste the content as-is and the LLM extracts MEDDPICC/customer themes with source-aware scoring.
 
-Internally this writes a canonical `interaction_type: meeting` record under
-`interactions`. Older `meetings` records are still read as legacy fallback.
+Meeting notes are just `interaction_type: meeting`. Older `meetings` records
+are still read as legacy fallback, but new integrations should write canonical
+`interactions` records through this tool.
 
 **Example**:
 ```
 Add today's (2026-06-08) meeting note to Hyundai Precision, deal_id: a3f9...
+Use interaction_type=meeting and direction=inbound.
 
 Notes:
 Met Director Kim (purchasing decision-maker). Current production-line defect rate
@@ -322,18 +326,24 @@ end of June.
 | Parameter | Required | Description |
 |---|---|---|
 | `deal_id` | required | Target deal ID |
-| `date` | required | Meeting date (YYYY-MM-DD) |
-| `raw_notes` | required | Raw meeting notes (Korean or English both fine) |
+| `date` | required | Interaction date (YYYY-MM-DD) |
+| `interaction_type` | required | `meeting`, `email_thread`, `user_interview`, `call_summary`, `internal_note`, or a configured custom type |
+| `direction` | required | `inbound`, `outbound`, `mixed`, or `internal` |
+| `content` | required | Raw interaction content (Korean or English both fine) |
+| `participants` | optional | Names/emails/roles if known |
+| `subject` | optional | Email/call/meeting subject |
+| `source_confidence` | optional | Override source confidence when needed |
 
 **What the result includes**:
 - `meddpicc` - scores + evidence extracted from this meeting
 - `meddpicc_latest` - the deal's cumulative health_pct + per-dimension trend
 - `summary` - a 2-3 sentence LLM-generated summary
 - `customer_themes` - customer concerns / selection criteria extracted from this meeting
-- `stage_suggestion` - filled only when the notes explicitly imply a stage transition (e.g., contract signed -> won, lost deal -> lost); otherwise `null`
+- `scoring_applied` - whether this source updated MEDDPICC health/customer themes
+- `stage_suggestion` - filled only when the content explicitly implies a stage transition (e.g., contract signed -> won, lost deal -> lost); otherwise `null`
 - `embedding_stored` - whether the similar-deal-search embedding was stored
 
-> **The stage never changes automatically.** Even if the notes say "contract signed," `add_meeting` does not change the stage directly - it only **suggests** via `stage_suggestion`. When Claude asks "shall I move this deal to won'", `update_stage` makes the actual change after you confirm. This is a deliberate separation to prevent wrong auto-closing.
+> **The stage never changes automatically.** Even if the content says "contract signed," `add_interaction` does not change the stage directly - it only **suggests** via `stage_suggestion`. When Claude asks "shall I move this deal to won?", `update_stage` makes the actual change after you confirm. This is a deliberate separation to prevent wrong auto-closing.
 
 ---
 
@@ -661,7 +671,7 @@ The Atlas Charts aggregation is in `scripts/atlas_charts_customer_themes.json`.
 ## Recommended workflow
 
 ```
-1. Right after a meeting     -> add_meeting (paste the note)
+1. Right after customer evidence -> add_interaction (meeting/email/interview/call)
 2. On stage change           -> update_stage
 3. Pre-meeting prep          -> analyze_deal (figure out the next agenda)
 4. Before pursuing/forecast  -> get_deal_gaps (what's still missing)
@@ -776,7 +786,8 @@ src/deal_intel/
     mongodb.py          MongoDBClient - CRUD + aggregation + semantic-search storage
   tools/
     create_deal.py
-    add_meeting.py      MEDDPICC extraction + summary generation + embedding storage
+    add_interaction.py  canonical interaction intake + MEDDPICC extraction
+    add_meeting.py      deprecated compatibility alias for meeting interactions
     get_deal.py
     update_stage.py     stage_history logging + MEDDPICC recompute
     update_deal.py      edit deal-value fields after user confirmation
@@ -847,7 +858,7 @@ free M0 plan today. `search_deals` computes with Python cosine on M0. As deal
 volume grows you can switch to Atlas Vector Search on M10+.
 
 **Q. search_deals returns nothing.**
-Right after the server first starts, the local model may still be warming up - retry after 5 seconds. You also need at least one deal with a stored `summary_embedding` (run `add_meeting`).
+Right after the server first starts, the local model may still be warming up - retry after 5 seconds. You also need at least one deal with a stored `summary_embedding` (run `add_interaction` with scoring-eligible content).
 
 **Q. Should I use ChatGPT OAuth, Anthropic, or OpenAI API?**
 For quick personal use, ChatGPT OAuth is attractive if you already subscribe to

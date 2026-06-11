@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastmcp import FastMCP
 from fastmcp.exceptions import NotFoundError
 
-import deal_intel._env  # noqa: F401 — triggers dotenv load at import time
+import deal_intel._env  # noqa: F401 - triggers dotenv load at import time
 from deal_intel.errors import Stage, envelope_from_exception
 
 app = FastMCP("deal-intel")
@@ -121,12 +121,16 @@ def create_deal(
 
 @app.tool()
 def add_meeting(deal_id: str, date: str, raw_notes: str) -> dict:
-    """Add meeting notes and extract MEDDPICC signals. Updates meddpicc_latest.
+    """Deprecated alias for add_interaction with interaction_type=meeting.
+
+    New clients should call add_interaction instead. This wrapper is kept for
+    developer-surface compatibility during the transition and still updates
+    meddpicc_latest through the canonical interaction path.
 
     Does NOT change the pipeline stage. When the notes clearly imply a stage
-    transition (e.g. contract signed → won, deal lost → lost), the response
+    transition (e.g. contract signed -> won, deal lost -> lost), the response
     includes a non-null `stage_suggestion`. Surface it to the user and call
-    update_stage only after they confirm — never auto-apply it.
+    update_stage only after they confirm; never auto-apply it.
     """
     try:
         from deal_intel import _context

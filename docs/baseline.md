@@ -61,8 +61,8 @@ The Python server keeps all 24 handler functions available internally, but MCP
 clients see a config-filtered tool surface:
 
 - `tools.surface: auto` resolves from the effective profile.
-- `sample` exposes 18 tools for bundled/local personal sample mode.
-- `standard` exposes 22 tools for normal MongoDB-backed operation.
+- `sample` exposes 17 tools for bundled/local personal sample mode.
+- `standard` exposes 21 tools for normal MongoDB-backed operation.
 - `developer` exposes all 24 tools, including demo database seed/cleanup.
 - Invalid `tools.surface` config exposes only `config_doctor` so setup can be
   diagnosed.
@@ -71,7 +71,7 @@ clients see a config-filtered tool surface:
 |---|---|---|---|---|
 | `config_doctor` | None | `offline` | `ok`, `profile`, `generated_at`, `summary`, `checks`, `next_actions` | Read only; checks config, storage readiness, vector-search mode, and LLM provider readiness without LLM calls, embeddings, or writes. The default path may perform a bounded storage ping; `offline=true` skips it |
 | `create_deal` | `company` | `industry`, `deal_size_krw`, `deal_size_status`, `deal_size_low_krw`, `deal_size_high_krw`, `deal_size_note`, `expected_close_date` | `ok`, `deal_id`, `company`, deal value fields, `expected_close_date`, `expected_close_date_source`, optional `analytics_snapshot` | Validates the initial deal-value classification, applies the configured close-date default when omitted, upserts one deal, initializes `discovery` stage history, and attempts a non-blocking analytics snapshot |
-| `add_meeting` | `deal_id`, `date`, `raw_notes` | None | `ok`, `interaction_id`, `meeting_id`, `summary`, `meddpicc`, `meddpicc_latest`, `customer_themes`, `stage_suggestion`, `embedding_stored`, `usage`, optional `analytics_snapshot` | Backward-compatible wrapper over canonical interaction intake. Calls LLM, writes an `interaction_type: meeting` record under `deal.interactions`, recalculates deal signals, optionally stores an embedding for MongoDB-backed data, upserts the deal, and attempts a non-blocking analytics snapshot. In local sample mode it works only for user-created local personal deals and skips embeddings |
+| `add_meeting` | `deal_id`, `date`, `raw_notes` | None | `ok`, `interaction_id`, `meeting_id`, `summary`, `meddpicc`, `meddpicc_latest`, `customer_themes`, `stage_suggestion`, `embedding_stored`, `usage`, optional `analytics_snapshot` | Deprecated developer-surface compatibility alias over `add_interaction` with `interaction_type: meeting`. Calls LLM, writes an `interaction_type: meeting` record under `deal.interactions`, recalculates deal signals, optionally stores an embedding for MongoDB-backed data, upserts the deal, and attempts a non-blocking analytics snapshot. New clients should call `add_interaction` directly |
 | `add_interaction` | `deal_id`, `date`, `interaction_type`, `direction`, `content` | `participants`, `subject`, `source_confidence`, `custom_fields_json` | `ok`, `interaction_id`, `meeting_id`, `interaction_type`, `direction`, `source_confidence`, `participants`, `subject`, `summary`, `meddpicc`, `unconfirmed_meddpicc`, `meddpicc_latest`, `customer_themes`, `unconfirmed_customer_themes`, `scoring_applied`, `stage_suggestion`, `embedding_stored`, `usage`, optional `analytics_snapshot` | Calls LLM, appends a canonical `deal.interactions` record, stores source metadata and `raw_content`, recalculates deal signals only when the source is scoring-eligible, optionally stores an embedding for MongoDB-backed data, upserts the deal, and attempts a non-blocking analytics snapshot. `outbound_unconfirmed` and `internal` evidence is stored but does not update MEDDPICC health or customer-theme counts by default. Custom interaction types must be registered in config |
 | `update_stage` | `deal_id`, `new_stage` | `actual_close_date` | `ok`, `deal_id`, `old_stage`, `new_stage`, `actual_close_date`, `days_in_previous_stage`, `stuck_threshold_days`, optional `analytics_snapshot` | Appends stage history, records the actual terminal date, recalculates stage-aware MEDDPICC gaps, upserts the deal, and attempts a non-blocking analytics snapshot |
 | `update_deal` | `deal_id` | `confirmed_by_user`, value fields, `company`, `industry`, `expected_close_date`, `actual_close_date`, `close_reason`, `update_note` | `ok`, `deal_id`, `company`, old/new value snapshots, old/new metadata snapshots, `changed_fields`, `changed_value_fields`, `changed_metadata_fields`, `storage_written` | Requires explicit user confirmation, updates confirmed value/metadata fields only, appends value/metadata history entries, and upserts the deal |
@@ -145,7 +145,7 @@ documents matching both `is_sample: true` and the known `sample_batch_id`.
 The first supported dataset is `weekly_pipeline_demo`.
 
 `analytics_snapshots` form the M5.1-M5.5 trend foundation. `create_deal`,
-`add_meeting`, `add_interaction`, and `update_stage` attempt to write one
+`add_interaction`, `update_stage`, and the deprecated `add_meeting` alias attempt to write one
 lightweight snapshot after the source deal mutation succeeds. Snapshot writes
 are idempotent by
 `event_id`; a duplicate event returns `inserted: false` and `duplicate: true`
@@ -272,7 +272,7 @@ Before Milestone 1 started, all 28 findings were resolved. The current gate is:
 pytest -> 128 passed
 ruff check . -> All checks passed
 wheel build -> passed
-FastMCP runtime surface exposure -> sample 18 tools, standard 22 tools,
+FastMCP runtime surface exposure -> sample 17 tools, standard 21 tools,
 developer 24 tools
 MongoDB Atlas read smoke -> passed
 ```

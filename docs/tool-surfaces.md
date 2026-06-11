@@ -28,7 +28,7 @@ and future local personal path.
 
 | Surface | Default Profiles | Purpose | Tool Policy |
 |---|---|---|---|
-| `sample` | `sample` | Let a new user or AI agent test useful questions and small local personal datasets with no setup | Mostly LLM-free tools that work against bundled sample data or local personal `deals.json`, plus `add_meeting`/`add_interaction` when the configured LLM provider is ready |
+| `sample` | `sample` | Let a new user or AI agent test useful questions and small local personal datasets with no setup | Mostly LLM-free tools that work against bundled sample data or local personal `deals.json`, plus `add_interaction` when the configured LLM provider is ready |
 | `standard` | `full`, `pro`, `custom` | Real operating mode for teams using MongoDB-backed data | User-facing core, admin, analysis, semantic search, and reporting tools |
 | `developer` | none by default | Maintainer/debug mode | Every MCP tool, including sample-data seeding helpers |
 
@@ -39,7 +39,6 @@ without MongoDB today. It is not the full operating surface:
 
 - `config_doctor`
 - `create_deal`
-- `add_meeting`
 - `add_interaction`
 - `update_stage`
 - `update_deal`
@@ -61,14 +60,14 @@ Why this matters:
 - `create_deal`, `update_stage`, `update_deal`, `archive_deal`,
   `restore_deal`, and `delete_deal` now persist through local personal storage
   and keep their existing confirmation/dry-run safety gates.
-- `add_meeting` is available for user-created local personal deals when the
-  configured LLM provider is ready. Local sample mode skips embedding storage,
-  stores canonical interaction content, and keeps list/BI/report paths free of
-  raw content, contacts, and vectors.
 - `add_interaction` is the source-aware intake path for email threads, user
-  interviews, call summaries, internal notes, and config-registered custom
-  types. It writes canonical `deal.interactions` records and keeps
-  outbound/internal-only content out of MEDDPICC scoring by default.
+  interviews, call summaries, internal notes, meeting notes
+  (`interaction_type: meeting`), and config-registered custom types. It writes
+  canonical `deal.interactions` records and keeps outbound/internal-only
+  content out of MEDDPICC scoring by default. Local sample mode skips
+  embedding storage, stores canonical interaction content for user-created
+  local personal deals, and keeps list/BI/report paths free of raw content,
+  contacts, and vectors.
 - `migrate_local_data` is visible in `sample` so a user can graduate local
   personal deals to MongoDB after connecting a URI. It is dry-run-first and
   never migrates bundled fixture records.
@@ -106,6 +105,10 @@ make the default real-data tool list noisier.
 management, and local debugging. Future release work can expose this through
 explicit config such as `tools.surface: developer`.
 
+`add_meeting` remains registered only on this surface as a deprecated
+compatibility alias for `add_interaction` with `interaction_type: meeting`.
+New documentation, examples, and integrations should not depend on it.
+
 ## Runtime Filtering
 
 Runtime MCP exposure is now config-driven:
@@ -126,8 +129,8 @@ Behavior:
 
 Current exposed counts:
 
-- `sample`: 18 tools
-- `standard`: 22 tools
+- `sample`: 17 tools
+- `standard`: 21 tools
 - `developer`: 24 tools
 
 Implementation notes:

@@ -11,7 +11,7 @@ from deal_intel.schema.customer_themes import (
     rebuild_deal_customer_themes,
 )
 from deal_intel.tools import (
-    add_meeting,
+    add_interaction,
     backfill_customer_themes,
     get_customer_themes,
 )
@@ -144,7 +144,7 @@ def test_rebuild_deal_customer_themes_flattens_meeting_provenance() -> None:
     assert result[0]["meeting_date"] == "2026-06-01"
 
 
-def test_add_meeting_persists_customer_themes_without_extra_llm_call() -> None:
+def test_add_interaction_meeting_persists_customer_themes() -> None:
     mongo = FakeMongo(
         [
             {
@@ -173,13 +173,15 @@ def test_add_meeting_persists_customer_themes_without_extra_llm_call() -> None:
     )
     llm = FakeLLM([analysis, "회의 요약"])
 
-    result = add_meeting.handle(
+    result = add_interaction.handle(
         mongo=mongo,
         llm=llm,
         cfg={"meddpicc": {"weights": {}}},
         deal_id="d1",
         date="2026-06-08",
-        raw_notes="수작업 보고가 오래 걸린다.",
+        interaction_type="meeting",
+        direction="inbound",
+        content="수작업 보고가 오래 걸린다.",
     )
 
     assert result["customer_themes"][0]["theme_key"] == "operational_efficiency"
@@ -191,7 +193,7 @@ def test_add_meeting_persists_customer_themes_without_extra_llm_call() -> None:
     assert result["stage_suggestion"] is None
 
 
-def test_add_meeting_suggests_stage_without_changing_it() -> None:
+def test_add_interaction_meeting_suggests_stage_without_changing_it() -> None:
     mongo = FakeMongo(
         [
             {
@@ -218,13 +220,15 @@ def test_add_meeting_suggests_stage_without_changing_it() -> None:
     )
     llm = FakeLLM([analysis, "계약 체결"])
 
-    result = add_meeting.handle(
+    result = add_interaction.handle(
         mongo=mongo,
         llm=llm,
         cfg={"meddpicc": {"weights": {}}},
         deal_id="d1",
         date="2026-06-13",
-        raw_notes="RFP 최종 선정 통보. 계약 서명 완료. CLOSED WON.",
+        interaction_type="meeting",
+        direction="inbound",
+        content="RFP 최종 선정 통보. 계약 서명 완료. CLOSED WON.",
     )
 
     # Suggestion is surfaced...
@@ -236,7 +240,7 @@ def test_add_meeting_suggests_stage_without_changing_it() -> None:
     assert mongo.saved[0]["deal_stage"] == "discovery"
 
 
-def test_add_meeting_omits_suggestion_when_signal_matches_current_stage() -> None:
+def test_add_interaction_meeting_omits_suggestion_when_signal_matches_current_stage() -> None:
     mongo = FakeMongo(
         [{"deal_id": "d1", "company": "테스트", "deal_stage": "won", "meetings": []}]
     )
@@ -254,13 +258,15 @@ def test_add_meeting_omits_suggestion_when_signal_matches_current_stage() -> Non
     )
     llm = FakeLLM([analysis, "온보딩 진행"])
 
-    result = add_meeting.handle(
+    result = add_interaction.handle(
         mongo=mongo,
         llm=llm,
         cfg={"meddpicc": {"weights": {}}},
         deal_id="d1",
         date="2026-06-13",
-        raw_notes="온보딩 진행 중.",
+        interaction_type="meeting",
+        direction="inbound",
+        content="온보딩 진행 중.",
     )
 
     # Signal equals the current stage → nothing to suggest.

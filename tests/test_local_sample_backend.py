@@ -19,7 +19,7 @@ from deal_intel.storage.local_personal import (
 from deal_intel.storage.local_sample import LocalSampleClient
 from deal_intel.storage.local_sample_fixture import SENSITIVE_FIELD_NAMES
 from deal_intel.tools import (
-    add_meeting,
+    add_interaction,
     archive_deal,
     create_deal,
     delete_deal,
@@ -342,7 +342,7 @@ def test_local_personal_safe_write_tools_persist_across_clients(tmp_path) -> Non
     assert deal["deal_value_history"][-1]["source"] == "update_deal"
 
 
-def test_local_personal_add_meeting_persists_canonical_raw_content(
+def test_local_personal_add_interaction_meeting_persists_canonical_raw_content(
     tmp_path,
 ) -> None:
     from types import SimpleNamespace
@@ -388,14 +388,16 @@ def test_local_personal_add_meeting_persists_canonical_raw_content(
         deal_size_status="unknown",
     )
 
-    result = add_meeting.handle(
+    result = add_interaction.handle(
         mongo=LocalSampleClient(local_data_dir=tmp_path),
         llm=FakeLLM(),
         cfg=cfg,
         embedding_provider=None,
         deal_id=created["deal_id"],
         date="2026-06-11",
-        raw_notes="private raw note sentinel: manual reporting takes too long",
+        interaction_type="meeting",
+        direction="inbound",
+        content="private raw note sentinel: manual reporting takes too long",
     )
 
     after_meeting = LocalSampleClient(local_data_dir=tmp_path)
@@ -553,7 +555,7 @@ def test_local_tools_cannot_persist_bundled_fixture_deals(tmp_path) -> None:
     assert not (tmp_path / LOCAL_PERSONAL_DEALS_FILE).exists()
 
 
-def test_local_add_meeting_cannot_persist_bundled_fixture_deals(tmp_path) -> None:
+def test_local_add_interaction_cannot_persist_bundled_fixture_deals(tmp_path) -> None:
     from types import SimpleNamespace
 
     class FakeLLM:
@@ -566,14 +568,16 @@ def test_local_add_meeting_cannot_persist_bundled_fixture_deals(tmp_path) -> Non
     client = LocalSampleClient(local_data_dir=tmp_path)
 
     with pytest.raises(MCPError) as exc_info:
-        add_meeting.handle(
+        add_interaction.handle(
             mongo=client,
             llm=FakeLLM(),
             cfg=_local_cfg(tmp_path),
             embedding_provider=None,
             deal_id="sample-pavebridge",
             date="2026-06-11",
-            raw_notes="should not be persisted on bundled fixture data",
+            interaction_type="meeting",
+            direction="inbound",
+            content="should not be persisted on bundled fixture data",
         )
 
     assert exc_info.value.error_code == ErrorCode.STORAGE_ERROR

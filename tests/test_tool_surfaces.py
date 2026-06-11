@@ -55,7 +55,6 @@ def test_sample_surface_is_zero_config_safe_local_personal() -> None:
     assert sample_tools == {
         "config_doctor",
         "create_deal",
-        "add_meeting",
         "add_interaction",
         "update_stage",
         "update_deal",
@@ -75,16 +74,13 @@ def test_sample_surface_is_zero_config_safe_local_personal() -> None:
 
     for tool_name in sample_tools:
         contract = get_tool_surface_contract(tool_name)
-        assert contract.llm_calls is (
-            tool_name in {"add_meeting", "add_interaction"}
-        )
+        assert contract.llm_calls is (tool_name == "add_interaction")
     assert {
         tool_name
         for tool_name in sample_tools
         if get_tool_surface_contract(tool_name).db_writes
     } == {
         "create_deal",
-        "add_meeting",
         "add_interaction",
         "update_stage",
         "update_deal",
@@ -102,6 +98,7 @@ def test_sample_surface_is_zero_config_safe_local_personal() -> None:
         "delete_sample_data",
         "search_deals",
         "analyze_deal",
+        "add_meeting",
         "get_insights",
         "get_customer_themes",
     ],
@@ -125,11 +122,11 @@ def test_sample_local_personal_target_promotes_safe_non_llm_writes() -> None:
         "delete_deal",
         "migrate_local_data",
     }.issubset(target_tools)
-    assert "add_meeting" in target_tools
     assert "add_interaction" in target_tools
     assert {
         "analyze_deal",
         "search_deals",
+        "add_meeting",
         "create_sample_data",
         "delete_sample_data",
     }.isdisjoint(target_tools)
@@ -140,7 +137,6 @@ def test_standard_surface_keeps_real_operator_admin_tools() -> None:
 
     assert {
         "create_deal",
-        "add_meeting",
         "add_interaction",
         "update_stage",
         "update_deal",
@@ -151,6 +147,7 @@ def test_standard_surface_keeps_real_operator_admin_tools() -> None:
         "analyze_deal",
         "search_deals",
     }.issubset(standard_tools)
+    assert "add_meeting" not in standard_tools
     assert "create_sample_data" not in standard_tools
     assert "delete_sample_data" not in standard_tools
 
@@ -163,7 +160,10 @@ def test_developer_surface_contains_everything() -> None:
     contracted = {contract.name for contract in list_tool_surface_contracts()}
 
     assert developer_tools == contracted
-    assert {"create_sample_data", "delete_sample_data"}.issubset(developer_tools)
+    assert {"add_meeting", "create_sample_data", "delete_sample_data"}.issubset(
+        developer_tools
+    )
+    assert get_tool_surface_contract("add_meeting").user_facing is False
 
 
 @pytest.mark.parametrize(
@@ -218,8 +218,8 @@ def test_mcp_runtime_filters_tools_by_surface(monkeypatch) -> None:
 
     assert names == set(tool_names_for_surface("sample"))
     assert "create_deal" in names
-    assert "add_meeting" in names
     assert "add_interaction" in names
+    assert "add_meeting" not in names
     assert "create_sample_data" not in names
 
 
@@ -236,7 +236,9 @@ def test_mcp_runtime_blocks_hidden_tool_calls(monkeypatch) -> None:
         asyncio.run(mcp_server.app.call_tool("search_deals", {}))
 
 
-def test_sample_mcp_add_meeting_skips_embedding_provider(monkeypatch) -> None:
+def test_sample_mcp_add_interaction_meeting_skips_embedding_provider(
+    monkeypatch,
+) -> None:
     class FakeMongo:
         def __init__(self) -> None:
             self.saved = []
@@ -286,14 +288,18 @@ def test_sample_mcp_add_meeting_skips_embedding_provider(monkeypatch) -> None:
     monkeypatch.setattr(_context, "llm_provider", lambda: FakeLLM())
 
     def fail_if_called():
-        raise AssertionError("local_sample add_meeting must not initialize embeddings")
+        raise AssertionError(
+            "local_sample add_interaction must not initialize embeddings"
+        )
 
     monkeypatch.setattr(_context, "embedding_provider", fail_if_called)
 
-    result = mcp_server.add_meeting(
+    result = mcp_server.add_interaction(
         deal_id="local-intake-1",
         date="2026-06-11",
-        raw_notes="Manual reporting is slow.",
+        interaction_type="meeting",
+        direction="inbound",
+        content="Manual reporting is slow.",
     )
 
     assert result["ok"] is True

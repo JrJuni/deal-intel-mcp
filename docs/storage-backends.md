@@ -84,9 +84,6 @@ small dataset without MongoDB. Implemented methods:
 Supported safe mutation tools:
 
 - `create_deal` (supported by local personal `upsert_deal`)
-- `add_meeting` (supported by local personal `upsert_deal`; requires a ready
-  LLM provider, skips embeddings in local sample mode, and persists a
-  canonical meeting interaction)
 - `add_interaction` (supported by local personal `upsert_deal`; requires a
   ready LLM provider, stores source metadata, skips embeddings in local sample
   mode, and persists canonical raw interaction content)
@@ -134,14 +131,12 @@ Implemented write policy:
   personal storage so future redaction/security modules can process it.
 - `create_deal`, `update_stage`, and `update_deal` can persist through
   `LocalSampleClient.upsert_deal`.
-- `add_meeting` persists a canonical `interaction_type: meeting` record for
-  user-created local deals. It does not initialize or store embeddings in
-  local sample mode.
 - `add_interaction` persists canonical interactions with summaries, source
   metadata, raw content, MEDDPICC signals, and customer themes for
-  user-created local deals. Outbound and internal-only content is stored as
+  user-created local deals, including meeting notes via
+  `interaction_type: meeting`. Outbound and internal-only content is stored as
   unconfirmed interaction evidence and does not update the scoring snapshot by
-  default.
+  default. Local sample mode does not initialize or store embeddings.
 - `archive_deal` and `restore_deal` can persist through
   `LocalSampleClient.upsert_deal`.
 - `delete_deal` writes an audit entry to `delete_audit_logs.json` before
@@ -157,9 +152,8 @@ Implemented write policy:
   present in local deal details.
 - Bundled fixture deal ids are read-only and cannot be promoted into local
   personal storage through lifecycle writes.
-- Bundled fixture deal ids are also read-only for `add_meeting` and
-  `add_interaction`; users should create their own local deal before adding
-  notes or interactions.
+- Bundled fixture deal ids are also read-only for `add_interaction`; users
+  should create their own local deal before adding notes or interactions.
 - Analytics snapshot writes are still deferred, so these local writes do not
   yet create local trend snapshots.
 

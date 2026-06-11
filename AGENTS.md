@@ -92,9 +92,10 @@ Source of truth: `src/deal_intel/mcp_server.py`.
 Current tool count: 24.
 
 - Config/readiness: `config_doctor`
-- Write/lifecycle: `create_deal`, `add_meeting`, `add_interaction`,
-  `update_stage`, `update_deal`, `archive_deal`, `restore_deal`,
-  `delete_deal`
+- Write/lifecycle: `create_deal`, `add_interaction`, `update_stage`,
+  `update_deal`, `archive_deal`, `restore_deal`, `delete_deal`
+- Deprecated compatibility: `add_meeting` (developer surface only; use
+  `add_interaction` with `interaction_type: meeting` for new work)
 - Demo data: `create_sample_data`, `delete_sample_data`
 - Migration: `migrate_local_data`
 - Read/review: `get_deal`, `list_deals`, `get_deal_gaps`,
@@ -117,9 +118,10 @@ Current tool count: 24.
 - Restricted metric/report read paths must exclude raw meeting notes,
   interaction raw content, contacts, and embeddings unless the tool contract
   explicitly says otherwise.
-- `add_meeting` and `add_interaction` never change `deal_stage`. They may
-  return `stage_suggestion`; apply the change only after user confirmation
-  through `update_stage`.
+- `add_interaction` never changes `deal_stage`. It may return
+  `stage_suggestion`; apply the change only after user confirmation through
+  `update_stage`. `add_meeting` is a deprecated compatibility alias for
+  `add_interaction` with `interaction_type: meeting`.
 - Destructive tools stay conservative: dry-run first, explicit confirmation,
   exact company matching where applicable, and audit-safe snapshots.
 - Do not use realistic secret-looking placeholders in tests or docs. Use

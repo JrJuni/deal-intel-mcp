@@ -211,8 +211,8 @@ Implemented:
 - Tool surfaces are optimized for non-developer first-run clarity:
   `sample`, `standard`, and `developer`.
 - `sample` exposes mostly LLM-free tools that work against bundled sample data
-  or local personal `deals.json`, plus `add_meeting` and `add_interaction` for
-  user-created local deals when the configured LLM provider is ready.
+  or local personal `deals.json`, plus `add_interaction` for user-created local
+  deals when the configured LLM provider is ready.
 - `sample` now includes safe non-LLM write/admin tools:
   `create_deal`, `update_stage`, `update_deal`, `archive_deal`,
   `restore_deal`, and `delete_deal`.
@@ -263,8 +263,8 @@ Implemented foundation:
   diagnostic metadata.
 - Continued stripping `raw_notes`, `contacts`, and `summary_embedding` from
   local sample read and write payloads.
-- Supported local persistence for `create_deal`, `add_meeting`,
-  `add_interaction`, `update_stage`, and `update_deal`.
+- Supported local persistence for `create_deal`, `add_interaction`,
+  `update_stage`, and `update_deal`.
 - Supported local persistence for `archive_deal`, `restore_deal`, and
   `delete_deal` with existing confirmation, company-match, dry-run, archived-
   before-delete, and audit-snapshot gates.

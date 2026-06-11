@@ -96,13 +96,13 @@ FIELD_HINTS = {
         "suggested_question": (
             "최근 미팅에서 확인된 pain, decision criteria, next step은 무엇인가요?"
         ),
-        "recommended_action": "add_meeting_notes",
+        "recommended_action": "add_interaction_evidence",
     },
     "health_assessment": {
         "impact_area": "sales_action",
         "reason": "Qualified-or-later deal has no usable MEDDPICC health assessment.",
         "suggested_question": "MEDDPICC 기준으로 아직 확인하지 못한 항목은 무엇인가요?",
-        "recommended_action": "add_or_refresh_meeting_notes",
+        "recommended_action": "add_or_refresh_interaction_evidence",
     },
     "actual_close_date": {
         "impact_area": "postmortem",

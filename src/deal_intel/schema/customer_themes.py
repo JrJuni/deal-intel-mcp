@@ -91,8 +91,8 @@ def normalize_stage_signal(raw: Any) -> dict | None:
     """Validate an optional stage-change signal from the LLM.
 
     Returns None unless the notes clearly point at a valid pipeline stage.
-    This is only ever surfaced to the user as a suggestion — add_meeting never
-    changes deal_stage automatically; the user must confirm via update_stage.
+    This is only ever surfaced to the user as a suggestion. Intake tools never
+    change deal_stage automatically; the user must confirm via update_stage.
     """
     if not isinstance(raw, dict):
         return None

@@ -20,8 +20,8 @@
   "tools": [
     {"name": "config_doctor", "description": "Diagnose profile, storage, vector search, and LLM readiness without writes or LLM calls."},
     {"name": "create_deal",   "description": "Create a new deal for a prospect company."},
-    {"name": "add_meeting",   "description": "Add meeting notes to a deal and auto-extract MEDDPICC signals via LLM."},
-    {"name": "add_interaction", "description": "Add an email, interview, call summary, or internal note with source-aware MEDDPICC extraction."},
+    {"name": "add_meeting",   "description": "Deprecated developer-surface alias for add_interaction with interaction_type=meeting."},
+    {"name": "add_interaction", "description": "Add a meeting, email, interview, call summary, or internal note with source-aware MEDDPICC extraction."},
     {"name": "update_stage",  "description": "Move a deal to a new pipeline stage and log it to stage history."},
     {"name": "update_deal",   "description": "Update confirmed deal value and selected metadata fields."},
     {"name": "archive_deal",  "description": "Archive a deal so default BI/read paths hide it without hard deletion."},

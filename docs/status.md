@@ -12,6 +12,37 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-11
 
+### P3.3 single public interaction intake
+
+Implemented:
+
+- Promoted `add_interaction` as the only public/customer-evidence intake path
+  on the `sample` and `standard` MCP surfaces.
+- Kept `add_meeting` registered only on the `developer` surface as a
+  deprecated compatibility alias for `add_interaction` with
+  `interaction_type: meeting`.
+- Updated tests so primary meeting-note behavior is exercised through
+  `add_interaction(interaction_type="meeting")`.
+- Updated README, MCPB manifest text, baseline/tool-surface docs, and
+  AGENTS/CLAUDE rules so new users and fork authors see one clear intake
+  concept.
+
+Verification:
+
+- Targeted surface/intake/profile/bundle/local regression:
+  `100 passed`, `1 warning`
+- Full pytest:
+  `423 passed`, `1 warning`
+- Ruff:
+  `All checks passed`
+- Runtime surface count smoke:
+  `sample=17`, `standard=21`, `developer=24`; `add_meeting` hidden from
+  sample/standard and present only in developer
+- MCPB manifest validation:
+  `Manifest schema validation passes!`
+- Diff whitespace check:
+  `git diff --check` passed with Git line-ending normalization warnings only
+
 ### P3.2 canonical interaction storage
 
 Implemented:
@@ -52,6 +83,9 @@ Follow-up:
   deprecated alias and eventually remove it from default user-facing tool
   surfaces. `add_interaction(interaction_type="meeting")` should become the
   single clear intake path for new users and forked implementations.
+- Detailed P3.3 implementation units are tracked in
+  [backlog.md](backlog.md#customer-interaction-intake) under "single intake
+  surface".
 
 ### P3.1 customer interaction intake contract
 

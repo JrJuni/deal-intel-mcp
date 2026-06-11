@@ -49,13 +49,13 @@ _PROFILES: dict[ConfigProfileName, ConfigProfile] = {
             "No MongoDB Atlas project required for sample testing.",
             "No API key required for LLM-free BI/reporting smoke paths.",
             "ChatGPT OAuth or an API-key provider is needed only for LLM "
-            "tools such as add_meeting.",
+            "tools such as add_interaction.",
         ),
         limitations=(
             "Feature-test surface with some tools intentionally unavailable.",
             "Bundled fictional data is immutable; user-created local data is separate.",
-            "add_meeting works only on user-created local personal deals when "
-            "the configured LLM provider is ready.",
+            "add_interaction works only on user-created local personal deals "
+            "when the configured LLM provider is ready.",
             "Semantic search and analyze_deal remain unavailable in sample.",
             "Team/shared operation assumes MongoDB-backed full mode.",
         ),

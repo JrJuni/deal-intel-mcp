@@ -142,17 +142,57 @@ Current implementation note:
   but do not update MEDDPICC health or customer-theme counts unless the caller
   explicitly marks the source as stronger evidence.
 
-Planned P3.3 cleanup:
+#### P3.3 cleanup: single public intake surface
 
-- Make `add_interaction` the single public intake concept in docs, examples,
-  and onboarding.
-- Mark `add_meeting` as a deprecated compatibility alias first, then remove it
-  from default user-facing tool surfaces once sample/full workflows are updated.
-- Keep legacy `deal.meetings` read fallback for existing data, but stop adding
-  new feature logic to the `add_meeting` wrapper.
-- Acceptance criteria: no docs/tutorial flow requires `add_meeting`; tests
-  cover `interaction_type: meeting` through `add_interaction`; MCP/tool-surface
-  counts and migration notes are updated in one deliberate cleanup commit.
+Goal: make the codebase easier for outside users and fork authors to
+understand by removing "meeting tool vs interaction tool" ambiguity.
+`add_interaction` should become the single public intake concept; meeting notes
+are just `interaction_type: meeting`.
+
+First cleanup implemented on 2026-06-11:
+
+- `sample` and `standard` surfaces expose `add_interaction`, not
+  `add_meeting`.
+- `add_meeting` remains registered only on the `developer` surface as a
+  deprecated compatibility alias.
+- README, MCPB manifest text, baseline/tool-surface docs, AGENTS/CLAUDE rules,
+  and primary tests now point new integrations to `add_interaction`.
+- Runtime surface counts are now `sample=17`, `standard=21`, `developer=24`.
+
+Why now:
+
+- P3.2 already made `deal.interactions` the canonical storage path.
+- Keeping `add_meeting` as a second first-class tool creates duplicate mental
+  models for users and future contributors.
+- The repo is intended to be reused by others, so public API clarity matters
+  more than preserving a convenience alias forever.
+
+Remaining implementation units:
+
+1. Code cleanup.
+   - Stop adding new feature logic to `src/deal_intel/tools/add_meeting.py`.
+   - Keep the wrapper tiny or remove it once no test/docs path needs it.
+   - Keep legacy `deal.meetings` read fallback in `schema.interactions`; that
+     is data compatibility, not a public write API.
+2. Final alias removal.
+   - Remove `src/deal_intel/tools/add_meeting.py` and the MCP handler after at
+     least one compatibility window, or when no supported client path needs it.
+   - Keep one release note explaining the replacement call:
+     `add_interaction(interaction_type="meeting", direction="inbound", ...)`.
+3. Legacy data compatibility.
+   - Keep `deal.meetings` read fallback covered by tests even after the write
+     alias is removed.
+
+Acceptance criteria:
+
+- No user tutorial or README happy path requires `add_meeting`.
+- `interaction_type: meeting` through `add_interaction` covers the former
+  `add_meeting` behavior.
+- If `add_meeting` remains, it is visibly deprecated and excluded from default
+  user-facing surfaces, or there is a documented reason to keep it for one more
+  release.
+- Legacy `deal.meetings` read fallback remains covered by tests.
+- Full pytest, Ruff, MCP/tool-surface count smoke, and MCPB manifest tests pass.
 
 ### Account People Graph
 

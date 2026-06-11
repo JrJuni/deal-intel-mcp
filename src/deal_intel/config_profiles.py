@@ -53,7 +53,7 @@ _PROFILES: dict[ConfigProfileName, ConfigProfile] = {
             "No semantic search in the local sample MVP.",
         ),
         first_run_commands=(
-            "deal-intel config init --profile sample",
+            "deal-intel config show",
             "deal-intel storage-status",
             "deal-intel smoke-natural-questions --as-of 2026-06-10",
         ),
@@ -80,9 +80,8 @@ _PROFILES: dict[ConfigProfileName, ConfigProfile] = {
             "Large-scale search performance is bounded by Python-side cosine.",
         ),
         first_run_commands=(
-            "deal-intel config init --profile full",
+            "deal-intel config show",
             "deal-intel storage-status",
-            "deal-intel config doctor",
         ),
     ),
     "pro": ConfigProfile(
@@ -108,9 +107,8 @@ _PROFILES: dict[ConfigProfileName, ConfigProfile] = {
             "Should be treated as an upgrade path, not the first-run default.",
         ),
         first_run_commands=(
-            "deal-intel config init --profile pro",
+            "deal-intel config show",
             "deal-intel storage-status",
-            "deal-intel config doctor",
         ),
     ),
 }

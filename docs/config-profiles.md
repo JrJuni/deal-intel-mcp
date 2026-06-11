@@ -51,7 +51,7 @@ Done when:
 
 ### Z5.2 Config Inspect CLI
 
-Planned commands:
+Implemented commands:
 
 ```bash
 deal-intel config profiles
@@ -63,6 +63,14 @@ Done when:
 - Current profile is shown.
 - Effective config is summarized without leaking secrets.
 - Profile metadata can be printed for AI agents and humans.
+
+Result:
+
+- `config profiles` prints the `sample/full/pro` catalog.
+- `config show` prints the inferred current profile, user config path,
+  selected effective config fields, and configured env-key status.
+- Secret values are never printed; env keys are reported as configured
+  `true/false` only.
 
 ### Z5.3 Config Init/Switch CLI
 

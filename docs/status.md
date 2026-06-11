@@ -6,6 +6,28 @@ contracts live in [baseline.md](baseline.md) and [metrics.md](metrics.md).
 
 ## Latest Update - 2026-06-11
 
+### Config profiles Z5.2 inspect CLI
+
+Implemented:
+
+- Added `deal-intel config profiles` for the one-package
+  `sample/full/pro` profile catalog.
+- Added `deal-intel config show` for the current inferred profile, user config
+  path, selected effective config fields, and configured env-key status.
+- Kept output secret-safe: environment values are never printed, only
+  `configured: true/false`.
+- Added `_env.user_config_path()` so CLI and tests do not need to duplicate the
+  user config path.
+
+Verification:
+
+- Z5.2 targeted tests:
+  `22 passed`
+- Full pytest:
+  `317 passed`, `1 warning`
+- Ruff:
+  `All checks passed`
+
 ### Config profiles Z5.1 profile contract
 
 Implemented:

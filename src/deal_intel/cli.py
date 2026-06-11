@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
@@ -9,11 +10,21 @@ from typing import Any
 import typer
 
 app = typer.Typer(help="deal-intel CLI")
+config_app = typer.Typer(help="Inspect and prepare deal-intel config profiles.")
+app.add_typer(config_app, name="config")
 
 SENSITIVE_RESULT_KEYS = {"raw_notes", "contacts", "summary_embedding"}
 ALERT_RANK = {"alert": 3, "watch": 2, "info": 1, "none": 0}
 UNCERTAINTY_RANK = {"high": 2, "medium": 1, "low": 0}
 ISSUE_SEVERITY_RANK = {"high": 3, "medium": 2, "low": 1}
+CONFIG_ENV_KEYS = (
+    "MONGODB_URI",
+    "ANTHROPIC_API_KEY",
+    "OPENAI_API_KEY",
+    "DEAL_INTEL_LLM_PROVIDER",
+    "DEAL_INTEL_USE_CHATGPT_OAUTH",
+    "DEAL_INTEL_STORAGE_BACKEND",
+)
 
 
 @app.command("login-chatgpt")
@@ -35,6 +46,60 @@ def login_chatgpt(
     assert isinstance(provider, _llm.ChatGPTOAuthProvider)
     result = provider.login(force=force)
     typer.echo(f"ok  model={result['model']}  token_path={result['token_path']}")
+
+
+@config_app.command("profiles")
+def config_profiles(
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Print structured JSON instead of concise text.",
+    ),
+) -> None:
+    """List available one-package config profiles."""
+
+    from deal_intel.config_profiles import list_config_profiles
+
+    payload = {
+        "ok": True,
+        "profiles": [profile.to_dict() for profile in list_config_profiles()],
+    }
+    if json_output:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        typer.echo(_format_config_profiles(payload))
+
+
+@config_app.command("show")
+def config_show(
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Print structured JSON instead of concise text.",
+    ),
+) -> None:
+    """Show the effective config summary without printing secret values."""
+
+    from deal_intel import _env
+    from deal_intel.config_profiles import get_config_profile, infer_config_profile
+
+    cfg = _env.load_config()
+    profile_name = infer_config_profile(cfg)
+    profile = get_config_profile(profile_name)
+    user_config = _env.user_config_path()
+    payload = {
+        "ok": True,
+        "profile": profile_name,
+        "profile_metadata": profile.to_dict(),
+        "user_config_path": str(user_config),
+        "user_config_exists": user_config.exists(),
+        "effective_config": _summarize_config_for_display(cfg),
+        "environment": _summarize_config_environment(),
+    }
+    if json_output:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        typer.echo(_format_config_show(payload))
 
 
 @app.command("storage-status")
@@ -593,6 +658,108 @@ def _format_storage_status(payload: dict) -> str:
             ]
         )
     return "\n".join(lines)
+
+
+def _summarize_config_for_display(cfg: dict[str, Any]) -> dict[str, Any]:
+    llm = _mapping(cfg.get("llm"))
+    mongodb = _mapping(cfg.get("mongodb"))
+    storage = _mapping(cfg.get("storage"))
+    reporting = _mapping(cfg.get("reporting"))
+    pipeline = _mapping(cfg.get("pipeline"))
+    expected_close = _mapping(pipeline.get("expected_close"))
+    metrics = _mapping(cfg.get("metrics"))
+    health_bands = _mapping(metrics.get("health_bands"))
+    return {
+        "storage": {
+            "backend": storage.get("backend", "mongo"),
+        },
+        "mongodb": {
+            "database": mongodb.get("database", "deal_intel"),
+            "demo_database": mongodb.get("demo_database"),
+            "vector_search": mongodb.get("vector_search", "python_cosine"),
+        },
+        "llm": {
+            "provider": llm.get("provider", "chatgpt_oauth"),
+            "chatgpt_oauth_model": llm.get("chatgpt_oauth_model"),
+            "openai_api_model": llm.get("openai_api_model"),
+            "openai_api_reasoning_effort": llm.get("openai_api_reasoning_effort"),
+            "draft_model": llm.get("draft_model"),
+        },
+        "reporting": {
+            "timezone": reporting.get("timezone"),
+            "output_dir": reporting.get("output_dir"),
+        },
+        "pipeline": {
+            "expected_close_default_days": expected_close.get("default_days"),
+            "stuck_threshold_days": pipeline.get("stuck_threshold_days"),
+        },
+        "metrics": {
+            "healthy_min": health_bands.get("healthy_min"),
+            "watch_min": health_bands.get("watch_min"),
+        },
+    }
+
+
+def _summarize_config_environment() -> dict[str, dict[str, bool]]:
+    return {
+        key: {"configured": bool(os.environ.get(key))}
+        for key in CONFIG_ENV_KEYS
+    }
+
+
+def _format_config_profiles(payload: dict) -> str:
+    lines = ["Config profiles:"]
+    for profile in payload["profiles"]:
+        lines.extend(
+            [
+                f"- {profile['name']} ({profile['title']}): "
+                f"{profile['description']}",
+                f"  storage={profile['config_patch']['storage']['backend']}, "
+                f"vector_search={profile['config_patch']['mongodb']['vector_search']}, "
+                f"llm={profile['config_patch']['llm']['provider']}",
+            ]
+        )
+    return "\n".join(lines)
+
+
+def _format_config_show(payload: dict) -> str:
+    cfg = payload["effective_config"]
+    env = payload["environment"]
+    configured_env = [
+        key for key, value in env.items() if value.get("configured")
+    ]
+    lines = [
+        f"Config profile: {payload['profile']}",
+        f"User config: {payload['user_config_path']} "
+        f"({'exists' if payload['user_config_exists'] else 'missing'})",
+        (
+            "Storage: "
+            f"{cfg['storage']['backend']} | "
+            f"Mongo database: {cfg['mongodb']['database']} | "
+            f"Vector search: {cfg['mongodb']['vector_search']}"
+        ),
+        (
+            "LLM: "
+            f"{cfg['llm']['provider']} | "
+            f"ChatGPT model: {cfg['llm']['chatgpt_oauth_model']} | "
+            f"OpenAI model: {cfg['llm']['openai_api_model']}"
+        ),
+        (
+            "Reporting: "
+            f"timezone={cfg['reporting']['timezone']}, "
+            f"output_dir={cfg['reporting']['output_dir']}"
+        ),
+        (
+            "Configured env keys: "
+            f"{', '.join(configured_env) if configured_env else 'none'}"
+        ),
+        "Secret values are redacted; only configured true/false is shown.",
+    ]
+    return "\n".join(lines)
+
+
+def _mapping(value: Any) -> dict:
+    return value if isinstance(value, dict) else {}
 
 
 def _build_natural_question_smoke_pack(

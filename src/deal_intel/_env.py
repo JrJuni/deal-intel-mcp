@@ -12,6 +12,10 @@ _USER_CONFIG_PATH = Path.home() / ".deal-intel" / "config.yaml"
 _VALID_STORAGE_BACKENDS = {"mongo", "local_sample"}
 
 
+def user_config_path() -> Path:
+    return _USER_CONFIG_PATH
+
+
 def load_config() -> dict:
     import yaml
 

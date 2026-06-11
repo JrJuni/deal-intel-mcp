@@ -29,6 +29,9 @@ Green:
 
 Yellow:
 
+- KRW-specific amount field names remain in the core schema. Because there are
+  no external users yet, this should be cleaned up before locking a v1.0 public
+  contract.
 - Claude Desktop MCPB reinstall should be smoked once more after any manifest
   or bundle hardening change.
 - Full MongoDB mode works in development, but a disposable live migration smoke
@@ -188,6 +191,8 @@ Do not block the first MVP on these:
 - Full customer/account people graph.
 - Human-readable CSV redesign beyond the current weekly/trend reports.
 - OpenAI API live smoke when no API credits are available.
+- Full MEDDPICC/qualification-framework abstraction. The MVP uses MEDDPICC as
+  the default framework; replacing the dimension set is v2.0 work.
 
 ## Sign-Off Template
 

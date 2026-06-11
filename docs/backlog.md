@@ -17,6 +17,124 @@ When this file conflicts with code, tests, or contract docs, prefer:
 
 ## Current Active Streams
 
+### Product Roadmap To v1.0 And v2.0
+
+Goal: keep the MVP useful for one-person or small AI-assisted sales teams while
+preserving a clear path to deeper customization.
+
+Current positioning:
+
+- The default product is an AI-assisted sales/deal-intelligence record and
+  review tool for teams without a mature CRM or dedicated sales operations
+  function.
+- Different industries have different deal tempo, expected close windows,
+  qualification signals, and reporting expectations. Configuration is therefore
+  a product feature, not just an implementation detail.
+- The MVP should stay simple enough for sample/local evaluation, but the core
+  data model should avoid unnecessary Korea-only or MEDDPICC-only assumptions
+  where the migration cost is still low.
+
+Recommended implementation order:
+
+1. Currency abstraction.
+   - Rename the canonical amount fields from KRW-specific names to generic
+     amount/currency fields.
+   - Because there are currently no external users, prefer a clean canonical
+     schema over a long-lived legacy alias layer.
+   - Keep any compatibility shims short-lived and explicit only where tests or
+     migration tooling need them.
+2. Pro profile skeleton and infrastructure path.
+   - Add the paid-infra upgrade path around MongoDB M10+, Atlas Vector Search,
+     and related MongoDB ecosystem features where they provide real value.
+   - Keep `sample` and `full` working without paid infrastructure.
+3. v1.0 distribution decision.
+   - Confirm the first external distribution path after the MVP package is
+     stable enough: git-clone assisted install, MCPB, uvx/Python-native, or a
+     thin npx wrapper.
+4. Review and CSV quality improvements.
+   - Improve human-readable deal review and reporting artifacts using external
+     feedback after the architecture is stable enough to trial.
+5. Other MVP polish and issue fixes.
+6. Qualification framework abstraction for v2.0.
+   - Defer full MEDDPICC abstraction until after v1.0.
+   - Do it on a dedicated branch or separate repository if needed, because it
+     touches extraction prompts, score calculation, gap logic, reports,
+     dashboards, tests, and user mental models.
+
+### Currency Abstraction
+
+Goal: remove KRW-specific field names from the core schema so the product can
+serve non-KRW teams without making every metric/report feel Korea-specific.
+
+Preferred v1 canonical fields:
+
+- `deal_size_amount`
+- `deal_size_low_amount`
+- `deal_size_high_amount`
+- `deal_size_currency`
+
+Configuration:
+
+```yaml
+deal_value:
+  default_currency: KRW
+```
+
+Implementation stance:
+
+- Do not preserve `_krw` fields as a long-term public contract. There are no
+  external users yet, so schema clarity is worth the one-time migration.
+- Existing fixture/sample data, tests, reports, metrics, Atlas chart specs, and
+  docs should move to the generic names together.
+- If compatibility aliases are needed during implementation, keep them local to
+  migration/read helpers and remove or mark them temporary before v1.0.
+- Output labels should include currency explicitly, for example
+  `pipeline_value_amount` plus `currency`, or user-facing labels such as
+  `Pipeline value (KRW)`.
+
+Acceptance criteria:
+
+- `create_deal` and `update_deal` accept the new amount/currency fields.
+- Pipeline metrics no longer expose KRW-only canonical keys.
+- Reports and Atlas specs render values with the configured/default currency.
+- Local sample fixtures and Mongo migration paths use the new schema.
+- Full pytest, Ruff, natural smoke, report smoke, and Atlas chart render tests
+  pass.
+
+### Qualification Framework Abstraction v2.0
+
+Goal: eventually allow teams to replace or extend the default MEDDPICC
+qualification model without forking the whole product.
+
+Timing:
+
+- Deferred until after v1.0.
+- Treat as v2.0 work on a dedicated branch or separate repository if the
+  blast radius grows.
+
+Why deferred:
+
+- The current code intentionally uses MEDDPICC as the default operating model.
+- The dimension list is embedded in extraction prompts, health calculation,
+  stage-aware gap logic, deal review, reports, Atlas chart specs, tests, and
+  docs.
+- Generalizing this before the MVP has real user feedback risks turning the
+  product into a framework before the core workflow is proven.
+
+Minimum future concept:
+
+- A qualification framework has:
+  - `framework_id`
+  - dimensions with `key`, `label`, `weight`, score scale, and extraction
+    description
+  - optional stage-aware gap rules
+  - optional framework-specific report labels
+- Custom dimensions without stage rules should still work with simple
+  threshold-based gap detection.
+- Extraction descriptions are mandatory for custom dimensions. A dimension
+  without instructions becomes a dead metric because the LLM will not know what
+  evidence to collect.
+
 ### Z5 - Profile and Config Rollout
 
 Goal: keep one package while making first-run setup clear for `sample`, `full`,

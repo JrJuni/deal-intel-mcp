@@ -10,7 +10,40 @@ Read the newest section first. Older sections are retained as an archive for
 traceability and should be searched by topic, milestone, or file path rather
 than loaded wholesale.
 
-## Latest Update - 2026-06-11
+## Latest Update - 2026-06-12
+
+### Product roadmap adjustment before Pro work
+
+Decision:
+
+- Repositioned the product as an AI-assisted sales/deal-intelligence record and
+  review tool for one-person or small AI teams that need customizable sales
+  metrics without adopting a full CRM.
+- Moved currency abstraction ahead of Pro infrastructure work.
+- Because there are currently no external users, the preferred currency plan is
+  a clean canonical schema migration instead of keeping `_krw` fields as a
+  long-lived public API.
+- Deferred full MEDDPICC/qualification-framework abstraction until after v1.0.
+  It should be handled as v2.0 work on a dedicated branch or separate repo if
+  needed.
+
+Updated roadmap:
+
+1. Currency abstraction.
+2. Pro profile skeleton and MongoDB/Atlas Vector Search upgrade path.
+3. v1.0 distribution decision.
+4. Deal Review and CSV/report quality improvements.
+5. Other MVP polish and issue fixes.
+6. Qualification framework abstraction for v2.0.
+
+Docs:
+
+- Added Product Roadmap, Currency Abstraction, and Qualification Framework
+  Abstraction sections to `docs/backlog.md`.
+- Updated `docs/mvp-readiness.md` so KRW-specific schema cleanup is a v1.0
+  yellow item and MEDDPICC abstraction is explicitly deferred.
+
+## Previous Update - 2026-06-11
 
 ### Package-data readiness for future uvx/npx distribution
 

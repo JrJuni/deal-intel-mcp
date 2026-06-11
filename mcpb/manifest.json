@@ -47,7 +47,7 @@
     "mongodb_uri": {
       "type": "string",
       "title": "MongoDB Atlas URI",
-      "description": "Connection string for your MongoDB Atlas cluster (M0 free tier works). Format: mongodb+srv://<user>:<password>@<cluster>.mongodb.net/?retryWrites=true&w=majority",
+      "description": "Connection string for your MongoDB Atlas cluster (M0 free tier works). Paste your Atlas connection string; do not commit it.",
       "sensitive": true,
       "required": true
     },

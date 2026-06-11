@@ -4,7 +4,47 @@ This file tracks the current workstream and the most recent completed
 milestones. Longer roadmap items live in [backlog.md](backlog.md), and durable
 contracts live in [baseline.md](baseline.md) and [metrics.md](metrics.md).
 
+## Reading Note
+
+Read the newest section first. Older sections are retained as an archive for
+traceability and should be searched by topic, milestone, or file path rather
+than loaded wholesale.
+
 ## Latest Update - 2026-06-11
+
+### Secret scan cleanup and debt audit
+
+Implemented:
+
+- Investigated the secret detection on commit `89d0aa0`; confirmed it was a
+  false positive caused by realistic fake test/doc placeholders, not a real
+  credential leak.
+- Replaced API-key-shaped and credential-URI-shaped examples with neutral
+  placeholders in `.env.example`, README files, and mcpb metadata.
+- Updated config CLI tests to use scanner-safe sentinel values while still
+  asserting that config output never echoes environment values.
+- Recorded the failure mode in [lesson-learned.md](lesson-learned.md).
+
+Audit notes:
+
+- No `eval`, `exec`, `shell=True`, `pickle`, unsafe YAML load, or environment
+  dumps were found in the reviewed source/test/doc paths.
+- Sensitive fields such as raw meeting notes, contacts, and embeddings are
+  intentionally excluded from reporting/metric/gap surfaces and covered by
+  existing tests.
+- Low-priority technical debt remains around broad best-effort exception
+  handling in vector-index setup and malformed timestamp fallback paths.
+
+Verification:
+
+- Secret-like pattern scan:
+  `no matches`
+- Config/storage targeted tests:
+  `22 passed`
+- Full pytest:
+  `317 passed`, `1 warning`
+- Ruff:
+  `All checks passed`
 
 ### Config profiles Z5.2 inspect CLI
 
@@ -91,7 +131,7 @@ Implemented:
 - `search_deals` now returns a structured unsupported-mode response in local
   sample mode before touching embeddings.
 - Fixed the bundled fixture so the natural-question smoke pack's PayBridge
-  question resolves to `페이브릿지` instead of falling back to the first deal.
+  question resolves to `PayBridge` instead of falling back to the first deal.
 
 Verification:
 
@@ -451,7 +491,7 @@ Implemented:
 - Added `DEAL_INTEL_LLM_PROVIDER` as the explicit provider override while
   preserving legacy `DEAL_INTEL_USE_CHATGPT_OAUTH` behavior.
 - Bumped the MCP bundle manifest to `0.1.8`.
-- Kept the MCP tool surface unchanged at 18 tools.
+- Kept the then-current MCP tool surface unchanged.
 
 Verification:
 
@@ -534,7 +574,7 @@ Verification so far:
 Implemented:
 
 - Added MCP tools: `create_sample_data`, `delete_sample_data`.
-- FastMCP registration target is now 18 tools.
+- FastMCP registration target was updated for the then-current tool surface.
 - Added `mongodb.demo_database`, default `deal_intel_demo`.
 - Sample tools reject any demo database equal to the primary
   `mongodb.database`.

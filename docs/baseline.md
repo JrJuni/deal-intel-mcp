@@ -40,10 +40,10 @@ All MCP boundaries return structured errors with:
 
 Valid `llm.provider` values:
 
-- `chatgpt_oauth` — default; uses ChatGPT Plus/Pro OAuth tokens from the local
+- `chatgpt_oauth` - default; uses ChatGPT Plus/Pro OAuth tokens from the local
   `login-chatgpt` flow.
-- `openai_api` — uses the official OpenAI Responses API with `OPENAI_API_KEY`.
-- `anthropic` — uses `ANTHROPIC_API_KEY` through the Anthropic SDK.
+- `openai_api` - uses the official OpenAI Responses API with `OPENAI_API_KEY`.
+- `anthropic` - uses `ANTHROPIC_API_KEY` through the Anthropic SDK.
 
 `DEAL_INTEL_LLM_PROVIDER` is the explicit install/bundle override and accepts
 the same values. `DEAL_INTEL_USE_CHATGPT_OAUTH` remains a legacy boolean
@@ -233,7 +233,7 @@ Command:
 & "$HOME\miniconda3\envs\event-intel\python.exe" -m ruff check .
 ```
 
-Milestone 0.1 최초 측정 결과는 28개 기존 finding이었다.
+Milestone 0.1 initially measured 28 existing Ruff findings.
 
 | Area | Findings |
 |---|---:|
@@ -249,7 +249,7 @@ Milestone 0.1 최초 측정 결과는 28개 기존 finding이었다.
 
 #### Current Quality Gate
 
-Milestone 1 시작 전에 28개 finding을 모두 해결했다. 현재 gate는 다음과 같다.
+Before Milestone 1 started, all 28 findings were resolved. The current gate is:
 
 ```text
 pytest -> 128 passed
@@ -259,7 +259,7 @@ FastMCP runtime registration -> 21 tools
 MongoDB Atlas read smoke -> passed
 ```
 
-이후 서브 태스크는 이 gate를 유지해야 한다.
+Future subtasks must keep this gate passing.
 
 ### Privacy and Scope
 

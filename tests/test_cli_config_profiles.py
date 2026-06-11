@@ -52,17 +52,17 @@ def test_config_show_cli_summarizes_effective_config_without_secrets(
     monkeypatch.setattr(_env, "_USER_CONFIG_PATH", user_config)
     monkeypatch.setenv(
         "MONGODB_URI",
-        "mongodb+srv://secret-user:secret-password@example.mongodb.net/",
+        "configured-mongodb-uri-sentinel",
     )
-    monkeypatch.setenv("OPENAI_API_KEY", "sk-secret-openai-key")
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-secret-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "configured-openai-key-sentinel")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "configured-anthropic-key-sentinel")
 
     result = CliRunner().invoke(app, ["config", "show", "--json"])
 
     assert result.exit_code == 0
-    assert "secret-password" not in result.stdout
-    assert "sk-secret-openai-key" not in result.stdout
-    assert "sk-ant-secret-key" not in result.stdout
+    assert "configured-mongodb-uri-sentinel" not in result.stdout
+    assert "configured-openai-key-sentinel" not in result.stdout
+    assert "configured-anthropic-key-sentinel" not in result.stdout
     payload = json.loads(result.stdout)
     assert payload["ok"] is True
     assert payload["profile"] == "sample"
@@ -90,11 +90,11 @@ def test_config_show_cli_uses_env_storage_override(monkeypatch, tmp_path) -> Non
 
 def test_config_show_cli_text_does_not_print_secret_values(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(_env, "_USER_CONFIG_PATH", tmp_path / "missing.yaml")
-    monkeypatch.setenv("MONGODB_URI", "mongodb+srv://secret-user:secret-pass@host/")
+    monkeypatch.setenv("MONGODB_URI", "configured-mongodb-uri-sentinel")
 
     result = CliRunner().invoke(app, ["config", "show"])
 
     assert result.exit_code == 0
     assert "Config profile:" in result.stdout
     assert "MONGODB_URI" in result.stdout
-    assert "secret-pass" not in result.stdout
+    assert "configured-mongodb-uri-sentinel" not in result.stdout

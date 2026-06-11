@@ -140,8 +140,8 @@ pipeline:
   expected_close:
     default_days: 7
     days_by_industry:
-      공공: 60
-      대기업: 28
+      public_sector: 60
+      enterprise: 28
 ```
 
 - A user-provided ISO date always wins and records

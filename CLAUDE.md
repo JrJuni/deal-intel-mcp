@@ -1,109 +1,131 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This is the short operating guide for Claude Code and Claude Desktop sessions
+working with this repository. Keep it current and compact. Put long history in
+`docs/`.
 
-## Project north star
+## Project North Star
 
-**deal-intel-mcp** 는 상담 내역·회의록을 MEDDPICC 기준으로 구조화하고 MongoDB Atlas에 저장, Claude/ChatGPT 분석으로 BD 전략과 성공 패턴 BI를 제공하는 MCP 서버다.
+`deal-intel-mcp` is an MCP server for B2B deal intelligence. It turns meeting
+notes into MEDDPICC signals, stores deal state, and exposes BI/reporting tools
+that Claude, Codex, ChatGPT, CSV exports, and Atlas Charts can use.
 
-시블링 프로젝트: `event-intel-mcp` (전시회 잠재고객 발굴) → **이 프로젝트** (발굴된 고객의 딜 자격 심사 및 클로징 관리).
+The product direction is one repository / one package with three profiles:
 
-## Dev environment
+- `sample`: zero-config, MongoDB-free, read-only demo over bundled data.
+- `full`: Atlas-backed operating mode for real team data.
+- `pro`: paid-infrastructure path with API-key LLM providers and Atlas Vector
+  Search.
 
-`event-intel` conda 환경을 재사용하거나 신규 생성:
+## Read First
 
-```bash
-# Option A: event-intel 환경 재사용 (의존성 대부분 겹침)
-~/miniconda3/envs/event-intel/python.exe -m pip install -e ".[dev,embedding]"
+Do not read every doc by default. Start here:
 
-# Option B: 신규 환경
-~/miniconda3/Scripts/conda.exe create -n deal-intel python=3.11 -y
-~/miniconda3/envs/deal-intel/python.exe -m pip install -e ".[dev,embedding]"
+1. `CLAUDE.md` or `AGENTS.md` for agent rules.
+2. `docs/README.md` for the documentation map and current reading order.
+3. `docs/status.md` for the latest completed work.
+4. `docs/baseline.md` for MCP tool contracts.
+5. `docs/metrics.md`, `docs/reports.md`, `docs/storage-backends.md`, or
+   `docs/config-profiles.md` only when the task touches that area.
+
+Append-only or historical docs such as `docs/lesson-learned.md` and old
+sections of `docs/backlog.md` are archive material. Search them for a specific
+failure or decision; do not load them wholesale for ordinary tasks.
+
+## Documentation Language Policy
+
+- English is the source language for repository docs, contracts, status,
+  backlog, architecture, and lesson-learned files.
+- Keep persistent English source docs ASCII-only unless a file format or quoted
+  external value genuinely requires otherwise.
+- The only Korean-maintained companion docs are `README.ko.md` and
+  `AGENTS.ko.md`.
+- Update the Korean companion docs when Juni explicitly asks for a Korean doc
+  update. Otherwise keep implementation docs English-first and translate on
+  demand in chat.
+
+## Dev Environment
+
+Use the conda environment Python directly. Do not use bare `python` or `py` on
+Windows.
+
+```powershell
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m pip install -e ".[dev,embedding]"
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m pytest
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m ruff check .
 ```
 
-항상 conda env의 Python을 직접 사용 — bare `python` / `py` 금지 (Windows Store stub).
+Useful CLI checks:
 
-## Common commands
-
-```bash
-# 패키지 설치
-~/miniconda3/envs/event-intel/python.exe -m pip install -e ".[dev,embedding]"
-
-# ChatGPT OAuth 로그인 (최초 1회, 브라우저 열림)
-~/miniconda3/envs/event-intel/python.exe -m deal_intel.cli login-chatgpt
-
-# MCP 서버 (stdio, 보통 Claude Desktop이 spawn)
-~/miniconda3/envs/event-intel/python.exe -m deal_intel.mcp_server
-
-# 테스트
-~/miniconda3/envs/event-intel/python.exe -m pytest
-
-# 정적 검사
-~/miniconda3/envs/event-intel/python.exe -m ruff check .
-
-# 기존 미팅의 customer themes 확인 후 반영
-~/miniconda3/envs/event-intel/python.exe -m deal_intel.cli backfill-customer-themes
-~/miniconda3/envs/event-intel/python.exe -m deal_intel.cli backfill-customer-themes --apply
+```powershell
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli storage-status
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli config profiles
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli config show
 ```
 
-## Architecture
+For temporary zero-config sample mode:
 
-```
-Claude Desktop (stdio JSON-RPC)
-   │
-   ▼
-deal_intel.mcp_server (FastMCP) — 11 tools
-   │
-   ├─ create_deal          — 신규 딜 생성 (MongoDB upsert)
-   ├─ add_meeting          — 회의록 추가 + MEDDPICC 자동 추출 (LLM)
-   │                         + customer_themes 추출, stage 전환 신호 시 stage_suggestion 반환
-   ├─ update_stage         — 파이프라인 단계 변경 + stage_history 기록 + MEDDPICC 재계산
-   ├─ get_deal             — 딜 전체 조회 (회의록 + MEDDPICC 포함)
-   ├─ list_deals           — 딜 목록 (stage 필터, health_pct·gaps·stuck 정렬)
-   ├─ get_insights         — 7가지 BI aggregation (win/loss 패턴, stage velocity 등)
-   ├─ get_metrics          — pipeline_health KPI·stage 집계·warning 반환
-   ├─ export_report        — weekly_pipeline CSV·Markdown 파일 생성
-   ├─ get_customer_themes  — 고객 고민·선정 기준 빈도 (고유 딜 수 기준 + evidence)
-   ├─ search_deals         — 시맨틱 유사 딜 검색 (M0: Python cosine, M10+: Atlas 선택)
-   └─ analyze_deal         — MEDDPICC 갭 분석 + BD 전략 생성 (LLM)
-   │
-   ▼
-MongoDB Atlas M0 (MONGODB_URI env)
-   └─ deals collection: 딜 + 회의록 + MEDDPICC + customer_themes + BD 전략
-                        + summary_embedding (M0에서는 앱에서 cosine 계산)
+```powershell
+$env:DEAL_INTEL_STORAGE_BACKEND='local_sample'
 ```
 
-> 도구별 상세 사용법·파라미터·예시 대화는 `README.md`의 "사용 가이드 (11개 도구)" 참조.
+## Working Loop
 
-### 3-tier config (event-intel-mcp와 동일 패턴)
+Juni's preferred loop:
 
-- `.env` → 시크릿 (`ANTHROPIC_API_KEY`, `MONGODB_URI`)
-- `config/defaults.yaml` → 기본값 (LLM provider, 모델명, DB 이름)
-- `~/.deal-intel/config.yaml` → 사용자 override (예: `llm.provider: chatgpt_oauth`)
+1. Decide the large workstream and the next subtask.
+2. For complex or product-sensitive tasks, write the detailed plan, risks,
+   verification criteria, and sensemaker summary before implementation.
+3. For small low-decision tasks, move directly into implement -> verify.
+4. Turn suspected edge cases into targeted tests first.
+5. Verify with targeted tests, relevant regressions, full pytest, Ruff, and any
+   required smoke test.
+6. Record unverified risk in `docs/status.md` or `docs/backlog.md`.
+7. Update docs and commit only the intended scope. Push when requested.
 
-## LLM Provider
+## Current MCP Tool Surface
 
-`providers/llm.py`는 event-intel-mcp에서 이식. `_TOKEN_PATH`만 `~/.deal-intel/chatgpt_auth.json`으로 변경.
+Source of truth: `src/deal_intel/mcp_server.py`.
 
-- **기본**: `chatgpt_oauth` (ChatGPT Plus/Pro 구독, 추가 비용 없음)
-- **옵션**: `anthropic` (ANTHROPIC_API_KEY 필요)
+Current tool count: 21.
 
-ChatGPT OAuth 구현 당시 누적된 5가지 함정은 `docs/lesson-learned.md` 참조.
+- Write/lifecycle: `create_deal`, `add_meeting`, `update_stage`,
+  `update_deal`, `archive_deal`, `restore_deal`, `delete_deal`
+- Demo data: `create_sample_data`, `delete_sample_data`
+- Read/review: `get_deal`, `list_deals`, `get_deal_gaps`,
+  `get_deal_review`
+- BI/reporting: `get_insights`, `get_metrics`, `export_report`
+- Customer themes: `get_customer_themes`, `get_customer_theme_breakdown`,
+  `get_customer_theme_evidence`
+- Search/analysis: `search_deals`, `analyze_deal`
 
-## DO NOT
+## Architecture Rules
 
-- **pymongo import는 `storage/mongodb.py` 내부에서만.** 메인 스레드 선행 import는
-  `storage.mongodb.preload_driver()`를 사용할 것.
-- **Tool 핸들러는 `_context.py`의 싱글톤을 통해서만 LLM/MongoDB에 접근.** 직접 인스턴스화 금지.
-- **`make_llm_provider(config)`를 쓸 것.** `AnthropicProvider()`나 `ChatGPTOAuthProvider()`를 직접 호출하지 말 것 — config 라우팅을 우회함.
-- **MCP tool handler는 동기 블로킹 작업을 tool 호출 안에서 수행할 때 FastMCP worker thread 제약 인지.** 무거운 import는 `mcp_server.py::main()`에서 pre-import.
-- **`add_meeting`은 `deal_stage`를 절대 자동 변경하지 말 것.** 회의록이 "CLOSED WON" 등 클로징을 명시해도 stage 전환은 `stage_suggestion` 필드로 **제안만** 하고, 실제 변경은 사용자 확인 후 `update_stage` 호출로만 한다 (의도된 분리 — 잘못된 자동 클로징 방지).
+- Access storage and LLM providers only through `deal_intel._context`.
+- Use `make_llm_provider(config)`; do not instantiate provider classes
+  directly.
+- Keep `pymongo` imports inside `storage/mongodb.py`, except for the explicit
+  `preload_driver()` startup path.
+- BI/reporting paths must not call LLMs or embeddings.
+- Restricted metric/report read paths must exclude raw meeting notes, contacts,
+  and embeddings unless the tool contract explicitly says otherwise.
+- `add_meeting` never changes `deal_stage`. It may return `stage_suggestion`;
+  apply the change only after user confirmation through `update_stage`.
+- Destructive tools stay conservative: dry-run first, explicit confirmation,
+  exact company matching where applicable, and audit-safe snapshots.
+- Do not use realistic secret-looking placeholders in tests or docs. Use
+  neutral values such as `replace-with-openai-api-key` or scanner-safe
+  sentinels.
 
-## Project docs convention
+## Docs Convention
 
-- `docs/status.md` — 지금 진행 중 / 직전 완료
-- `docs/backlog.md` — 장기 계획 / 미구현 / defer 항목
-- `docs/architecture.md` — 아키텍처 상세
-- `docs/baseline.md` — MCP 계약 / 테스트 / 실 DB 검증 기준선
-- `docs/metrics.md` — BI/CSV/Charts가 공유하는 metric 의미와 경계값 계약
-- `docs/lesson-learned.md` — 실패 로그 (append-only, failures only)
+- `docs/README.md`: documentation map and current reading order.
+- `docs/status.md`: latest work and verification notes; older entries are
+  archive.
+- `docs/backlog.md`: current backlog index first, historical roadmap below.
+- `docs/baseline.md`: MCP tool contracts and verification baseline.
+- `docs/metrics.md`: BI metric definitions and boundary contracts.
+- `docs/reports.md`: CSV/Markdown report contracts.
+- `docs/storage-backends.md`: Mongo vs local sample storage contract.
+- `docs/config-profiles.md`: `sample/full/pro` profile plan.
+- `docs/lesson-learned.md`: append-only failure log; search it when debugging.

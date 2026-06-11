@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 ConfigProfileName = Literal["sample", "full", "pro"]
 
@@ -126,7 +126,7 @@ def get_config_profile(name: str) -> ConfigProfile:
     normalized = name.strip().lower()
     if normalized not in _PROFILES:
         raise ValueError("profile must be one of: sample, full, pro")
-    return _PROFILES[normalized]  # type: ignore[index]
+    return _PROFILES[cast(ConfigProfileName, normalized)]
 
 
 def build_profile_config_patch(name: str) -> dict[str, Any]:

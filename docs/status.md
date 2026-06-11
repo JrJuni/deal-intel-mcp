@@ -12,6 +12,20 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-11
 
+### MVP readiness checklist
+
+Implemented:
+
+- Added `docs/mvp-readiness.md` as the sample-first external MVP readiness
+  checklist.
+- Captured required gates for full tests, Ruff, sample profile smoke, natural
+  question smoke, deal review audit, tool surface/MCPB contract checks, local
+  personal data safety, and MCPB package smoke.
+- Separated green, yellow, not-MVP-blocking, and deferred-after-MVP items so
+  wrapper/pro-infra work does not obscure the current MVP path.
+- Added a lightweight friend/evaluator trial script and sign-off template.
+- Linked the checklist from the docs map.
+
 ### Natural Smoke QA expansion
 
 Implemented:

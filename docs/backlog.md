@@ -292,6 +292,13 @@ Deferred questions:
 
 Goal: make the project easy for non-developers and fast evaluators.
 
+Current MVP stance:
+
+- `docs/mvp-readiness.md` is the sample-first external MVP gate.
+- npx/uvx wrappers are useful, but not required before the first MVP trial.
+- Packaging work should not preempt sample/local UX completion unless it
+  directly reduces first-run confusion.
+
 Backlog items:
 
 - Keep one repository and one package.

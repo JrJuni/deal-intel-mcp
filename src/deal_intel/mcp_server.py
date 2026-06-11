@@ -465,13 +465,13 @@ def get_insights(query_type: str, as_of: str = "") -> dict:
     than reconstructing historical database state.
 
     query_type options:
-    - pipeline_overview   : stage별 딜 수·평균 health·총 딜 사이즈
-    - win_patterns        : won 딜들의 MEDDPICC 차원별 평균 점수
-    - loss_patterns       : lost 딜들의 MEDDPICC 차원별 평균 점수
-    - compare_won_lost    : win vs loss 차원별 점수 차이 비교
-    - gap_frequency       : 활성 딜에서 가장 자주 등장하는 gap dimension
-    - industry_benchmark  : 업종별 평균 health_pct·승률·딜 규모
-    - stage_velocity      : 스테이지별 평균 체류 일수 (stage_history 기반)
+    - pipeline_overview   : deal count, average health, and value by stage
+    - win_patterns        : average MEDDPICC scores across won deals
+    - loss_patterns       : average MEDDPICC scores across lost deals
+    - compare_won_lost    : compare win and loss MEDDPICC score patterns
+    - gap_frequency       : most frequent MEDDPICC gap dimensions in active deals
+    - industry_benchmark  : average health, win rate, and deal value by industry
+    - stage_velocity      : average days in stage from stage_history
     """
     try:
         from deal_intel import _context
@@ -729,9 +729,9 @@ def search_deals(query: str, limit: int = 5) -> dict:
     """Find deals semantically similar to the query.
 
     Examples:
-    - "고객이 비용 절감에 어려움을 겪고 있는 딜"
-    - "champion이 강하고 의사결정 구조가 명확한 딜"
-    - "현대정밀과 유사한 패턴의 딜"
+    - "deals where the customer struggles with cost reduction"
+    - "deals with a strong champion and clear decision process"
+    - "deals similar to a named reference account"
 
     Returns deals ranked by semantic similarity with score (0–1, higher = more similar).
     While the local model loads, returns warming_up=true so the caller can retry.

@@ -43,7 +43,7 @@ def test_mcpb_manifest_user_config_is_sample_first_and_secret_safe() -> None:
     manifest = _manifest()
     user_config = manifest["user_config"]
 
-    assert manifest["version"] == "0.1.10"
+    assert manifest["version"] == "0.1.11"
     assert user_config["python_path"]["required"] is True
     assert user_config["storage_backend"]["default"] == "local_sample"
     assert user_config["storage_backend"]["required"] is False
@@ -78,6 +78,7 @@ def test_mcpb_manifest_env_maps_installer_fields_to_runtime_config() -> None:
     assert env["ANTHROPIC_API_KEY"] == "${user_config.anthropic_api_key}"
     assert env["OPENAI_API_KEY"] == "${user_config.openai_api_key}"
     assert env["PYTHONIOENCODING"] == "utf-8"
+    assert env["PYTHONUTF8"] == "1"
 
 
 def test_mcpb_launcher_delegates_to_installed_mcp_server(monkeypatch) -> None:

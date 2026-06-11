@@ -12,6 +12,48 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-11
 
+### MCPB Claude Desktop smoke and UTF-8 hardening
+
+Observed:
+
+- Claude Desktop loaded the MCPB extension successfully in `sample` profile
+  with `local_sample` storage and 16 sample-surface tools.
+- `config_doctor`, `list_deals`, `get_metrics`, `get_deal_review`,
+  customer-theme analysis, report export, delete dry-run safety, and
+  update-stage guidance all worked against bundled sample data.
+- One generated Korean progress phrase showed a replacement character in the
+  word "heatmap". Tool JSON payloads and sample data did not show broad
+  corruption.
+
+Implemented:
+
+- Bumped MCPB manifest to `0.1.11`.
+- Added `PYTHONUTF8=1` alongside `PYTHONIOENCODING=utf-8` in MCPB runtime env.
+- Removed Korean examples/descriptions from MCP tool docstrings so Claude's
+  tool metadata path is English-only.
+
+Verification so far:
+
+- MCPB/tool-surface targeted regression:
+  `27 passed`, `1 warning`
+- Targeted Ruff:
+  `All checks passed`
+- MCP tool metadata Korean/replacement-character scan:
+  no matches in `mcp_server.py`, MCPB manifest, MCPB README, or manifest tests.
+- Full pytest:
+  `404 passed`, `1 warning`
+- Final Ruff:
+  `All checks passed`
+- MCPB CLI:
+  `mcpb validate manifest.json`
+- MCPB artifact:
+  `deal-intel-mcp-0.1.11.mcpb`, `size=5.30 KB`,
+  `shasum=bbf9099225cb1fbfb01a82c1f7bf54832a7a997b`
+
+Notes:
+
+- The 0.1.11 bundle is still unsigned.
+
 ### O3 Mongo index contract
 
 Implemented:

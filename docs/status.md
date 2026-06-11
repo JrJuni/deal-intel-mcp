@@ -12,6 +12,42 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-11
 
+### Z5.11 local personal to MongoDB migration
+
+Implemented:
+
+- Added shared `migrate_local_data` migration engine.
+- Added MCP tool `migrate_local_data`.
+- Added CLI command `deal-intel local-data migrate-to-mongo`.
+- Migration reads only user-created local personal deals from
+  `storage.local_data_dir`.
+- Bundled zero-config fixture records are never migrated.
+- Migration is dry-run by default.
+- Actual writes require explicit confirmation through MCP
+  `confirmed_by_user=true`; the CLI equivalent is `--apply`.
+- Existing target `deal_id` values are skipped by default.
+- Existing target `deal_id` values are overwritten only with
+  `overwrite=true` / `--overwrite`.
+- Local delete audit logs stay local and are reported as a warning; they are
+  not migrated.
+- Updated MCP tool counts:
+  `sample=16`, `standard=21`, `developer=23`.
+
+Verification:
+
+- Migration/tool-surface targeted regression:
+  `56 passed`, `1 warning`
+- Targeted Ruff:
+  `All checks passed`
+- Full pytest:
+  `395 passed`, `1 warning`
+- Final Ruff:
+  `All checks passed`
+- Diff whitespace check:
+  `git diff --check`
+- Manifest/surface count smoke:
+  `manifest=23`, `sample=16`, `standard=21`, `developer=23`
+
 ### Config profiles Z5.8-Z5.10 tool surface runtime filtering
 
 Implemented:
@@ -109,7 +145,7 @@ Verification:
 - Expanded MCP surface regression:
   `109 passed`, `1 warning`
 - Runtime surface count smoke:
-  `sample=15`, `standard=20`, `developer=22`
+  `sample=16`, `standard=21`, `developer=23`
 - Config CLI smoke:
   `config init --profile sample --dry-run` shows
   `storage.local_data_dir: ~/.deal-intel/local-data`
@@ -203,18 +239,18 @@ Implemented:
 - Updated `README.ko.md` with the same user-facing sample/full/pro flow.
 - Updated `mcpb/README.md` for first-run `local_sample` installs.
 - Bumped `mcpb/manifest.json` to `0.1.9`, added `storage_backend`, made
-  `mongodb_uri` optional unless `storage_backend=mongo`, and updated bundle
-  metadata to the current 22-tool surface.
+  `mongodb_uri` optional unless `storage_backend=mongo`, and later updated
+  bundle metadata to the current 23-tool surface.
 - Updated the documentation map, config-profile contract notes, and active
   backlog index.
 
 Verification:
 
 - Manifest JSON parse:
-  `version=0.1.9`, `tools=22`, `storage_backend=local_sample`,
+  `version=0.1.9`, `tools=23`, `storage_backend=local_sample`,
   `mongodb_required=False`
 - Manifest/server tool-name comparison:
-  `server=22`, `manifest=22`, `tool names match`
+  `server=23`, `manifest=23`, `tool names match`
 - CLI dry-run smoke:
   `deal-intel config init --profile sample --dry-run`
 - CLI offline doctor smoke:

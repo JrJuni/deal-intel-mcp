@@ -29,7 +29,7 @@ def test_tool_surface_contract_covers_registered_mcp_tools(monkeypatch) -> None:
     contracted = {contract.name for contract in list_tool_surface_contracts()}
 
     assert registered == contracted
-    assert len(contracted) == 22
+    assert len(contracted) == 23
 
 
 def test_tool_surface_matrix_is_stable_and_serializable() -> None:
@@ -59,6 +59,7 @@ def test_sample_surface_is_zero_config_safe_local_personal() -> None:
         "archive_deal",
         "restore_deal",
         "delete_deal",
+        "migrate_local_data",
         "get_deal",
         "list_deals",
         "get_metrics",
@@ -83,6 +84,7 @@ def test_sample_surface_is_zero_config_safe_local_personal() -> None:
         "archive_deal",
         "restore_deal",
         "delete_deal",
+        "migrate_local_data",
     }
 
 
@@ -115,6 +117,7 @@ def test_sample_local_personal_target_promotes_safe_non_llm_writes() -> None:
         "archive_deal",
         "restore_deal",
         "delete_deal",
+        "migrate_local_data",
     }.issubset(target_tools)
     assert {
         "add_meeting",
@@ -136,6 +139,7 @@ def test_standard_surface_keeps_real_operator_admin_tools() -> None:
         "archive_deal",
         "restore_deal",
         "delete_deal",
+        "migrate_local_data",
         "analyze_deal",
         "search_deals",
     }.issubset(standard_tools)

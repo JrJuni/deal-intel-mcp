@@ -121,6 +121,15 @@ MCP_TOOL_SURFACE_CONTRACTS: tuple[MCPToolSurfaceContract, ...] = (
         notes="Dry-run by default; actual delete requires archived deal.",
     ),
     MCPToolSurfaceContract(
+        name="migrate_local_data",
+        category="admin",
+        surfaces=_SAMPLE,
+        user_facing=True,
+        db_writes=True,
+        llm_calls=False,
+        notes="Dry-run-first local personal deals to MongoDB graduation path.",
+    ),
+    MCPToolSurfaceContract(
         name="create_sample_data",
         category="demo_seed",
         surfaces=_DEVELOPER,

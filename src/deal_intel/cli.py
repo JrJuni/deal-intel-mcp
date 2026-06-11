@@ -408,6 +408,61 @@ def local_data_reset(
         typer.echo(_format_local_data_reset(payload))
 
 
+@local_data_app.command("migrate-to-mongo")
+def local_data_migrate_to_mongo(
+    database: str = typer.Option(
+        "",
+        "--database",
+        help="Target MongoDB database. Defaults to mongodb.database from config.",
+    ),
+    apply: bool = typer.Option(
+        False,
+        "--apply",
+        help="Write to MongoDB. Without this flag the command is a dry-run.",
+    ),
+    overwrite: bool = typer.Option(
+        False,
+        "--overwrite",
+        help="Replace target deals that already have the same deal_id.",
+    ),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Print structured JSON instead of concise text.",
+    ),
+) -> None:
+    """Migrate user-created local personal deals into MongoDB."""
+
+    from deal_intel import _env
+    from deal_intel.errors import Stage, envelope_from_exception
+    from deal_intel.storage.mongodb import MongoDBClient
+    from deal_intel.tools import migrate_local_data as _migrate
+
+    cfg = _env.load_config()
+    target_database = database.strip() or _mapping(cfg.get("mongodb")).get(
+        "database",
+        "deal_intel",
+    )
+    try:
+        payload = _migrate.handle(
+            source_store=_local_personal_store_from_config(),
+            target_mongo=MongoDBClient(database=target_database),
+            dry_run=not apply,
+            overwrite=overwrite,
+            confirmed_by_user=apply,
+        )
+    except Exception as exc:
+        payload = envelope_from_exception(exc, stage=Stage.STORAGE)
+
+    if json_output:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        typer.echo(_format_local_data_migration(payload))
+
+    if not payload["ok"]:
+        raise typer.Exit(code=1)
+
+
 @app.command("backfill-customer-themes")
 def backfill_customer_themes(
     apply: bool = typer.Option(
@@ -965,6 +1020,50 @@ def _format_local_data_reset(payload: dict) -> str:
         lines.append("Run again with --force to clear only local personal deals.")
     else:
         lines.append("Delete audit logs were preserved.")
+    return "\n".join(lines)
+
+
+def _format_local_data_migration(payload: dict) -> str:
+    if not payload.get("ok"):
+        lines = [
+            "Local personal data migration: not ready",
+            f"Error: {payload.get('error_code')}",
+            f"Stage: {payload.get('stage')}",
+            f"Message: {payload.get('message')}",
+        ]
+        if payload.get("hint") is not None:
+            lines.append(f"Hint: {payload.get('hint')}")
+        return "\n".join(lines)
+
+    status = "dry-run" if payload.get("dry_run") else "applied"
+    counts = _mapping(payload.get("counts"))
+    source = _mapping(payload.get("source"))
+    target = _mapping(payload.get("target"))
+    lines = [
+        f"Local personal data migration: {status}",
+        f"Source data dir: {source.get('data_dir')}",
+        f"Target MongoDB database: {target.get('database')}",
+        f"Source deals: {counts.get('source_deals')}",
+        f"Would create: {counts.get('would_create')}",
+        f"Would overwrite: {counts.get('would_overwrite')}",
+        f"Would skip existing: {counts.get('would_skip_existing')}",
+        f"Storage written: {payload.get('storage_written')}",
+    ]
+    if payload.get("dry_run"):
+        lines.append("Run again with --apply to write these local deals to MongoDB.")
+    else:
+        lines.extend(
+            [
+                f"Migrated: {counts.get('migrated')}",
+                f"Overwritten: {counts.get('overwritten')}",
+                f"Skipped existing: {counts.get('skipped_existing')}",
+            ]
+        )
+    warnings = payload.get("warnings") or []
+    if warnings:
+        lines.append("Warnings:")
+        for warning in warnings:
+            lines.append(f"- {warning.get('code')}: {warning.get('message')}")
     return "\n".join(lines)
 
 

@@ -57,13 +57,13 @@ available.
 
 ### MCP Tool Contracts
 
-The Python server keeps all 22 handler functions available internally, but MCP
+The Python server keeps all 23 handler functions available internally, but MCP
 clients see a config-filtered tool surface:
 
 - `tools.surface: auto` resolves from the effective profile.
-- `sample` exposes 15 tools for bundled/local personal sample mode.
-- `standard` exposes 20 tools for normal MongoDB-backed operation.
-- `developer` exposes all 22 tools, including demo database seed/cleanup.
+- `sample` exposes 16 tools for bundled/local personal sample mode.
+- `standard` exposes 21 tools for normal MongoDB-backed operation.
+- `developer` exposes all 23 tools, including demo database seed/cleanup.
 - Invalid `tools.surface` config exposes only `config_doctor` so setup can be
   diagnosed.
 
@@ -77,6 +77,7 @@ clients see a config-filtered tool surface:
 | `archive_deal` | `deal_id`, `expected_company`, `archive_reason` | `confirmed_by_user` | `ok`, `deal_id`, `company`, `already_archived`, `old_deal`, `new_deal`, `storage_written` | Requires explicit confirmation and exact company match, marks the deal archived, appends archive history, and hides it from default BI/read paths |
 | `restore_deal` | `deal_id`, `expected_company`, `restore_reason` | `confirmed_by_user` | `ok`, `deal_id`, `company`, `already_active`, `old_deal`, `new_deal`, `storage_written` | Requires explicit confirmation and exact company match, clears archived state, appends restore history, and returns the deal to default BI/read paths |
 | `delete_deal` | `deal_id`, `expected_company`, `delete_reason` | `confirmed_by_user`, `dry_run` | `ok`, `deal_id`, `company`, `dry_run`, `can_delete`, `would_delete`, `blocked_reason`, `storage_written` or `deleted_count`, `audit_id`, `deleted_at` | Defaults to dry-run. Real hard delete requires confirmation, exact company match, a non-empty reason, and an already archived deal. Writes a safe delete audit snapshot before deleting |
+| `migrate_local_data` | None | `target_database`, `confirmed_by_user`, `dry_run`, `overwrite` | `ok`, `migration_type`, `dry_run`, `storage_written`, `source`, `target`, `options`, `counts`, `deals`, `warnings` | Migrates only user-created local personal deals from `storage.local_data_dir` to MongoDB. Defaults to dry-run, requires confirmation for writes, skips existing target deal ids unless `overwrite=true`, and never migrates bundled fixture records or local delete audit logs |
 | `create_sample_data` | None | `dataset`, `demo_database`, `confirmed_by_user`, `dry_run`, `overwrite` | `ok`, `dataset`, `sample_batch_id`, `primary_database`, `demo_database`, `dry_run`, `existing_count`, `deal_count`, `preview`, `storage_written` | Defaults to dry-run. Actual writes require confirmation and write only to a demo database different from the primary database |
 | `delete_sample_data` | None | `dataset`, `demo_database`, `confirmed_by_user`, `dry_run` | `ok`, `dataset`, `sample_batch_id`, `primary_database`, `demo_database`, `dry_run`, `existing_count`, `sample_deals`, `storage_written` | Defaults to dry-run. Actual deletes require confirmation and delete only records with the known sample batch marker in the demo database |
 | `get_deal` | `deal_id` | None | `ok`, `deal` | Read only; includes full meeting history and raw notes |
@@ -266,8 +267,8 @@ Before Milestone 1 started, all 28 findings were resolved. The current gate is:
 pytest -> 128 passed
 ruff check . -> All checks passed
 wheel build -> passed
-FastMCP runtime surface exposure -> sample 15 tools, standard 20 tools,
-developer 22 tools
+FastMCP runtime surface exposure -> sample 16 tools, standard 21 tools,
+developer 23 tools
 MongoDB Atlas read smoke -> passed
 ```
 

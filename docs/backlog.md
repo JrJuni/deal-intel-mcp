@@ -24,8 +24,8 @@ and `pro`.
 
 Next candidate units:
 
-1. Local personal data -> MongoDB migration, dry-run by default, so users can
-   graduate to `full` without retyping their sample-mode deals.
+1. Optional live Atlas smoke for local personal -> MongoDB migration when a
+   disposable target database is available.
 2. Release packaging check: rebuild/validate the `.mcpb` artifact once the
    `mcpb` CLI is available.
 
@@ -93,8 +93,8 @@ Backlog items:
   available; real team/shared operation still uses MongoDB-backed `full`.
 - Consider whether natural-language smoke tools should remain CLI-only in
   production bundles.
-- Add a dry-run-first local-to-Mongo migration tool after local personal
-  storage is stable.
+- Keep the dry-run-first local-to-Mongo migration path conservative; before
+  release, live-smoke it against a disposable database.
 - Rebuild and attach a fresh `.mcpb` artifact after bundle manifest changes.
 
 ### Pro Infrastructure

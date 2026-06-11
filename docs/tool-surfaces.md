@@ -43,6 +43,7 @@ without MongoDB or API keys today. It is not the full operating surface:
 - `archive_deal`
 - `restore_deal`
 - `delete_deal`
+- `migrate_local_data`
 - `get_deal`
 - `list_deals`
 - `get_metrics`
@@ -57,6 +58,9 @@ Why this matters:
 - `create_deal`, `update_stage`, `update_deal`, `archive_deal`,
   `restore_deal`, and `delete_deal` now persist through local personal storage
   and keep their existing confirmation/dry-run safety gates.
+- `migrate_local_data` is visible in `sample` so a user can graduate local
+  personal deals to MongoDB after connecting a URI. It is dry-run-first and
+  never migrates bundled fixture records.
 - `add_meeting` remains separate from the first local-personal target because
   it needs LLM readiness.
 - `search_deals` currently needs Mongo-backed embeddings or Atlas Vector Search.
@@ -113,9 +117,9 @@ Behavior:
 
 Current exposed counts:
 
-- `sample`: 15 tools
-- `standard`: 20 tools
-- `developer`: 22 tools
+- `sample`: 16 tools
+- `standard`: 21 tools
+- `developer`: 23 tools
 
 Implementation notes:
 

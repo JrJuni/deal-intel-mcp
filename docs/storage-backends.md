@@ -105,7 +105,8 @@ Reset/export behavior must be explicit before local personal writes ship:
 - `deal-intel local-data reset` is dry-run by default.
 - `deal-intel local-data reset --force` clears only local personal deals.
 - Local delete audit logs are retained after reset.
-- Local personal data to MongoDB migration is a later dry-run-first target.
+- Local personal data to MongoDB migration is available through
+  `migrate_local_data` and `deal-intel local-data migrate-to-mongo`.
 
 Active read policy:
 
@@ -158,20 +159,31 @@ The sample/local-personal backend does not need to implement:
 
 Those paths are not required for lightweight personal use.
 
-## Local To Mongo Migration Target
+## Local To Mongo Migration
 
-After local personal writes are stable, add a migration tool that lets a user
-graduate to MongoDB-backed `full` mode.
+Local personal writes can now graduate to MongoDB-backed `full` mode through a
+dry-run-first migration path.
 
-Required behavior:
+Behavior:
 
 - Dry-run by default.
 - Never migrate bundled fictional fixture records.
 - Read only user-created records from `storage.local_data_dir`.
-- Validate records before writing to MongoDB.
+- Require target MongoDB readiness before classifying rows.
 - Require explicit confirmation before any Mongo write.
 - Preserve `deal_id` values where possible.
-- Return inserted, updated, skipped, and conflict counts.
+- Skip existing target `deal_id` values by default.
+- Overwrite existing target `deal_id` values only when `overwrite=true`.
+- Return create, overwrite, skipped, and written counts.
+- Keep local delete audit logs local; they are not migrated by this command.
+
+CLI:
+
+```bash
+deal-intel local-data migrate-to-mongo
+deal-intel local-data migrate-to-mongo --apply
+deal-intel local-data migrate-to-mongo --apply --overwrite
+```
 
 Non-goals:
 

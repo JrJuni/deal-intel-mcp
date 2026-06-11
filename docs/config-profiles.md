@@ -164,7 +164,7 @@ Implemented behavior:
 - Full/pro requirements are clearly labeled as opt-in.
 - `mcpb/manifest.json` exposes `storage_backend` so Claude Desktop installs can
   start in `local_sample` without a MongoDB URI.
-- The MCP bundle metadata now reflects the current 22-tool surface.
+- The MCP bundle metadata now reflects the current 23-tool surface.
 
 ### Z5.7 Profile Smoke Matrix
 
@@ -234,7 +234,7 @@ Default mapping:
 Result:
 
 - `build_tool_surface_matrix()` returns a serializable surface matrix.
-- Targeted tests verify that all 22 registered MCP tools are classified.
+- Targeted tests verify that all 23 registered MCP tools are classified.
 - Targeted tests verify that `sample` includes safe local personal write/admin
   tools while excluding LLM-heavy, semantic-search, legacy Mongo aggregation,
   and Mongo demo-database maintenance tools.
@@ -292,8 +292,6 @@ Remaining planned scope:
 - Preserve existing safety gates:
   `confirmed_by_user`, exact company checks, dry-run defaults, archive-before-
   hard-delete, and safe delete audit snapshots.
-- Add a later migration path from local personal data to MongoDB so users can
-  graduate from sample/local mode to `full` without retyping their deals.
 
 Non-goals for Z5.9:
 
@@ -301,22 +299,27 @@ Non-goals for Z5.9:
 - No semantic `search_deals` in local personal mode yet.
 - No Mongo aggregation compatibility.
 - No Atlas demo-database seed/cleanup behavior.
-- No local-to-Mongo migration implementation in the first local storage slice.
 
-### Z5.9 Follow-Up: Local To Mongo Migration
+### Z5.11 Local To Mongo Migration
 
-Planned scope:
+Implemented:
 
 - Read the local personal data directory.
-- Validate local deals before migration.
+- Migrates only user-created local personal deals, never bundled fixture data.
 - Dry-run by default.
-- Upsert into the configured MongoDB database only after explicit user
-  confirmation.
+- Requires target MongoDB readiness before classifying rows.
+- Upserts into the configured or requested MongoDB database only after explicit
+  user confirmation.
 - Preserve deal ids when possible.
-- Report conflicts, skipped records, and inserted/updated counts.
+- Skips existing target deal ids by default.
+- Supports explicit `overwrite=true` / `--overwrite`.
+- Reports create, overwrite, skipped, and written counts.
+- Exposes both MCP `migrate_local_data` and CLI
+  `deal-intel local-data migrate-to-mongo`.
 
 Non-goals:
 
 - No automatic background sync.
 - No two-way sync between local and MongoDB.
 - No migration of bundled fictional fixture data.
+- No migration of local delete audit logs.

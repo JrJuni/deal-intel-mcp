@@ -113,12 +113,15 @@ Useful local personal commands:
 & "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli local-data status
 & "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli local-data export
 & "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli local-data reset
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli local-data migrate-to-mongo
 ```
 
 Tell the user that `local-data reset` is dry-run by default and
 `local-data reset --force` clears only local personal deals while preserving
 delete audit logs. Help the user migrate to `full` only after local/sample smoke
-succeeds and they want shared MongoDB-backed operation.
+succeeds and they want shared MongoDB-backed operation. Migration is also
+dry-run by default; use `local-data migrate-to-mongo --apply` only after the
+target database and skipped/overwrite counts look right.
 
 Only request `MONGODB_URI`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or Atlas
 Vector Search setup after the user chooses `full` or `pro`.

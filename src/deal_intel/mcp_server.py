@@ -376,6 +376,52 @@ def delete_sample_data(
 
 
 @app.tool()
+def migrate_local_data(
+    target_database: str = "",
+    confirmed_by_user: bool = False,
+    dry_run: bool = True,
+    overwrite: bool = False,
+) -> dict:
+    """Migrate user-created local personal deals into MongoDB.
+
+    Bundled zero-config fixture records are never migrated. Defaults to
+    dry_run=true and writes nothing. Actual writes require
+    confirmed_by_user=true. Existing target deals are skipped unless overwrite
+    is true.
+    """
+    try:
+        from deal_intel import _context
+        from deal_intel.storage.local_personal import LocalPersonalStore
+        from deal_intel.storage.mongodb import MongoDBClient
+        from deal_intel.tools import migrate_local_data as _t
+
+        cfg = _context.config()
+        storage = cfg.get("storage", {})
+        mongodb = cfg.get("mongodb", {})
+        local_data_dir = (
+            storage.get("local_data_dir") if isinstance(storage, dict) else None
+        )
+        database = (
+            target_database.strip()
+            if target_database.strip()
+            else (
+                mongodb.get("database", "deal_intel")
+                if isinstance(mongodb, dict)
+                else "deal_intel"
+            )
+        )
+        return _t.handle(
+            source_store=LocalPersonalStore(local_data_dir),
+            target_mongo=MongoDBClient(database=database),
+            dry_run=dry_run,
+            overwrite=overwrite,
+            confirmed_by_user=confirmed_by_user,
+        )
+    except Exception as exc:
+        return envelope_from_exception(exc, stage=Stage.STORAGE)
+
+
+@app.tool()
 def get_deal(deal_id: str) -> dict:
     """Retrieve a deal with full meeting history and MEDDPICC scores."""
     try:

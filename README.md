@@ -74,9 +74,9 @@ only when paid infrastructure is intentional.
 
 MCP tools are profile-filtered by default:
 
-- `sample`: 15 zero-config/local personal tools
-- `standard`: 20 normal real-data tools
-- `developer`: all 22 tools, including demo seed/cleanup helpers
+- `sample`: 16 zero-config/local personal tools
+- `standard`: 21 normal real-data tools
+- `developer`: all 23 tools, including demo seed/cleanup helpers
 
 Use `tools.surface: developer` or `DEAL_INTEL_TOOLS_SURFACE=developer` only
 when you intentionally want the full maintainer/debug surface.
@@ -170,13 +170,13 @@ deal-intel login-chatgpt
 
 Then restart Claude Desktop.
 
-You're done when the MCP tool list loads. The current server exposes 22 tools;
+You're done when the MCP tool list loads. The current server exposes 23 tools;
 `src/deal_intel/mcp_server.py` and `docs/baseline.md` are the source of truth.
 
 ```
 config_doctor
 create_deal / add_meeting / get_deal / update_stage / update_deal
-archive_deal / restore_deal / delete_deal
+archive_deal / restore_deal / delete_deal / migrate_local_data
 create_sample_data / delete_sample_data
 list_deals / get_insights / get_metrics / get_deal_gaps / get_deal_review
 export_report / get_customer_themes / get_customer_theme_breakdown
@@ -222,12 +222,15 @@ deal-intel local-data status
 deal-intel local-data export
 deal-intel local-data reset          # dry-run
 deal-intel local-data reset --force  # clears local deals, preserves delete audit logs
+deal-intel local-data migrate-to-mongo          # dry-run
+deal-intel local-data migrate-to-mongo --apply  # writes local deals to MongoDB
 ```
 
 The bundled fictional fixture is immutable. After local personal deals exist,
 the fixture is hidden from active reads instead of being mixed with your data.
-Later, a dry-run-first local-to-MongoDB migration tool will let users graduate
-from sample/local mode to `full` without retyping deals.
+The dry-run-first local-to-MongoDB migration command lets users graduate from
+sample/local mode to `full` without retyping deals. It migrates only
+user-created local personal deals, never bundled fixture records.
 
 ---
 
@@ -671,7 +674,7 @@ The Atlas Charts aggregation is in `scripts/atlas_charts_customer_themes.json`.
 Current source of truth:
 
 - MCP server: `src/deal_intel/mcp_server.py`
-- Current tool count: 22
+- Current tool count: 23
 - Detailed contract: [`docs/baseline.md`](docs/baseline.md)
 - Documentation map: [`docs/README.md`](docs/README.md)
 
@@ -679,7 +682,7 @@ Current source of truth:
 [Claude Desktop / Codex - natural-language input]
          | stdio JSON-RPC
          v
-[deal-intel-mcp  FastMCP server  22 tools]
+[deal-intel-mcp  FastMCP server  23 tools]
          |
          |-- LLM Provider
          |     |-- ChatGPT OAuth (default, Plus/Pro subscription)

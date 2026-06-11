@@ -3,8 +3,8 @@
   "name": "deal-intel-mcp",
   "display_name": "Deal Intelligence MCP",
   "version": "0.1.9",
-  "description": "Turn meeting notes into MEDDPICC-structured deal intelligence. Profile-aware MCP tool surfaces, zero-config sample mode, MongoDB Atlas storage, semantic deal search, ChatGPT OAuth, Anthropic, or OpenAI API LLM backend.",
-  "long_description": "deal-intel-mcp captures consultation records and meeting notes, extracts MEDDPICC qualification signals and customer concern themes via LLM, and can run on bundled/local sample data or MongoDB Atlas-backed real team data. Runtime tool surfaces expose sample, standard, or developer tool lists from the same package. Supports ChatGPT Plus OAuth, Anthropic Claude API, or the official OpenAI API as LLM backends.",
+  "description": "Turn meeting notes into MEDDPICC-structured deal intelligence. Profile-aware MCP tool surfaces, zero-config sample mode, local-to-Mongo migration, MongoDB Atlas storage, semantic deal search, ChatGPT OAuth, Anthropic, or OpenAI API LLM backend.",
+  "long_description": "deal-intel-mcp captures consultation records and meeting notes, extracts MEDDPICC qualification signals and customer concern themes via LLM, and can run on bundled/local sample data or MongoDB Atlas-backed real team data. Runtime tool surfaces expose sample, standard, or developer tool lists from the same package, and a dry-run-first migration path moves local personal deals into MongoDB when users graduate to full mode. Supports ChatGPT Plus OAuth, Anthropic Claude API, or the official OpenAI API as LLM backends.",
   "author": {
     "name": "JrJuni",
     "email": "tyrical@naver.com",
@@ -26,6 +26,7 @@
     {"name": "archive_deal",  "description": "Archive a deal so default BI/read paths hide it without hard deletion."},
     {"name": "restore_deal",  "description": "Restore an archived deal back into default BI/read paths."},
     {"name": "delete_deal",   "description": "Hard-delete an archived deal after a dry-run preview and safe audit snapshot."},
+    {"name": "migrate_local_data", "description": "Dry-run-first migration of user-created local personal deals into MongoDB."},
     {"name": "create_sample_data", "description": "Create fictional onboarding sample deals in a separate demo database."},
     {"name": "delete_sample_data", "description": "Delete fictional onboarding sample deals from the separate demo database."},
     {"name": "get_deal",      "description": "Retrieve a deal with full meeting history and MEDDPICC scores."},

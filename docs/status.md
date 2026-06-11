@@ -12,6 +12,36 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-11
 
+### Config profiles Z5.3 init/switch CLI
+
+Implemented:
+
+- Added `deal_intel.config_writer` for safe profile config writes.
+- Added `deal-intel config init --profile sample|full|pro`.
+- Added `deal-intel config switch sample|full|pro`.
+- Added `--dry-run`, `--force`, and `--json` support for both commands.
+- `init` writes a new user config when missing and refuses to overwrite an
+  existing config unless `--force` is provided.
+- `switch` changes only profile-managed keys:
+  `storage.backend`, `mongodb.vector_search`, and `llm.provider`.
+- Actual overwrite/switch operations back up the previous config with a
+  timestamped `config.yaml.bak.YYYYMMDD-HHMMSS` file.
+- Outputs show only profile-managed values and an offline doctor preview; they
+  do not print custom config bodies or secrets.
+
+Verification:
+
+- Config writer targeted tests:
+  `10 passed`
+- Config CLI/doctor/storage regression:
+  `30 passed`
+- CLI dry-run smoke:
+  `config init --profile sample --dry-run` succeeded without writing files
+- Full pytest:
+  `337 passed`, `1 warning`
+- Ruff:
+  `All checks passed`
+
 ### Config profiles Z5.4 config doctor
 
 Implemented:

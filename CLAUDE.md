@@ -62,6 +62,7 @@ Useful CLI checks:
 & "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli config profiles
 & "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli config show
 & "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli config doctor
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli config init --profile sample --dry-run
 ```
 
 For temporary zero-config sample mode:

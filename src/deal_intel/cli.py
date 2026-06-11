@@ -146,6 +146,95 @@ def config_doctor(
         raise typer.Exit(code=1)
 
 
+@config_app.command("init")
+def config_init(
+    profile: str = typer.Option(
+        ...,
+        "--profile",
+        help="Profile to initialize: sample, full, or pro.",
+    ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        help="Back up and overwrite an existing user config.",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Preview the config change without writing files.",
+    ),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Print structured JSON instead of concise text.",
+    ),
+) -> None:
+    """Initialize ~/.deal-intel/config.yaml for a profile."""
+
+    from deal_intel.config_writer import init_config_profile
+
+    try:
+        payload = init_config_profile(
+            profile,
+            force=force,
+            dry_run=dry_run,
+        )
+    except ValueError as exc:
+        payload = _config_write_error_payload("init", profile, str(exc))
+
+    if json_output:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        typer.echo(_format_config_write_result(payload))
+
+    if not payload["ok"]:
+        raise typer.Exit(code=1)
+
+
+@config_app.command("switch")
+def config_switch(
+    profile: str = typer.Argument(
+        ...,
+        help="Profile to switch to: sample, full, or pro.",
+    ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        help="Back up and apply profile-managed config changes.",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Preview the config change without writing files.",
+    ),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Print structured JSON instead of concise text.",
+    ),
+) -> None:
+    """Switch an existing user config between sample, full, and pro."""
+
+    from deal_intel.config_writer import switch_config_profile
+
+    try:
+        payload = switch_config_profile(
+            profile,
+            force=force,
+            dry_run=dry_run,
+        )
+    except ValueError as exc:
+        payload = _config_write_error_payload("switch", profile, str(exc))
+
+    if json_output:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        typer.echo(_format_config_write_result(payload))
+
+    if not payload["ok"]:
+        raise typer.Exit(code=1)
+
+
 @app.command("storage-status")
 def storage_status(
     json_output: bool = typer.Option(
@@ -839,6 +928,81 @@ def _format_config_doctor(payload: dict) -> str:
                 rendered = json.dumps(rendered, ensure_ascii=False)
             lines.append(f"- [{action['check_id']}] {rendered}")
     return "\n".join(lines)
+
+
+def _format_config_write_result(payload: dict) -> str:
+    command = payload.get("command", "config")
+    status = "OK" if payload.get("ok") else "not applied"
+    lines = [
+        f"Config {command}: {status}",
+        f"Profile: {payload.get('profile')}",
+        f"User config: {payload.get('user_config_path')}",
+        (
+            "Mode: "
+            f"dry_run={payload.get('dry_run')}, "
+            f"force={payload.get('force')}, "
+            f"storage_written={payload.get('storage_written')}"
+        ),
+    ]
+    if payload.get("backup_written"):
+        lines.append(f"Backup written: {payload.get('backup_path')}")
+    elif payload.get("backup_path") and payload.get("force"):
+        lines.append(f"Backup path: {payload.get('backup_path')}")
+    if payload.get("message"):
+        lines.append(f"Message: {payload.get('message')}")
+
+    changes = payload.get("changed_fields") or []
+    if changes:
+        lines.extend(["", "Profile-managed changes:"])
+        for change in changes:
+            lines.append(
+                f"- {change['field']}: {change.get('old')!r} -> {change.get('new')!r}"
+            )
+    target_values = payload.get("target_profile_values") or {}
+    if target_values:
+        lines.extend(["", "Target profile values:"])
+        for field, value in target_values.items():
+            lines.append(f"- {field}: {value}")
+
+    doctor = payload.get("doctor")
+    if isinstance(doctor, dict):
+        summary = doctor.get("summary") or {}
+        lines.extend(
+            [
+                "",
+                "Doctor preview (offline):",
+                (
+                    "- "
+                    f"status={summary.get('status')}, "
+                    f"fail={summary.get('failed_checks')}, "
+                    f"warn={summary.get('warning_checks')}, "
+                    f"skipped={summary.get('skipped_checks')}"
+                ),
+            ]
+        )
+    if payload.get("requires_force"):
+        lines.extend(["", "Re-run with --force to apply after backup."])
+    return "\n".join(lines)
+
+
+def _config_write_error_payload(command: str, profile: str, message: str) -> dict:
+    return {
+        "ok": False,
+        "command": command,
+        "profile": profile,
+        "error_code": "INVALID_PROFILE",
+        "message": message,
+        "user_config_path": None,
+        "dry_run": False,
+        "force": False,
+        "requires_force": False,
+        "storage_written": False,
+        "backup_written": False,
+        "backup_path": None,
+        "changed_fields": [],
+        "target_profile_values": {},
+        "doctor": None,
+    }
 
 
 def _mapping(value: Any) -> dict:

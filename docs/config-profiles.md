@@ -74,19 +74,31 @@ Result:
 
 ### Z5.3 Config Init/Switch CLI
 
-Planned commands:
+Implemented commands:
 
 ```bash
 deal-intel config init --profile sample
 deal-intel config init --profile full
 deal-intel config init --profile pro
 deal-intel config switch sample
+deal-intel config init --profile sample --dry-run
+deal-intel config switch sample --dry-run
+deal-intel config switch sample --force
 ```
 
-Done when:
+Implemented behavior:
 
-- User config writes are explicit and tested with temp config paths.
-- Existing user config is preserved or backed up before overwrite.
+- `init` creates `~/.deal-intel/config.yaml` when it does not exist.
+- `init` refuses to replace an existing config unless `--force` is provided.
+- `switch` updates only profile-managed keys:
+  `storage.backend`, `mongodb.vector_search`, and `llm.provider`.
+- `switch` preserves unrelated custom settings such as reporting, pipeline,
+  metrics, and model tuning.
+- Actual overwrite/switch writes back up the previous config first with a
+  timestamped `config.yaml.bak.YYYYMMDD-HHMMSS` file.
+- `--dry-run` previews the change without writing files.
+- Secret values are not printed; output includes only profile-managed values
+  and an offline doctor preview.
 - `sample` setup requires no MongoDB or API key.
 
 ### Z5.4 Config Doctor

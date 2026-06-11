@@ -28,7 +28,7 @@ Claude Desktop / Codex / ChatGPT
   -> storage backend selected by deal_intel._context
 ```
 
-The server exposes 21 MCP tools. The source of truth is
+The server exposes 22 MCP tools. The source of truth is
 `src/deal_intel/mcp_server.py`.
 
 ## Product Profiles

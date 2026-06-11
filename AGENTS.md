@@ -60,6 +60,7 @@ Useful CLI checks:
 & "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli storage-status
 & "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli config profiles
 & "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli config show
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli config doctor
 ```
 
 For temporary zero-config sample mode:
@@ -86,8 +87,9 @@ Juni's preferred loop:
 
 Source of truth: `src/deal_intel/mcp_server.py`.
 
-Current tool count: 21.
+Current tool count: 22.
 
+- Config/readiness: `config_doctor`
 - Write/lifecycle: `create_deal`, `add_meeting`, `update_stage`,
   `update_deal`, `archive_deal`, `restore_deal`, `delete_deal`
 - Demo data: `create_sample_data`, `delete_sample_data`

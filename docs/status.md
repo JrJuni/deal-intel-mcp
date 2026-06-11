@@ -12,6 +12,39 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-11
 
+### Config profiles Z5.4 config doctor
+
+Implemented:
+
+- Added `deal_intel.config_doctor` as the shared diagnostic engine for config
+  readiness checks.
+- Added `deal-intel config doctor`, `deal-intel config doctor --json`, and
+  `deal-intel config doctor --offline`.
+- Added the read-only MCP tool `config_doctor(offline=false)`.
+- The doctor checks the effective profile, user config readability, storage
+  backend, MongoDB URI, optional storage ping, vector-search mode, and LLM
+  provider readiness without LLM calls, embeddings, or writes.
+- Kept diagnostic output secret-safe: environment values, tokens, raw notes,
+  contacts, and embeddings are not returned.
+
+Verification:
+
+- Config doctor targeted tests:
+  `10 passed`
+- Config/storage targeted regression:
+  `19 passed`
+- MCP registration and related regression:
+  `75 passed`
+- Full pytest:
+  `327 passed`, `1 warning`
+- Ruff:
+  `All checks passed`
+- CLI offline smoke:
+  `ok=true`, `profile=full`, `storage_ping=skipped`
+- CLI live storage smoke:
+  returned a structured `storage_ping` failure because this environment hit a
+  DNS timeout while resolving Atlas. No writes were attempted.
+
 ### Secret scan cleanup and debt audit
 
 Implemented:

@@ -10,6 +10,30 @@ _MAX_EMBEDDING_WARMUP_SECONDS = 30
 
 
 @app.tool()
+def config_doctor(offline: bool = False) -> dict:
+    """Diagnose profile, storage, vector search, and LLM readiness.
+
+    Read-only. The default path performs a bounded storage ping but does not
+    call LLM completion APIs, embeddings, or write to MongoDB. Set
+    offline=true to skip storage ping and run static checks only.
+    """
+    try:
+        from deal_intel import _context
+        from deal_intel.config_doctor import build_config_doctor_report
+
+        def _storage_ping() -> dict:
+            return _context.mongo().ping()
+
+        return build_config_doctor_report(
+            _context.config(),
+            offline=offline,
+            storage_ping=_storage_ping,
+        )
+    except Exception as exc:
+        return envelope_from_exception(exc, stage=Stage.PREFLIGHT)
+
+
+@app.tool()
 def create_deal(
     company: str,
     industry: str = "",

@@ -102,6 +102,50 @@ def config_show(
         typer.echo(_format_config_show(payload))
 
 
+@config_app.command("doctor")
+def config_doctor(
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Print structured JSON instead of concise text.",
+    ),
+    offline: bool = typer.Option(
+        False,
+        "--offline",
+        help="Skip live storage ping and run static checks only.",
+    ),
+) -> None:
+    """Diagnose profile, storage, vector search, and LLM readiness."""
+
+    from deal_intel import _env
+    from deal_intel.config_doctor import build_config_doctor_report
+    from deal_intel.storage.local_sample import LocalSampleClient
+    from deal_intel.storage.mongodb import MongoDBClient
+
+    cfg = _env.load_config()
+
+    def _storage_ping() -> dict:
+        storage = _mapping(cfg.get("storage"))
+        backend = storage.get("backend", "mongo")
+        if backend == "local_sample":
+            return LocalSampleClient().ping()
+        database = _mapping(cfg.get("mongodb")).get("database", "deal_intel")
+        return MongoDBClient(database=database).ping()
+
+    payload = build_config_doctor_report(
+        cfg,
+        offline=offline,
+        storage_ping=_storage_ping,
+    )
+    if json_output:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        typer.echo(_format_config_doctor(payload))
+
+    if not payload["ok"]:
+        raise typer.Exit(code=1)
+
+
 @app.command("storage-status")
 def storage_status(
     json_output: bool = typer.Option(
@@ -755,6 +799,45 @@ def _format_config_show(payload: dict) -> str:
         ),
         "Secret values are redacted; only configured true/false is shown.",
     ]
+    return "\n".join(lines)
+
+
+def _format_config_doctor(payload: dict) -> str:
+    summary = payload["summary"]
+    lines = [
+        f"Config doctor: {'OK' if payload['ok'] else 'not ready'}",
+        f"Profile: {payload['profile']}",
+        (
+            "Runtime: "
+            f"storage={summary['storage_backend']}, "
+            f"database={summary['mongodb_database']}, "
+            f"vector_search={summary['vector_search']}, "
+            f"llm={summary['llm_provider']}"
+        ),
+        (
+            "Checks: "
+            f"fail={summary['failed_checks']}, "
+            f"warn={summary['warning_checks']}, "
+            f"skipped={summary['skipped_checks']}"
+        ),
+        "",
+        "Details:",
+    ]
+    for check in payload["checks"]:
+        marker = {
+            "pass": "PASS",
+            "warn": "WARN",
+            "fail": "FAIL",
+            "skipped": "SKIP",
+        }.get(check.get("status"), str(check.get("status")).upper())
+        lines.append(f"- {marker} {check['label']}: {check['message']}")
+    if payload["next_actions"]:
+        lines.extend(["", "Next actions:"])
+        for action in payload["next_actions"]:
+            rendered = action["action"]
+            if isinstance(rendered, dict):
+                rendered = json.dumps(rendered, ensure_ascii=False)
+            lines.append(f"- [{action['check_id']}] {rendered}")
     return "\n".join(lines)
 
 

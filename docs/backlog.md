@@ -25,10 +25,9 @@ and `pro`.
 Next candidate units:
 
 1. Config init/switch CLI
-2. Config doctor CLI
-3. AI start-here guide
-4. Packaging docs for sample-first onboarding
-5. Profile smoke matrix
+2. AI start-here guide
+3. Packaging docs for sample-first onboarding
+4. Profile smoke matrix
 
 Principle: agents and new users should start in `sample` before being asked for
 MongoDB, paid APIs, or Atlas Vector Search.

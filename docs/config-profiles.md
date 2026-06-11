@@ -91,18 +91,23 @@ Done when:
 
 ### Z5.4 Config Doctor
 
-Planned command:
+Implemented command:
 
 ```bash
 deal-intel config doctor
+deal-intel config doctor --json
+deal-intel config doctor --offline
 ```
 
-Done when:
+Implemented behavior:
 
 - Storage, Mongo URI, vector-search mode, LLM provider, OAuth/API-key readiness,
   and sample-mode status are checked in one payload.
 - Missing requirements return actionable hints.
 - Live network checks are optional or carefully bounded.
+- The MCP tool `config_doctor` returns the same shared report shape.
+- The default path allows bounded storage ping but does not call LLM completion
+  APIs, embeddings, or write to MongoDB.
 
 ### Z5.5 AI Start Here
 

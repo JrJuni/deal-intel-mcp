@@ -59,6 +59,7 @@ available.
 
 | Tool | Required inputs | Optional inputs | Success response | Persistence or external effects |
 |---|---|---|---|---|
+| `config_doctor` | None | `offline` | `ok`, `profile`, `generated_at`, `summary`, `checks`, `next_actions` | Read only; checks config, storage readiness, vector-search mode, and LLM provider readiness without LLM calls, embeddings, or writes. The default path may perform a bounded storage ping; `offline=true` skips it |
 | `create_deal` | `company` | `industry`, `deal_size_krw`, `deal_size_status`, `deal_size_low_krw`, `deal_size_high_krw`, `deal_size_note`, `expected_close_date` | `ok`, `deal_id`, `company`, deal value fields, `expected_close_date`, `expected_close_date_source`, optional `analytics_snapshot` | Validates the initial deal-value classification, applies the configured close-date default when omitted, upserts one deal, initializes `discovery` stage history, and attempts a non-blocking analytics snapshot |
 | `add_meeting` | `deal_id`, `date`, `raw_notes` | None | `ok`, `meeting_id`, `summary`, `meddpicc`, `meddpicc_latest`, `customer_themes`, `stage_suggestion`, `embedding_stored`, `usage`, optional `analytics_snapshot` | Calls LLM, appends a meeting, recalculates deal signals, optionally stores an embedding, upserts the deal, and attempts a non-blocking analytics snapshot |
 | `update_stage` | `deal_id`, `new_stage` | `actual_close_date` | `ok`, `deal_id`, `old_stage`, `new_stage`, `actual_close_date`, `days_in_previous_stage`, `stuck_threshold_days`, optional `analytics_snapshot` | Appends stage history, records the actual terminal date, recalculates stage-aware MEDDPICC gaps, upserts the deal, and attempts a non-blocking analytics snapshot |
@@ -255,7 +256,7 @@ Before Milestone 1 started, all 28 findings were resolved. The current gate is:
 pytest -> 128 passed
 ruff check . -> All checks passed
 wheel build -> passed
-FastMCP runtime registration -> 21 tools
+FastMCP runtime registration -> 22 tools
 MongoDB Atlas read smoke -> passed
 ```
 

@@ -248,6 +248,66 @@ def test_overdue_deal_separates_timing_risk_from_health() -> None:
     assert review["health_interpretation"]["alert_level"] == "watch"
 
 
+def test_v2_assessment_and_gap_actionability_split_cta_from_observations() -> None:
+    review = build_deal_review(
+        _deal(
+            stage="negotiation",
+            health_pct=72,
+            scores={dim: 4 for dim in MEDDPICC_DIMS if dim != "competition"},
+            gaps=["competition"],
+            expected_close_date="2026-06-01",
+        ),
+        as_of=AS_OF,
+    )
+
+    assert review["review_version"] == "v2"
+    assert review["assessment"] == {
+        "health_quality": "healthy",
+        "evidence_coverage_pct": 85.7,
+        "evidence_coverage_level": "high",
+        "uncertainty": "medium",
+        "confirmed_risk_level": "watch",
+        "review_band": "watch_with_evidence",
+        "alert_level": "watch",
+    }
+
+    assert "review_close_plan" in review["recommended_actions"]
+    assert "ask_in_next_meeting" not in review["recommended_actions"]
+
+    observation = next(
+        item for item in review["gap_observations"]
+        if item["field"] == "meddpicc.competition"
+    )
+    assert observation["actionability"] == "needs_human_judgment"
+    assert observation["cta_policy"] == "observation_only"
+    assert observation["recommended_action"] == "ask_in_next_meeting"
+
+    action = next(
+        item for item in review["actionable_gaps"]
+        if item["gap_id"] == "attention:overdue"
+    )
+    assert action["actionability"] == "cta_allowed"
+    assert action["cta_policy"] == "cta_allowed"
+
+
+def test_deal_review_coverage_thresholds_are_configurable() -> None:
+    review = build_deal_review(
+        _deal(
+            health_pct=86,
+            scores={"metrics": 5, "identify_pain": 5},
+        ),
+        as_of=AS_OF,
+        review_settings={"coverage_low_max": 20, "coverage_high_min": 50},
+    )
+
+    interpretation = review["health_interpretation"]
+    assert interpretation["evidence_coverage_pct"] == 28.6
+    assert interpretation["evidence_coverage_level"] == "medium"
+    assert interpretation["uncertainty_level"] == "medium"
+    assert review["assessment"]["uncertainty"] == "medium"
+    assert "insufficient_evidence" not in review["warnings"]
+
+
 def test_get_deal_review_tool_uses_restricted_read_path_and_excludes_sensitive_fields() -> None:
     mongo = FakeMongo([_deal("deal-1"), _deal("deal-2")])
 

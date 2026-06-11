@@ -2039,6 +2039,7 @@ def _build_deal_review_audit_payload(results: list[dict], *, filters: dict) -> d
 
 def _build_deal_review_audit_row(review: dict) -> dict:
     interpretation = review.get("health_interpretation") or {}
+    assessment = review.get("assessment") or {}
     warnings = [str(item) for item in review.get("warnings") or []]
     quality_issues = _audit_deal_review_quality(review)
     return {
@@ -2055,7 +2056,11 @@ def _build_deal_review_audit_row(review: dict) -> dict:
         "review_band": interpretation.get("review_band"),
         "alert_level": interpretation.get("alert_level"),
         "uncertainty_level": interpretation.get("uncertainty_level"),
+        "review_version": review.get("review_version"),
+        "assessment": assessment,
         "attention_reasons": review.get("attention_reasons") or [],
+        "actionable_gap_count": len(review.get("actionable_gaps") or []),
+        "gap_observation_count": len(review.get("gap_observations") or []),
         "missing_information_count": len(review.get("missing_information") or []),
         "confirmed_risk_count": len(review.get("confirmed_risks") or []),
         "recommended_question_count": len(review.get("recommended_questions") or []),
@@ -2072,6 +2077,8 @@ def _audit_deal_review_quality(review: dict) -> list[dict]:
     risks = review.get("confirmed_risks") or []
     questions = review.get("recommended_questions") or []
     actions = review.get("recommended_actions") or []
+    actionable_gaps = review.get("actionable_gaps") or []
+    gap_observations = review.get("gap_observations") or []
     data_quality = review.get("data_quality") or {}
     review_band = interpretation.get("review_band")
     alert_level = interpretation.get("alert_level")
@@ -2086,6 +2093,24 @@ def _audit_deal_review_quality(review: dict) -> list[dict]:
                 "missing_win_probability_suppression",
                 "high",
                 "Review must explicitly suppress uncalibrated win probability.",
+            )
+        )
+
+    if review.get("review_version") != "v2":
+        issues.append(
+            _quality_issue(
+                "missing_review_version_v2",
+                "medium",
+                "Deal review payload should identify review_version=v2.",
+            )
+        )
+
+    if not isinstance(review.get("assessment"), dict):
+        issues.append(
+            _quality_issue(
+                "missing_v2_assessment",
+                "medium",
+                "Deal review v2 must include a compact assessment object.",
             )
         )
 
@@ -2198,6 +2223,44 @@ def _audit_deal_review_quality(review: dict) -> list[dict]:
             )
         )
 
+    action_set = {str(action) for action in actions}
+    for gap in gap_observations:
+        if not isinstance(gap, dict):
+            continue
+        if gap.get("actionability") == "cta_allowed":
+            issues.append(
+                _quality_issue(
+                    "cta_allowed_gap_in_observations",
+                    "medium",
+                    "CTA-eligible gaps should be rendered as actionable gaps.",
+                )
+            )
+        recommended_action = gap.get("recommended_action")
+        if (
+            gap.get("actionability") in {"needs_human_judgment", "observation_only"}
+            and recommended_action
+            and str(recommended_action) in action_set
+        ):
+            issues.append(
+                _quality_issue(
+                    "judgment_sensitive_gap_promoted_to_cta",
+                    "high",
+                    "Judgment-sensitive gaps must not be promoted to recommended actions.",
+                )
+            )
+
+    for gap in actionable_gaps:
+        if not isinstance(gap, dict):
+            continue
+        if gap.get("actionability") != "cta_allowed":
+            issues.append(
+                _quality_issue(
+                    "non_cta_gap_in_actionable_gaps",
+                    "medium",
+                    "Only objective CTA-trigger gaps should be actionable gaps.",
+                )
+            )
+
     missing_fields = {str(item.get("field")) for item in missing if isinstance(item, dict)}
     actual_close_date = review.get("actual_close_date") or review.get(
         "_audit_actual_close_date"
@@ -2250,6 +2313,8 @@ def _guidance_contains_percent_estimate(review: dict) -> bool:
         "confirmed_risks",
         "known_signals",
         "missing_information",
+        "actionable_gaps",
+        "gap_observations",
     ):
         guidance.extend(_string_values(review.get(key)))
     return any("%" in item for item in guidance)
@@ -2347,6 +2412,9 @@ def _format_deal_review_smoke(payload: dict) -> str:
                 f"Attention: {_format_string_list(review.get('attention_reasons') or [])}",
                 f"Missing: {_format_gap_list(review.get('missing_information') or [])}",
                 f"Risks: {_format_risk_list(review.get('confirmed_risks') or [])}",
+                f"Actions: {_format_string_list(review.get('recommended_actions') or [])}",
+                "Gap observations: "
+                f"{_format_gap_list(review.get('gap_observations') or [], limit=3)}",
                 "Questions: "
                 f"{_format_string_list(review.get('recommended_questions') or [], limit=3)}",
                 f"Warnings: {_format_string_list(review.get('warnings') or [])}",
@@ -2388,6 +2456,8 @@ def _format_deal_review_audit(payload: dict) -> str:
             f"{row.get('review_band')} | alert={row.get('alert_level')} | "
             f"uncertainty={row.get('uncertainty_level')} | "
             f"coverage={row.get('evidence_coverage_pct')}% | "
+            f"actions={row.get('actionable_gap_count')} | "
+            f"observations={row.get('gap_observation_count')} | "
             f"missing={row.get('missing_information_count')} | "
             f"risks={row.get('confirmed_risk_count')} | "
             f"issues={_format_issue_ids(row.get('quality_issues') or [])}"
@@ -2424,14 +2494,14 @@ def _format_string_list(items: list[Any], *, limit: int = 5) -> str:
     return "; ".join(visible) + suffix
 
 
-def _format_gap_list(gaps: list[dict]) -> str:
+def _format_gap_list(gaps: list[dict], *, limit: int = 3) -> str:
     if not gaps:
         return "none"
     values = [
         f"{gap.get('field')}:{gap.get('status')}:{gap.get('severity')}"
-        for gap in gaps[:3]
+        for gap in gaps[:limit]
     ]
-    suffix = f" (+{len(gaps) - 3} more)" if len(gaps) > 3 else ""
+    suffix = f" (+{len(gaps) - limit} more)" if len(gaps) > limit else ""
     return "; ".join(values) + suffix
 
 

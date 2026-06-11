@@ -22,9 +22,9 @@ reporting:
   timezone: Asia/Seoul
   output_dir: outputs/reports
 
-# MEDDPICC health score 계산 가중치.
+# MEDDPICC health score weights.
 # health_pct = sum(score_i * weight_i) / sum(5 * weight_i) * 100
-# ML 자동조정 시 이 섹션만 ~/.deal-intel/config.yaml로 override.
+# Override in ~/.deal-intel/config.yaml if your sales process needs different weighting.
 meddpicc:
   weights:
     metrics:          1.0
@@ -34,22 +34,22 @@ meddpicc:
     identify_pain:    1.5
     champion:         2.0
     competition:      0.5
-  gap_threshold: 2    # 이 점수 미만이면 gap으로 분류
+  gap_threshold: 2    # Scores below this threshold are treated as gaps.
 
-# 미팅 노트 시맨틱 임베딩 설정 (Vector Search용).
-# sentence-transformers 로컬 실행 — API key 불필요.
-# ~/.deal-intel/config.yaml 에서 모델 override 가능.
+# Meeting-note summary embedding settings for vector search.
+# Runs locally with sentence-transformers, without an API key.
+# Override the model in ~/.deal-intel/config.yaml if needed.
 embedding:
-  model: all-MiniLM-L6-v2   # 384 dims, ~90MB 1회 다운로드, CPU 실행 가능
+  model: all-MiniLM-L6-v2   # 384 dims, ~90MB first download, CPU friendly.
 
-# 딜 파이프라인 stuck 기준 (일 단위).
-# stuck_threshold_days_by_stage가 우선, 없는 stage는 default 사용.
+# Pipeline stuck and expected-close defaults, in days.
+# Stage-specific stuck thresholds override the default when present.
 pipeline:
-  # 새 딜의 예상 종료일. 사용자가 날짜를 직접 입력하면 항상 그 값이 우선.
+  # Used only when the user does not provide an expected close date.
   expected_close:
     default_days: 7
-    # 자유 형식 industry 문자열과 대소문자 무시 exact match.
-    # 예: 공공: 60, 대기업: 28
+    # Exact industry string match, case-insensitive.
+    # Example: public_sector: 60, enterprise: 28
     days_by_industry: {}
   stuck_threshold_days: 14
   stuck_threshold_days_by_stage:
@@ -68,3 +68,10 @@ metrics:
     grace_days: 0
   win_rate:
     minimum_closed_sample: 10
+
+# Deal review interpretation. These thresholds control evidence coverage and
+# uncertainty messaging; they do not estimate win probability.
+deal_review:
+  evidence_coverage:
+    low_max: 40
+    high_min: 70

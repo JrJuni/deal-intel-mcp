@@ -40,15 +40,18 @@ scorecard.
 
 Backlog items:
 
-- Separate health quality, evidence coverage, confirmed risks, missing
-  information, and uncertainty.
+- Implemented in v2: deal reviews now separate health quality, evidence
+  coverage, confirmed risks, missing information, uncertainty, objective
+  actionable gaps, and judgment-sensitive gap observations. Keep report and
+  natural-language rendering aligned with this contract.
 - Revisit MEDDPICC unknown-first scoring. Missing evidence should increase
   uncertainty instead of masquerading as neutral strength.
 - Keep uncalibrated win-probability numbers suppressed unless a real
   probability contract exists.
 - Use smoke packs to compare natural-language deal reviews across multiple
   companies.
-- Separate objective CTA triggers from judgment-sensitive gap observations.
+- Implemented in v2, with follow-up rendering work still useful: separate
+  objective CTA triggers from judgment-sensitive gap observations.
   - Objective triggers can produce explicit CTAs: overdue close dates,
     missed commitments, missing actual close dates for won/lost deals, missing
     close reasons for lost deals, or clearly required initiation steps.
@@ -60,9 +63,10 @@ Backlog items:
     like mandatory next actions. Example: "competition gap exists" is safer
     than "prepare competitor comparison and close negotiation" unless the
     account evidence objectively supports that action.
-  - Possible implementation: add `actionability` or `cta_policy` to gap rows
-    (`cta_allowed`, `observation_only`, `needs_human_judgment`) and let
-    Markdown/report builders render them differently.
+  - Current implementation: gap rows include `actionability` and `cta_policy`;
+    `get_deal_review` exposes `actionable_gaps` and `gap_observations`.
+  - Remaining follow-up: weekly report and document rendering should use the
+    same distinction instead of flattening all gaps into recommended actions.
 
 ### Customer Interaction Intake
 

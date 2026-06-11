@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from deal_intel.errors import ErrorCode, MCPError, Stage
-from deal_intel.schema.deal_review import build_deal_review
+from deal_intel.schema.deal_review import DealReviewSettings, build_deal_review
 from deal_intel.schema.metrics import (
     HealthBandThresholds,
     PipelineTimingSettings,
@@ -30,6 +30,7 @@ def handle(
         reporting = ReportingContext.from_config(cfg, as_of=as_of)
         health_thresholds = HealthBandThresholds.from_config(cfg)
         timing_settings = PipelineTimingSettings.from_config(cfg)
+        review_settings = DealReviewSettings.from_config(cfg)
     except ValueError as exc:
         error_code = (
             ErrorCode.INVALID_INPUT
@@ -67,6 +68,7 @@ def handle(
         as_of=reporting.as_of,
         health_thresholds=health_thresholds,
         timing_settings=timing_settings,
+        review_settings=review_settings,
     )
     return {
         "ok": True,

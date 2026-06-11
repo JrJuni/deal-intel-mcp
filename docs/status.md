@@ -12,6 +12,35 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-11
 
+### Deal review quality v2
+
+Implemented:
+
+- Added `review_version: "v2"` to deterministic deal reviews.
+- Added a top-level `assessment` summary that separates health quality,
+  evidence coverage, uncertainty, confirmed risk level, review band, and alert
+  level.
+- Split gap output into `actionable_gaps` for objective CTA-safe items such as
+  overdue timing, and `gap_observations` for judgment-sensitive MEDDPICC gaps
+  such as competition, champion quality, economic buyer mapping, and decision
+  criteria.
+- Added per-gap `actionability` and `cta_policy` so reports and natural
+  language answers can avoid turning qualitative gaps into overconfident
+  instructions.
+- Made deal-review evidence coverage thresholds configurable under
+  `deal_review.evidence_coverage.low_max` and
+  `deal_review.evidence_coverage.high_min`.
+- Extended the deal-review smoke audit so it catches v2 contract regressions,
+  judgment-sensitive gaps promoted into CTAs, and non-CTA gaps leaking into
+  actionable output.
+
+Verification:
+
+- Targeted deal-review tests: `26 passed`, `1 warning`
+- Targeted Ruff: `All checks passed`
+- Full pytest: `406 passed`, `1 warning`
+- Full Ruff: `All checks passed`
+
 ### Planning note: customer interaction intake
 
 Added to [backlog.md](backlog.md):

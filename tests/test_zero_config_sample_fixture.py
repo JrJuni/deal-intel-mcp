@@ -151,6 +151,23 @@ def test_zero_config_sample_fixture_drives_customer_theme_views() -> None:
     assert "raw_notes" not in encoded
     assert "raw_content" not in encoded
 
+    email_evidence = build_customer_theme_evidence(
+        deals,
+        theme_key="reporting_visibility",
+        dimension="all",
+        stage="active",
+        interaction_type="email_thread",
+    )
+    interview_evidence = build_customer_theme_evidence(
+        deals,
+        theme_key="reporting_visibility",
+        dimension="all",
+        stage="active",
+        interaction_type="user_interview",
+    )
+    assert email_evidence["summary"]["evidence_count"] == 1
+    assert interview_evidence["summary"]["evidence_count"] == 1
+
 
 def test_zero_config_sample_fixture_drives_pipeline_trend() -> None:
     snapshots = load_zero_config_sample_snapshots()

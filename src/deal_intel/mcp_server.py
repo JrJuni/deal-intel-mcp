@@ -753,11 +753,14 @@ def get_customer_theme_evidence(
     industry: str = "",
     limit: int = 10,
     min_importance: int = 1,
+    interaction_type: str = "all",
+    source_confidence: str = "all",
 ) -> dict:
     """Return curated evidence examples for one customer theme.
 
     Read-only. Evidence is the structured snippet already extracted into
-    customer_themes; raw meeting notes, contacts, and embeddings are excluded.
+    customer_themes; raw meeting notes, raw interaction content, contacts, and
+    embeddings are excluded.
 
     theme_key: controlled taxonomy key, e.g. compliance_security
     dimension: all | identify_pain | decision_criteria | metrics
@@ -765,6 +768,9 @@ def get_customer_theme_evidence(
     industry: exact industry filter, or empty for all industries
     limit: 1..50
     min_importance: 1..5
+    interaction_type: all | meeting | email_thread | user_interview |
+      call_summary | internal_note | configured custom type
+    source_confidence: all | customer_stated | mixed | internal | outbound_unconfirmed | unknown
     """
     try:
         from deal_intel import _context
@@ -772,12 +778,15 @@ def get_customer_theme_evidence(
 
         return _t.handle(
             mongo=_context.mongo(),
+            cfg=_context.config(),
             theme_key=theme_key,
             dimension=dimension,
             stage=stage,
             industry=industry or None,
             limit=limit,
             min_importance=min_importance,
+            interaction_type=interaction_type,
+            source_confidence=source_confidence,
         )
     except Exception as exc:
         return envelope_from_exception(exc, stage=Stage.STORAGE)

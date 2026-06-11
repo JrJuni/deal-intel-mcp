@@ -12,6 +12,32 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-11
 
+### P3.5 source-aware theme evidence filters
+
+Implemented:
+
+- Added `interaction_type` and `source_confidence` filters to
+  `get_customer_theme_evidence`.
+- Supported exact source filtering for built-in interaction types:
+  `meeting`, `email_thread`, `user_interview`, `call_summary`, and
+  `internal_note`.
+- MCP tool validation also honors config-registered custom interaction types.
+- Preserved legacy compatibility by treating old meeting-derived theme rows as
+  `interaction_type=meeting`.
+- Updated the natural-question smoke pack so the email/interview evidence
+  question calls the native source filters instead of only post-filtering rows.
+
+Verification:
+
+- Targeted theme/fixture/natural-smoke regression:
+  `28 passed`, `1 warning`
+- Full pytest:
+  `425 passed`, `1 warning`
+- Ruff:
+  `All checks passed`
+- Local sample natural-question smoke:
+  `questions=9`, `source_evidence=2 (email_thread=1, user_interview=1)`
+
 ### P3.4 sample interaction evidence UX
 
 Implemented:

@@ -149,6 +149,10 @@ Current implementation note:
   - customer-theme evidence rows expose safe source metadata so agents can
     distinguish meeting, email, and interview support without reading raw
     content.
+- P3.5 added source-aware filters to `get_customer_theme_evidence`:
+  `interaction_type` and `source_confidence`. This lets agents answer
+  questions like "show only email-backed evidence" without reading raw
+  interaction content.
 
 #### P3.3 cleanup: single public intake surface
 

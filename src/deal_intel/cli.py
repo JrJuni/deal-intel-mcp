@@ -1568,14 +1568,28 @@ def _build_natural_question_smoke_pack(
             "Which customer themes are supported by email or user interview evidence?",
             "derived",
             lambda: _build_interaction_source_evidence_payload(
-                _theme_evidence.handle(
-                    mongo=mongo,
-                    theme_key="reporting_visibility",
-                    dimension="all",
-                    stage="active",
-                    limit=50,
-                    min_importance=1,
-                )
+                [
+                    _theme_evidence.handle(
+                        mongo=mongo,
+                        cfg=cfg,
+                        theme_key="reporting_visibility",
+                        dimension="all",
+                        stage="active",
+                        limit=50,
+                        min_importance=1,
+                        interaction_type="email_thread",
+                    ),
+                    _theme_evidence.handle(
+                        mongo=mongo,
+                        cfg=cfg,
+                        theme_key="reporting_visibility",
+                        dimension="all",
+                        stage="active",
+                        limit=50,
+                        min_importance=1,
+                        interaction_type="user_interview",
+                    ),
+                ]
             ),
         )
     )
@@ -1746,11 +1760,14 @@ def _build_closed_postmortem_gap_payload(gap_payload: dict) -> dict:
     }
 
 
-def _build_interaction_source_evidence_payload(evidence_payload: dict) -> dict:
+def _build_interaction_source_evidence_payload(
+    evidence_payloads: list[dict],
+) -> dict:
     source_types = {"email_thread", "user_interview"}
     rows = [
         row
-        for row in evidence_payload.get("evidence") or []
+        for payload in evidence_payloads
+        for row in payload.get("evidence") or []
         if row.get("interaction_type") in source_types
     ]
     unique_deals = {str(row.get("deal_id") or "") for row in rows}
@@ -1758,7 +1775,9 @@ def _build_interaction_source_evidence_payload(evidence_payload: dict) -> dict:
     return {
         "ok": True,
         "filters": {
-            **(evidence_payload.get("filters") or {}),
+            "theme_key": "reporting_visibility",
+            "dimension": "all",
+            "stage": "active",
             "interaction_types": sorted(source_types),
         },
         "summary": {
@@ -1769,7 +1788,7 @@ def _build_interaction_source_evidence_payload(evidence_payload: dict) -> dict:
             ),
         },
         "evidence": rows,
-        "source_summary": evidence_payload.get("summary") or {},
+        "source_summaries": [payload.get("summary") or {} for payload in evidence_payloads],
         "warnings": [] if rows else ["no_email_or_user_interview_theme_evidence"],
     }
 

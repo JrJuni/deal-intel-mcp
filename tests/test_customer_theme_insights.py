@@ -242,6 +242,35 @@ def test_customer_theme_evidence_filters_by_industry_and_importance() -> None:
     assert result["warnings"] == ["no_customer_theme_evidence"]
 
 
+def test_customer_theme_evidence_filters_by_interaction_source() -> None:
+    result = build_customer_theme_evidence(
+        _deals(),
+        theme_key="compliance_security",
+        dimension="decision_criteria",
+        stage="all",
+        interaction_type="user_interview",
+        source_confidence="customer_stated",
+    )
+
+    assert result["filters"]["interaction_type"] == "user_interview"
+    assert result["filters"]["source_confidence"] == "customer_stated"
+    assert result["summary"]["evidence_count"] == 1
+    assert result["evidence"][0]["company"] == "Gamma"
+
+
+def test_customer_theme_evidence_treats_legacy_meeting_as_meeting_source() -> None:
+    result = build_customer_theme_evidence(
+        _deals(),
+        theme_key="compliance_security",
+        dimension="decision_criteria",
+        stage="all",
+        interaction_type="meeting",
+    )
+
+    assert result["summary"]["evidence_count"] == 2
+    assert {row["company"] for row in result["evidence"]} == {"Alpha", "Beta"}
+
+
 def test_customer_theme_tools_validate_before_storage() -> None:
     mongo = FakeMongo(fail=True)
 
@@ -255,6 +284,26 @@ def test_customer_theme_tools_validate_before_storage() -> None:
         get_customer_theme_evidence.handle(mongo, theme_key="made_up")
     assert invalid_theme.value.error_code == ErrorCode.INVALID_INPUT
     assert invalid_theme.value.stage == Stage.PREFLIGHT
+    assert mongo.reads == 0
+
+    with pytest.raises(MCPError) as invalid_interaction:
+        get_customer_theme_evidence.handle(
+            mongo,
+            theme_key="compliance_security",
+            interaction_type="fax",
+        )
+    assert invalid_interaction.value.error_code == ErrorCode.INVALID_INPUT
+    assert invalid_interaction.value.stage == Stage.PREFLIGHT
+    assert mongo.reads == 0
+
+    with pytest.raises(MCPError) as invalid_confidence:
+        get_customer_theme_evidence.handle(
+            mongo,
+            theme_key="compliance_security",
+            source_confidence="certain",
+        )
+    assert invalid_confidence.value.error_code == ErrorCode.INVALID_INPUT
+    assert invalid_confidence.value.stage == Stage.PREFLIGHT
     assert mongo.reads == 0
 
 
@@ -281,6 +330,7 @@ def test_customer_theme_tool_handlers_return_expected_shape() -> None:
         theme_key="compliance_security",
         stage="active",
         limit=3,
+        interaction_type="meeting",
     )
 
     assert breakdown["ok"] is True
@@ -288,6 +338,7 @@ def test_customer_theme_tool_handlers_return_expected_shape() -> None:
     assert breakdown["groups"]
     assert evidence["ok"] is True
     assert evidence["summary"]["returned_count"] == 2
+    assert evidence["filters"]["interaction_type"] == "meeting"
 
 
 def test_mcp_runtime_registers_customer_theme_expansion_tools() -> None:

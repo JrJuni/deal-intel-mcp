@@ -12,6 +12,44 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-11
 
+### Config profiles Z5.6 packaging surface
+
+Implemented:
+
+- Reworked README onboarding to be sample-first: profile inspection, sample
+  dry-run, local sample smoke, then optional Claude Desktop / MongoDB setup.
+- Updated `README.ko.md` with the same user-facing sample/full/pro flow.
+- Updated `mcpb/README.md` for first-run `local_sample` installs.
+- Bumped `mcpb/manifest.json` to `0.1.9`, added `storage_backend`, made
+  `mongodb_uri` optional unless `storage_backend=mongo`, and updated bundle
+  metadata to the current 22-tool surface.
+- Updated the documentation map, config-profile contract notes, and active
+  backlog index.
+
+Verification:
+
+- Manifest JSON parse:
+  `version=0.1.9`, `tools=22`, `storage_backend=local_sample`,
+  `mongodb_required=False`
+- Manifest/server tool-name comparison:
+  `server=22`, `manifest=22`, `tool names match`
+- CLI dry-run smoke:
+  `deal-intel config init --profile sample --dry-run`
+- CLI offline doctor smoke:
+  `deal-intel config doctor --offline`
+- English-source ASCII check:
+  `README.md`, `AI_START_HERE.md`, `docs/README.md`, `docs/backlog.md`,
+  `docs/config-profiles.md`, `mcpb/README.md`, `mcpb/manifest.json`
+- Diff whitespace check:
+  `git diff --check`
+- Ruff:
+  `All checks passed`
+
+Not run:
+
+- `mcpb validate manifest.json`; the `mcpb` CLI is not available on PATH in
+  this environment.
+
 ### Config profiles Z5.5 AI start-here guide
 
 Implemented:

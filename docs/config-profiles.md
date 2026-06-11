@@ -142,12 +142,15 @@ Implemented behavior:
 
 ### Z5.6 Packaging Surface
 
-Done when:
+Implemented behavior:
 
 - README and MCP package docs describe sample/full/pro without implying three
   separate codebases.
 - Sample-first installation is the easiest path.
 - Full/pro requirements are clearly labeled as opt-in.
+- `mcpb/manifest.json` exposes `storage_backend` so Claude Desktop installs can
+  start in `local_sample` without a MongoDB URI.
+- The MCP bundle metadata now reflects the current 22-tool surface.
 
 ### Z5.7 Profile Smoke Matrix
 

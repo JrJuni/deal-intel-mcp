@@ -2,9 +2,12 @@
 
 **English** | [Korean](README.ko.md)
 
-A B2B sales-support MCP server: paste a meeting note and it scores the deal on MEDDPICC, then stacks everything in MongoDB to surface which deals are stuck and where you're losing.
+A B2B sales-support MCP server: paste a meeting note and it scores the deal on MEDDPICC, then turns the result into pipeline metrics, reports, dashboards, and deal-review prompts.
 
-Drive it by talking - in Claude Desktop, or in Codex with the MCP connected. No separate CRM app.
+You can start with a bundled read-only sample dataset and no MongoDB. When you
+are ready for real team data, switch the same package to MongoDB Atlas-backed
+full mode or to the paid-infra pro path. Drive it by talking - in Claude
+Desktop, or in Codex with the MCP connected. No separate CRM app.
 
 ---
 
@@ -28,7 +31,7 @@ It takes the raw MCP tool output and renders win rate, the stage funnel, Won vs 
 
 ---
 
-## What is this'
+## What is this?
 
 **MEDDPICC** is a deal-qualification framework used in B2B sales. It scores "is this customer actually likely to buy'" across seven dimensions.
 
@@ -42,7 +45,25 @@ It takes the raw MCP tool output and renders win rate, the stage funnel, Won vs 
 | **C**hampion | Whether you have an internal advocate |
 | **C**ompetition | How you fight competitors and the status quo |
 
-Paste a meeting note and the LLM extracts these seven automatically, stacks them in MongoDB Atlas, and runs pattern analysis on top.
+Paste a meeting note and the LLM extracts these seven automatically. In sample
+mode, the same analysis surfaces run against bundled fictional data. In full
+mode, they persist real deal data in MongoDB Atlas and run pattern analysis on
+top.
+
+---
+
+## Product profiles
+
+One repo, one package, three operating profiles:
+
+| Profile | Use it for | Requires |
+|---|---|---|
+| `sample` | First-run trial, friend review, agent smoke tests | Python package only |
+| `full` | Real team data on MongoDB Atlas | `MONGODB_URI`, plus ChatGPT OAuth or an API key for LLM tools |
+| `pro` | Paid-infra upgrade with Atlas Vector Search and API-key LLMs | Atlas M10+, vector index, `OPENAI_API_KEY` by default |
+
+Start in `sample`. Move to `full` only when you are ready to connect real
+storage. Move to `pro` only when paid infrastructure is intentional.
 
 ---
 
@@ -50,10 +71,11 @@ Paste a meeting note and the LLM extracts these seven automatically, stacks them
 
 ### Prerequisites
 
-- Claude Desktop (Windows / Mac)
-- Python 3.11+ with `pip install -e .` completed in a conda env
-- A MongoDB Atlas account (the free M0 cluster is enough)
-- A ChatGPT Plus/Pro subscription **or** an Anthropic API key
+- Python 3.11+ in a conda environment
+- Optional: Claude Desktop, when you want the MCP chat experience
+- Optional for `full`: MongoDB Atlas URI
+- Optional for LLM tools: ChatGPT Plus/Pro OAuth, `ANTHROPIC_API_KEY`, or
+  `OPENAI_API_KEY`
 
 ### Steps
 
@@ -66,38 +88,74 @@ Paste a meeting note and the LLM extracts these seven automatically, stacks them
 
 Adding `[embedding]` also installs `sentence-transformers` (for similar-deal search).
 
-**Step 2 - Configure .env**
-
-Copy `.env.example` in the project root to `.env` and fill it in.
-
-```
-MONGODB_URI=replace-with-mongodb-atlas-uri
-ANTHROPIC_API_KEY=replace-with-anthropic-api-key   # leave blank if using ChatGPT OAuth
-```
-
-**Step 3 - Install the mcpb bundle**
-
-Double-click `deal-intel-mcp-0.1.5.mcpb` (built from `mcpb/manifest.json`), or install via Claude Desktop -> Settings -> Extensions -> from file. See [`mcpb/README.md`](mcpb/README.md) for how to build the bundle.
-
-The form that appears:
-- **MongoDB Atlas URI** - paste the URI you set above
-- **Use ChatGPT Plus/Pro** - checked by default; leave it if using ChatGPT OAuth
-- **Anthropic API key** - enter if using Anthropic; leave blank for ChatGPT OAuth
-
-**Step 4 - ChatGPT OAuth login** (ChatGPT subscribers only)
+**Step 2 - Inspect the profiles**
 
 ```bash
-~/miniconda3/envs/event-intel/python.exe -m deal_intel.cli login-chatgpt
+deal-intel config profiles
+deal-intel config show
 ```
 
-A browser opens; log in with your ChatGPT account. One time only.
+**Step 3 - Preview sample mode**
 
-**Step 5 - Restart Claude Desktop**
+```bash
+deal-intel config init --profile sample --dry-run
+deal-intel config doctor --offline
+```
 
-You're done when the MCP tool list loads. The current server exposes 21 tools;
+If no user config exists and the preview looks right, persist sample mode:
+
+```bash
+deal-intel config init --profile sample
+```
+
+If `~/.deal-intel/config.yaml` already exists, preview a profile switch instead:
+
+```bash
+deal-intel config switch sample --dry-run
+```
+
+Only apply `config switch ... --force` after you intentionally approve changing
+the profile-managed keys.
+
+**Step 4 - Run a local sample smoke**
+
+```bash
+deal-intel storage-status
+deal-intel smoke-natural-questions --as-of 2026-06-10
+```
+
+This path uses bundled fictional data. It does not require MongoDB, paid APIs,
+Atlas Vector Search, or writes.
+
+**Step 5 - Optional: connect Claude Desktop**
+
+Build or install the MCP bundle from [`mcpb/README.md`](mcpb/README.md). The
+bundle form lets you start with `local_sample` storage or connect `mongo`
+storage for real data. Use `deal-intel config switch pro` later if you want the
+Atlas Vector Search upgrade path.
+
+For real Atlas-backed operation, copy `.env.example` to `.env` or fill the MCP
+bundle form with:
+
+```
+MONGODB_URI=your-atlas-connection-string
+ANTHROPIC_API_KEY=optional-if-using-anthropic
+OPENAI_API_KEY=optional-if-using-openai-api
+```
+
+For ChatGPT subscribers, run OAuth login once:
+
+```bash
+deal-intel login-chatgpt
+```
+
+Then restart Claude Desktop.
+
+You're done when the MCP tool list loads. The current server exposes 22 tools;
 `src/deal_intel/mcp_server.py` and `docs/baseline.md` are the source of truth.
 
 ```
+config_doctor
 create_deal / add_meeting / get_deal / update_stage / update_deal
 archive_deal / restore_deal / delete_deal
 create_sample_data / delete_sample_data
@@ -113,17 +171,19 @@ get_customer_theme_evidence / search_deals / analyze_deal
 If you only want to try the read-only BI and deal-review flows, you can run the
 bundled sample dataset without MongoDB Atlas, API keys, or Atlas Vector Search.
 
+Temporary PowerShell session:
+
 ```powershell
 $env:DEAL_INTEL_STORAGE_BACKEND='local_sample'
 & "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli storage-status
 & "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli smoke-natural-questions --as-of 2026-06-10
 ```
 
-For persistent sample mode, add this to `~/.deal-intel/config.yaml`:
+Persistent sample profile:
 
-```yaml
-storage:
-  backend: local_sample
+```bash
+deal-intel config init --profile sample --dry-run
+deal-intel config init --profile sample
 ```
 
 Sample mode is intentionally read-only. It supports the core dashboard,
@@ -572,7 +632,7 @@ The Atlas Charts aggregation is in `scripts/atlas_charts_customer_themes.json`.
 Current source of truth:
 
 - MCP server: `src/deal_intel/mcp_server.py`
-- Current tool count: 21
+- Current tool count: 22
 - Detailed contract: [`docs/baseline.md`](docs/baseline.md)
 - Documentation map: [`docs/README.md`](docs/README.md)
 
@@ -580,19 +640,20 @@ Current source of truth:
 [Claude Desktop / Codex - natural-language input]
          | stdio JSON-RPC
          v
-[deal-intel-mcp  FastMCP server  21 tools]
+[deal-intel-mcp  FastMCP server  22 tools]
          |
          |-- LLM Provider
          |     |-- ChatGPT OAuth (default, Plus/Pro subscription)
-         |     `-- Anthropic API (optional)
+         |     |-- Anthropic API (optional)
+         |     `-- OpenAI API (optional)
          |
          |-- Embedding Provider
          |     `-- sentence-transformers all-MiniLM-L6-v2
          |          -> runs locally / no API key / 384 dims
          |
-         `-- MongoDB Atlas M0
-               deals collection
-               `-- Regular Indexes  : deal_id, stage+updated, health_pct, customer themes
+         `-- Storage
+               |-- local_sample  : bundled read-only fictional dataset
+               `-- MongoDB Atlas : real deals collection and analytics snapshots
 
 search_deals
   |-- M0 default : reads summary_embedding, computes cosine in Python
@@ -718,17 +779,25 @@ The formal definitions of Active/Open/Stalled and unassessed handling are in [`d
 
 ## FAQ
 
-**Q. Do my meeting notes have to be perfect'**
+**Q. Do my meeting notes have to be perfect?**
 No. A rough memo of the essentials is fine. The LLM just skips dimensions with no evidence.
 
-**Q. Do Korean meeting notes work'**
+**Q. Do Korean meeting notes work?**
 Yes. Mixed English/Korean works too.
 
-**Q. Do I need a paid MongoDB Atlas plan'**
-The core features work on the free M0 plan today. `search_deals` computes with Python cosine on M0. As deal volume grows you can switch to Atlas Vector Search on M10+.
+**Q. Do I need MongoDB at all?**
+Not for `sample`. You need MongoDB only when you want persistent real deal data
+or Atlas Charts against your own database.
+
+**Q. Do I need a paid MongoDB Atlas plan?**
+No for first-run sample mode. For real team data, the core features work on the
+free M0 plan today. `search_deals` computes with Python cosine on M0. As deal
+volume grows you can switch to Atlas Vector Search on M10+.
 
 **Q. search_deals returns nothing.**
 Right after the server first starts, the local model may still be warming up - retry after 5 seconds. You also need at least one deal with a stored `summary_embedding` (run `add_meeting`).
 
-**Q. Should I use ChatGPT OAuth or Anthropic'**
-If you have a ChatGPT Plus/Pro subscription, ChatGPT OAuth is attractive since it adds no cost. The Anthropic API supports prompt caching, which can be cheaper if you do a lot of repeated analysis.
+**Q. Should I use ChatGPT OAuth, Anthropic, or OpenAI API?**
+For quick personal use, ChatGPT OAuth is attractive if you already subscribe to
+ChatGPT Plus/Pro. Anthropic and OpenAI API modes are better when you want
+explicit API-key operation, team billing, or production-style deployment.

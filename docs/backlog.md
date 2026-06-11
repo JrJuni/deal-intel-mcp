@@ -24,8 +24,7 @@ and `pro`.
 
 Next candidate units:
 
-1. Packaging docs for sample-first onboarding
-2. Profile smoke matrix
+1. Profile smoke matrix
 
 Principle: agents and new users should start in `sample` before being asked for
 MongoDB, paid APIs, or Atlas Vector Search.
@@ -87,6 +86,7 @@ Backlog items:
   stable external release.
 - Consider whether natural-language smoke tools should remain CLI-only in
   production bundles.
+- Rebuild and attach a fresh `.mcpb` artifact after bundle manifest changes.
 
 ### Pro Infrastructure
 

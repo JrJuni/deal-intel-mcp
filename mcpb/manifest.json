@@ -2,9 +2,9 @@
   "manifest_version": "0.2",
   "name": "deal-intel-mcp",
   "display_name": "Deal Intelligence MCP",
-  "version": "0.1.8",
-  "description": "Turn meeting notes into MEDDPICC-structured deal intelligence. 18 MCP tools, MongoDB Atlas storage, semantic deal search, ChatGPT OAuth, Anthropic, or OpenAI API LLM backend.",
-  "long_description": "deal-intel-mcp captures consultation records and meeting notes, extracts MEDDPICC qualification signals and customer concern themes via LLM, and stores them in MongoDB Atlas. Tools: create_deal, add_meeting, get_deal, update_stage, update_deal, archive_deal, restore_deal, delete_deal, create_sample_data, delete_sample_data, list_deals, get_metrics, get_deal_gaps, export_report, analyze_deal, get_insights, get_customer_themes, search_deals. Supports ChatGPT Plus OAuth, Anthropic Claude API, or the official OpenAI API as LLM backends.",
+  "version": "0.1.9",
+  "description": "Turn meeting notes into MEDDPICC-structured deal intelligence. 22 MCP tools, zero-config sample mode, MongoDB Atlas storage, semantic deal search, ChatGPT OAuth, Anthropic, or OpenAI API LLM backend.",
+  "long_description": "deal-intel-mcp captures consultation records and meeting notes, extracts MEDDPICC qualification signals and customer concern themes via LLM, and can run either on bundled read-only sample data or MongoDB Atlas-backed real team data. Tools: config_doctor, create_deal, add_meeting, update_stage, update_deal, archive_deal, restore_deal, delete_deal, create_sample_data, delete_sample_data, get_deal, list_deals, get_insights, get_metrics, get_deal_gaps, get_deal_review, export_report, get_customer_themes, get_customer_theme_breakdown, get_customer_theme_evidence, search_deals, analyze_deal. Supports ChatGPT Plus OAuth, Anthropic Claude API, or the official OpenAI API as LLM backends.",
   "author": {
     "name": "JrJuni",
     "email": "tyrical@naver.com",
@@ -18,9 +18,9 @@
   "license": "MIT",
   "keywords": ["mcp", "bd", "meddpicc", "deal", "crm", "sales-intelligence"],
   "tools": [
+    {"name": "config_doctor", "description": "Diagnose profile, storage, vector search, and LLM readiness without writes or LLM calls."},
     {"name": "create_deal",   "description": "Create a new deal for a prospect company."},
     {"name": "add_meeting",   "description": "Add meeting notes to a deal and auto-extract MEDDPICC signals via LLM."},
-    {"name": "get_deal",      "description": "Retrieve a deal with full meeting history and MEDDPICC scores."},
     {"name": "update_stage",  "description": "Move a deal to a new pipeline stage and log it to stage history."},
     {"name": "update_deal",   "description": "Update confirmed deal value and selected metadata fields."},
     {"name": "archive_deal",  "description": "Archive a deal so default BI/read paths hide it without hard deletion."},
@@ -28,14 +28,18 @@
     {"name": "delete_deal",   "description": "Hard-delete an archived deal after a dry-run preview and safe audit snapshot."},
     {"name": "create_sample_data", "description": "Create fictional onboarding sample deals in a separate demo database."},
     {"name": "delete_sample_data", "description": "Delete fictional onboarding sample deals from the separate demo database."},
-    {"name": "get_insights",  "description": "Run BI aggregation queries: pipeline_overview / win_patterns / loss_patterns / compare_won_lost / gap_frequency / industry_benchmark / stage_velocity."},
-    {"name": "get_customer_themes", "description": "Rank recurring customer concerns by unique deal count, with coverage and evidence samples."},
+    {"name": "get_deal",      "description": "Retrieve a deal with full meeting history and MEDDPICC scores."},
     {"name": "list_deals",    "description": "List deals with health_pct, gaps, and stuck flag, optionally filtered by stage."},
+    {"name": "get_insights",  "description": "Run BI aggregation queries: pipeline_overview / win_patterns / loss_patterns / compare_won_lost / gap_frequency / industry_benchmark / stage_velocity."},
     {"name": "get_metrics",   "description": "Return pipeline_health or pipeline_trend metrics from the shared BI calculators."},
     {"name": "get_deal_gaps", "description": "Return prioritized read-only sales follow-up gaps for deals."},
+    {"name": "get_deal_review", "description": "Return evidence-aware deal review output for one deal without raw notes, contacts, or embeddings."},
     {"name": "export_report", "description": "Export weekly_pipeline or pipeline_trend CSV and Markdown reports."},
+    {"name": "get_customer_themes", "description": "Rank recurring customer concerns by unique deal count, with coverage and evidence samples."},
+    {"name": "get_customer_theme_breakdown", "description": "Compare customer themes by stage, industry, or dimension."},
+    {"name": "get_customer_theme_evidence", "description": "Return theme evidence snippets with privacy-safe projections."},
     {"name": "analyze_deal",  "description": "Analyze MEDDPICC gaps and generate BD strategy recommendations."},
-    {"name": "search_deals",  "description": "Semantic search — find deals similar to a natural language query (M0 uses local Python cosine; Atlas search is optional on M10+)."}
+    {"name": "search_deals",  "description": "Semantic search - find deals similar to a natural language query (M0 uses local Python cosine; Atlas search is optional on M10+)."}
   ],
   "user_config": {
     "python_path": {
@@ -44,12 +48,19 @@
       "description": "Path to the Python interpreter where deal-intel-mcp is installed (must have run `pip install -e .`). Example: C:\\Users\\<you>\\miniconda3\\envs\\event-intel\\python.exe",
       "required": true
     },
+    "storage_backend": {
+      "type": "string",
+      "title": "Storage backend",
+      "description": "Use local_sample for the zero-config read-only demo, or mongo for real Atlas-backed data.",
+      "default": "local_sample",
+      "required": false
+    },
     "mongodb_uri": {
       "type": "string",
       "title": "MongoDB Atlas URI",
-      "description": "Connection string for your MongoDB Atlas cluster (M0 free tier works). Paste your Atlas connection string; do not commit it.",
+      "description": "Connection string for your MongoDB Atlas cluster. Required only when storage backend is mongo. M0 free tier works for full mode.",
       "sensitive": true,
-      "required": true
+      "required": false
     },
     "llm_provider": {
       "type": "string",
@@ -88,6 +99,7 @@
       "args": ["-m", "deal_intel.mcp_server"],
       "env": {
         "MONGODB_URI": "${user_config.mongodb_uri}",
+        "DEAL_INTEL_STORAGE_BACKEND": "${user_config.storage_backend}",
         "ANTHROPIC_API_KEY": "${user_config.anthropic_api_key}",
         "OPENAI_API_KEY": "${user_config.openai_api_key}",
         "DEAL_INTEL_LLM_PROVIDER": "${user_config.llm_provider}",

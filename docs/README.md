@@ -8,13 +8,15 @@ smallest useful context.
 
 Read these first for normal work:
 
-1. `../AGENTS.md` or `../CLAUDE.md`
+1. `../README.md`
+   - Human-facing quickstart, product profile overview, and tool guide.
+2. `../AGENTS.md` or `../CLAUDE.md`
    - Current agent rules, workflow, tool count, and architecture guardrails.
-2. `../AI_START_HERE.md`
+3. `../AI_START_HERE.md`
    - First-run AI onboarding path for sample-first evaluation.
-3. `status.md`
+4. `status.md`
    - Latest completed work and current verification notes.
-4. `baseline.md`
+5. `baseline.md`
    - MCP tool contracts, input/output shape, persistence behavior, and current
      registration expectations.
 
@@ -33,6 +35,7 @@ These are active source-adjacent contracts.
 | `config-profiles.md` | Changing `sample`, `full`, or `pro` profile behavior |
 | `atlas-charts.md` | Changing Atlas dashboard aggregation specs or UI runbooks |
 | `architecture.md` | Needing deeper architecture context after reading this map |
+| `../mcpb/README.md` | Building or installing the Claude Desktop MCP bundle |
 
 ## Planning And History
 

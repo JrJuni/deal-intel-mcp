@@ -12,6 +12,35 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-11
 
+### O3 Mongo index contract
+
+Implemented:
+
+- Added `deals.archived_stage_updated`:
+  `(archived, deal_stage, updated_at desc)` for visible list views with stage
+  filters and newest-first sorting.
+- Added `analytics_snapshots.analytics_snapshot_as_of_occurred_created`:
+  `(as_of, occurred_at, created_at)` for pipeline trend range/sort reads and
+  Atlas trend charts.
+- Preserved existing indexes, including `deal_id_unique`,
+  `analytics_snapshot_event_id_unique`, `archived_updated`, and
+  `sample_batch`.
+- Added targeted index contract tests and updated
+  [query-audit.md](query-audit.md) and [backlog.md](backlog.md).
+
+Verification so far:
+
+- O3 targeted regression:
+  `14 passed`
+- Targeted Ruff:
+  `All checks passed`
+- Full pytest:
+  `404 passed`, `1 warning`
+- Final Ruff:
+  `All checks passed`
+- Live Atlas index creation/explain smoke:
+  not run; keep this optional and production-safe.
+
 ### O2 BI read projection and Atlas visibility hardening
 
 Implemented:

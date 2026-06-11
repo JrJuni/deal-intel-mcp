@@ -108,17 +108,24 @@ and Atlas Charts.
 
 Next candidate units:
 
-1. O3 index contract.
-   - Add or document `(archived, deal_stage, updated_at desc)` for list views.
-   - Add or document `(as_of, occurred_at, created_at)` for trend reads.
-2. Deferred BI metrics allowlist projection.
+1. Deferred BI metrics allowlist projection.
    - Convert `list_deals_for_metrics()` from blacklist-style projection to
      allowlist-style projection after BI/review/report field contracts
      stabilize.
+2. Optional Atlas `explain`/index smoke on a disposable or production-safe
+   database.
+   - O3 added the intended index contracts in code and tests, but did not run
+     live Atlas index creation/explain as part of the local validation loop.
 
 Audit record:
 
 - See [query-audit.md](query-audit.md).
+
+Completed:
+
+- O3 index contract:
+  - Added `(archived, deal_stage, updated_at desc)` for list views.
+  - Added `(as_of, occurred_at, created_at)` for trend reads.
 
 ### Pro Infrastructure
 

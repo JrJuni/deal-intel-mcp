@@ -76,6 +76,14 @@ class MongoDBClient:
             [("archived", ASCENDING), ("updated_at", DESCENDING)],
             name="archived_updated",
         )
+        col.create_index(
+            [
+                ("archived", ASCENDING),
+                ("deal_stage", ASCENDING),
+                ("updated_at", DESCENDING),
+            ],
+            name="archived_stage_updated",
+        )
 
         # BI / get_insights: sort by health score (used in Phase 2).
         col.create_index(
@@ -108,6 +116,14 @@ class MongoDBClient:
         snapshot_col.create_index(
             [("event_type", ASCENDING), ("occurred_at", DESCENDING)],
             name="analytics_snapshot_event_occurred",
+        )
+        snapshot_col.create_index(
+            [
+                ("as_of", ASCENDING),
+                ("occurred_at", ASCENDING),
+                ("created_at", ASCENDING),
+            ],
+            name="analytics_snapshot_as_of_occurred_created",
         )
 
         col.create_index(

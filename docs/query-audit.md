@@ -5,8 +5,7 @@ index implications for cost and performance work.
 
 ## Scope
 
-O1 is an audit only. It does not change runtime behavior. Follow-up hardening
-belongs in O2/O3:
+O1 was an audit only. Follow-up hardening has started in O2/O3:
 
 - O2: BI read projection hardening.
 - O3: index contract and `ensure_indexes` cleanup.
@@ -28,11 +27,11 @@ belongs in O2/O3:
 | Method | Main Consumers | Query Shape | Projection | Index Coverage | Audit Notes |
 |---|---|---|---|---|---|
 | `get_deal(deal_id)` | `get_deal`, mutation tools | `{deal_id}` | `_id` excluded only | `deal_id_unique` | Intentional full-detail path. May include raw meeting notes because the user asked for one deal. |
-| `list_deals(stage, limit)` | `list_deals` | `archived != true`, optional `deal_stage`, sort `updated_at desc`, limit | excludes `_id`, `meetings.raw_notes`, `contacts`, `summary_embedding` | partial: `archived_updated`, `stage_updated` | Hardened in O2. Candidate for O3 compound index `(archived, deal_stage, updated_at desc)`. |
+| `list_deals(stage, limit)` | `list_deals` | `archived != true`, optional `deal_stage`, sort `updated_at desc`, limit | excludes `_id`, `meetings.raw_notes`, `contacts`, `summary_embedding` | `archived_updated`, `stage_updated`, `archived_stage_updated` | Hardened in O2. O3 added the compound list-view index. |
 | `list_deals_for_metrics()` | `get_metrics:pipeline_health`, `get_deal_gaps`, `get_deal_review`, `get_customer_theme_breakdown`, `get_customer_theme_evidence`, `export_report:weekly_pipeline`, `get_insights:pipeline_overview` | `archived != true` | excludes `_id`, `meetings.raw_notes`, `contacts`, `summary_embedding` | `archived_updated` can support archived filter | Primary LLM-free BI read path. Safe today, but still blacklist-style. Allowlist conversion is deferred until BI/review/report field contracts stabilize. |
-| `list_analytics_snapshots(start,end,stage,industry)` | `get_metrics:pipeline_trend`, `export_report:pipeline_trend` | `as_of` range, optional `deal_stage`, optional `industry`, sort `as_of`, `occurred_at` | allowlist-style projection | partial: `analytics_snapshot_deal_occurred`, `analytics_snapshot_event_occurred`; no direct `as_of` index | Candidate for O3 index `(as_of, occurred_at, created_at)` and optionally `(as_of, deal_stage, industry)`. |
+| `list_analytics_snapshots(start,end,stage,industry)` | `get_metrics:pipeline_trend`, `export_report:pipeline_trend` | `as_of` range, optional `deal_stage`, optional `industry`, sort `as_of`, `occurred_at` | allowlist-style projection | `analytics_snapshot_as_of_occurred_created`, plus event/deal indexes | O3 added the trend range/sort index. Optional stage/industry-prefixed variants are deferred until trend filters prove hot. |
 | `aggregate_deals(pipeline)` | legacy `get_customer_themes`, Atlas chart smoke/crosscheck | caller-supplied aggregation | caller-supplied | depends on pipeline | Needs pipeline-by-pipeline audit. Customer Themes specs are safer than Weekly Pipeline specs. |
-| `aggregate_analytics_snapshots(pipeline)` | Atlas trend chart smoke | `as_of` range and sort in chart specs | aggregation projects only chart rows | same as trend snapshots | O3 should align index to `as_of` range + sort. |
+| `aggregate_analytics_snapshots(pipeline)` | Atlas trend chart smoke | `as_of` range and sort in chart specs | aggregation projects only chart rows | same as trend snapshots | O3 aligns `ensure_indexes()` to the trend range + sort shape. |
 | `count_deals(query)` | `get_customer_themes`, sample tooling | archived/stage/industry/theme presence depending caller | count only | partial: `stage_customer_theme`; no archived/industry prefix | Low risk at current scale. Candidate for customer theme index after taxonomy settles. |
 | `get_deals_for_search()` | `search_deals` Python cosine | `archived != true`, `summary_embedding exists` | allowlist including `summary_embedding` for scoring | no dedicated embedding-exists index | Intentional vector read. Standard/pro only. O(n) Python cosine is acceptable until larger data or Atlas Vector Search. |
 | `search_by_embedding()` | `search_deals` Atlas mode | `$vectorSearch`, then `archived != true` | allowlist output | Atlas Vector Search index | Pro/M10+ path. Keep out of sample/full default unless intentionally configured. |
@@ -81,7 +80,7 @@ industry and maturity/stage descriptors. That is already tracked in backlog.
 
 Trend charts read `analytics_snapshots` by `as_of` range and sort by
 `as_of`, `occurred_at`, and `created_at`. There is no raw-note/contact/vector
-exposure. O3 should consider an index that matches this range + sort shape.
+exposure. O3 added an index that matches this range + sort shape.
 
 ## Current Index Inventory
 
@@ -91,6 +90,7 @@ exposure. O3 should consider an index that matches this range + sort shape.
 - `deals.stage_updated`: `(deal_stage, updated_at desc)`.
 - `deals.updated_desc`: `(updated_at desc)`.
 - `deals.archived_updated`: `(archived, updated_at desc)`.
+- `deals.archived_stage_updated`: `(archived, deal_stage, updated_at desc)`.
 - `deals.health_pct_desc`: `(meddpicc_latest.health_pct desc)`.
 - `deals.stage_customer_theme`: `(deal_stage, customer_themes.theme_key)`.
 - `deals.sample_batch`: `(is_sample, sample_batch_id)`.
@@ -101,6 +101,8 @@ exposure. O3 should consider an index that matches this range + sort shape.
   occurred_at desc)`.
 - `analytics_snapshots.analytics_snapshot_event_occurred`: `(event_type,
   occurred_at desc)`.
+- `analytics_snapshots.analytics_snapshot_as_of_occurred_created`: `(as_of,
+  occurred_at, created_at)`.
 
 ## O2 Outcome
 
@@ -120,23 +122,31 @@ Deferred:
   keeps BI/review/report development flexible. Revisit when metric contracts
   reach v1 stability or data size makes broad BI reads costly.
 
-## O3 Candidates
+## O3 Outcome
 
-1. Add or document a compound index for list views:
+Completed:
+
+1. Added `deals.archived_stage_updated` for list views:
    `(archived, deal_stage, updated_at desc)`.
-2. Add or document an analytics snapshot index for trend reads:
-   `(as_of, occurred_at, created_at)`.
-3. Consider customer theme indexes only after the taxonomy cleanup:
+2. Added `analytics_snapshots.analytics_snapshot_as_of_occurred_created` for
+   trend reads: `(as_of, occurred_at, created_at)`.
+3. Added targeted tests that lock the new index contracts while confirming
+   existing unique/lifecycle indexes remain present.
+
+Deferred:
+
+1. Consider customer theme indexes only after the taxonomy cleanup:
    `(archived, deal_stage, customer_themes.dimension,
    customer_themes.theme_key)`, and optionally industry-prefixed variants.
-4. Keep Atlas Vector Search index creation in the pro path, not first-run
+2. Keep Atlas Vector Search index creation in the pro path, not first-run
    sample/full defaults.
 
 ## Current Risk Summary
 
 - Fixed in O2: Weekly Pipeline Atlas Charts exclude archived deals.
 - Fixed in O2: `list_deals()` excludes contacts and vectors.
-- Medium: trend chart/snapshot range reads do not have a direct `as_of` index.
+- Fixed in O3: trend chart/snapshot range reads have a direct `as_of` index.
+- Fixed in O3: list views have a compound archived/stage/updated index.
 - Low at current scale: legacy aggregation paths can scan the small `deals`
   collection.
 - Deferred: `list_deals_for_metrics()` remains blacklist-style until metric

@@ -26,8 +26,8 @@ Next candidate units:
 
 1. Optional live Atlas smoke for local personal -> MongoDB migration when a
    disposable target database is available.
-2. Release packaging check: rebuild/validate the `.mcpb` artifact once the
-   `mcpb` CLI is available.
+2. Release packaging artifact check: rebuild/validate the `.mcpb` artifact once
+   the external `mcpb` CLI is available.
 
 Principle: agents and new users should start in `sample` before being asked for
 MongoDB, paid APIs, or Atlas Vector Search.
@@ -95,6 +95,9 @@ Backlog items:
   production bundles.
 - Keep the dry-run-first local-to-Mongo migration path conservative; before
   release, live-smoke it against a disposable database.
+- Keep `tests/test_mcpb_manifest.py` as the repo-local contract check for
+  manifest fields, tool list alignment, environment mapping, and launcher
+  behavior.
 - Rebuild and attach a fresh `.mcpb` artifact after bundle manifest changes.
 
 ### Pro Infrastructure

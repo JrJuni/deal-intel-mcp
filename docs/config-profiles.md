@@ -165,6 +165,11 @@ Implemented behavior:
 - `mcpb/manifest.json` exposes `storage_backend` so Claude Desktop installs can
   start in `local_sample` without a MongoDB URI.
 - The MCP bundle metadata now reflects the current 23-tool surface.
+- The current bundle manifest version is `0.1.10`.
+- `mcpb/README.md` now documents `tools_surface=auto`, mutable local personal
+  sample data, and dry-run-first local-to-Mongo migration.
+- `tests/test_mcpb_manifest.py` validates the manifest against the tool-surface
+  contract and launcher behavior without requiring the external `mcpb` CLI.
 
 ### Z5.7 Profile Smoke Matrix
 

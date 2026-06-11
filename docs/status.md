@@ -12,6 +12,43 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-11
 
+### Z5.12 MCP bundle packaging contract check
+
+Implemented:
+
+- Added repo-local MCP bundle contract tests in
+  `tests/test_mcpb_manifest.py`.
+- Verified that `mcpb/manifest.json` tool names match
+  `deal_intel.tool_surfaces` exactly.
+- Verified that bundle installer fields map to runtime environment variables:
+  storage backend, tool surface, MongoDB URI, LLM provider, Anthropic API key,
+  OpenAI API key, and UTF-8 stdio.
+- Verified that the bundled launcher delegates to the installed
+  `deal_intel.mcp_server` module and returns an actionable editable-install
+  hint when the package is not importable.
+- Bumped the bundle manifest version to `0.1.10`.
+- Updated `mcpb/README.md` so first-run install guidance reflects current
+  sample/local personal mode, `tools_surface=auto`, and dry-run-first
+  local-to-Mongo migration.
+
+Verification:
+
+- MCP bundle/config/tool-surface targeted regression:
+  `44 passed`, `1 warning`
+- Targeted Ruff:
+  `All checks passed`
+- Full pytest:
+  `401 passed`, `1 warning`
+- Final Ruff:
+  `All checks passed`
+- Diff whitespace check:
+  `git diff --check`
+
+Not run:
+
+- `mcpb validate`, `mcpb pack`, and `mcpb info`; the external `mcpb` CLI is
+  not available on PATH in this environment.
+
 ### Z5.11 local personal to MongoDB migration
 
 Implemented:

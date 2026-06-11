@@ -12,6 +12,80 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-11
 
+### Config profiles Z5.7b smoke-profile CLI
+
+Implemented:
+
+- Added `deal_intel.profile_smoke` to build no-write first-run smoke reports
+  from the Z5.7a matrix and shared config doctor.
+- Added `deal-intel smoke-profile --profile sample|full|pro`.
+- Added `--offline` to skip storage ping and `--json` for agent-readable
+  structured output.
+- Updated README and `AI_START_HERE.md` so first-run checks include
+  `smoke-profile --profile sample`.
+- Updated [config-profiles.md](config-profiles.md) and [backlog.md](backlog.md)
+  to mark the CLI surface implemented and move the next candidate work to
+  release packaging checks.
+
+Verification:
+
+- Profile smoke CLI targeted tests:
+  `14 passed`
+- Config/profile regression:
+  `51 passed`, `1 warning`
+- Full pytest:
+  `351 passed`, `1 warning`
+- CLI smoke:
+  `smoke-profile --profile sample --json` returned `ok=true`
+- Expected not-ready CLI smoke:
+  `smoke-profile --profile pro --offline --json` returned exit code `1`
+  because `OPENAI_API_KEY` is not configured; no live OpenAI or Atlas admin
+  calls were attempted.
+- Diff whitespace check:
+  `git diff --check`
+- Ruff:
+  `All checks passed`
+
+### Config profiles Z5.7a profile smoke matrix
+
+Implemented:
+
+- Added `deal_intel.profile_smoke_matrix` as the source contract for
+  `sample`, `full`, and `pro` first-run smoke behavior.
+- The matrix records each profile's managed config values, required setup,
+  expected unconfigured offline fail/warn checks, no-live-call boundaries,
+  write policy, and deferred checks.
+- Added targeted tests that compare the matrix against profile patches,
+  `config init --dry-run` output, and `config doctor` pass/warn/fail behavior.
+- Updated [config-profiles.md](config-profiles.md) with the human-readable
+  smoke matrix.
+- Updated [backlog.md](backlog.md) so the next candidate unit is the future
+  `deal-intel smoke-profile --profile sample|full|pro` CLI.
+
+Verification:
+
+- Profile smoke matrix targeted tests:
+  `8 passed`
+- Config profile/doctor/writer regression:
+  `40 passed`, `1 warning`
+- Full pytest:
+  `345 passed`, `1 warning`
+- CLI smoke:
+  `config profiles`, `config init --profile sample --dry-run`,
+  `config doctor --offline`
+- ASCII check:
+  new source/test/docs files passed
+- Diff whitespace check:
+  `git diff --check`
+- Ruff:
+  `All checks passed`
+
+Notes:
+
+- The first targeted pytest attempt failed before tests ran because Windows
+  denied access to the default pytest temp root under AppData. Re-running with
+  `TEMP`/`TMP` set to workspace `.tmp/pytest` passed.
+
 ### Config profiles Z5.6 packaging surface
 
 Implemented:

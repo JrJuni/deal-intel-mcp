@@ -235,6 +235,52 @@ def config_switch(
         raise typer.Exit(code=1)
 
 
+@app.command("smoke-profile")
+def smoke_profile(
+    profile: str = typer.Option(
+        ...,
+        "--profile",
+        help="Profile to smoke check: sample, full, or pro.",
+    ),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Print structured JSON instead of concise text.",
+    ),
+    offline: bool = typer.Option(
+        False,
+        "--offline",
+        help="Skip live storage ping and run static checks only.",
+    ),
+) -> None:
+    """Run a no-write first-run smoke check for a target profile."""
+
+    from deal_intel import _env
+    from deal_intel.profile_smoke import build_profile_smoke_report
+
+    try:
+        payload = build_profile_smoke_report(
+            profile,
+            _env.load_config(),
+            offline=offline,
+        )
+    except ValueError as exc:
+        payload = {
+            "ok": False,
+            "profile": profile,
+            "error_code": "INVALID_PROFILE",
+            "message": str(exc),
+        }
+
+    if json_output:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        typer.echo(_format_profile_smoke(payload))
+
+    if not payload["ok"]:
+        raise typer.Exit(code=1)
+
+
 @app.command("storage-status")
 def storage_status(
     json_output: bool = typer.Option(
@@ -983,6 +1029,89 @@ def _format_config_write_result(payload: dict) -> str:
     if payload.get("requires_force"):
         lines.extend(["", "Re-run with --force to apply after backup."])
     return "\n".join(lines)
+
+
+def _format_profile_smoke(payload: dict) -> str:
+    if not payload.get("ok") and payload.get("error_code"):
+        return "\n".join(
+            [
+                "Profile smoke: not ready",
+                f"Profile: {payload.get('profile')}",
+                f"Error: {payload.get('message')}",
+            ]
+        )
+
+    contract = payload.get("contract") or {}
+    doctor = payload.get("doctor") or {}
+    summary = doctor.get("summary") or {}
+    target_values = payload.get("target_profile_values") or {}
+    lines = [
+        f"Profile smoke: {'OK' if payload.get('ok') else 'not ready'}",
+        f"Profile: {payload.get('profile')} (current: {payload.get('current_profile')})",
+        f"Offline: {payload.get('offline')}",
+        (
+            "Runtime: "
+            f"storage={target_values.get('storage.backend')}, "
+            f"vector_search={target_values.get('mongodb.vector_search')}, "
+            f"llm={target_values.get('llm.provider')}"
+        ),
+        f"Write policy: {contract.get('write_policy')}",
+    ]
+    bi_setup = contract.get("bi_smoke_required_setup") or []
+    llm_setup = contract.get("llm_tool_required_setup") or []
+    lines.extend(
+        [
+            (
+                "BI smoke setup: "
+                f"{', '.join(bi_setup) if bi_setup else 'none'}"
+            ),
+            (
+                "LLM tool setup: "
+                f"{', '.join(llm_setup) if llm_setup else 'none'}"
+            ),
+            (
+                "Doctor: "
+                f"fail={summary.get('failed_checks')}, "
+                f"warn={summary.get('warning_checks')}, "
+                f"skipped={summary.get('skipped_checks')}"
+            ),
+            "",
+            "Contract checks:",
+        ]
+    )
+    for check in payload.get("checks") or []:
+        marker = _status_marker(check.get("status"))
+        lines.append(f"- {marker} {check['label']}: {check['message']}")
+
+    if doctor.get("checks"):
+        lines.extend(["", "Doctor checks:"])
+        for check in doctor["checks"]:
+            marker = _status_marker(check.get("status"))
+            lines.append(f"- {marker} {check['label']}: {check['message']}")
+
+    deferred = contract.get("deferred_checks") or []
+    if deferred:
+        lines.extend(["", "Deferred checks:"])
+        for item in deferred:
+            lines.append(f"- {item}")
+
+    if payload.get("next_actions"):
+        lines.extend(["", "Next actions:"])
+        for action in payload["next_actions"]:
+            rendered = action["action"]
+            if isinstance(rendered, dict):
+                rendered = json.dumps(rendered, ensure_ascii=False)
+            lines.append(f"- [{action['check_id']}] {rendered}")
+    return "\n".join(lines)
+
+
+def _status_marker(status: Any) -> str:
+    return {
+        "pass": "PASS",
+        "warn": "WARN",
+        "fail": "FAIL",
+        "skipped": "SKIP",
+    }.get(status, str(status).upper())
 
 
 def _config_write_error_payload(command: str, profile: str, message: str) -> dict:

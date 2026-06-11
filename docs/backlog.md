@@ -24,7 +24,9 @@ and `pro`.
 
 Next candidate units:
 
-1. Profile smoke matrix
+1. Release packaging check: rebuild/validate the `.mcpb` artifact once the
+   `mcpb` CLI is available.
+2. Production/developer tool split for external release bundles.
 
 Principle: agents and new users should start in `sample` before being asked for
 MongoDB, paid APIs, or Atlas Vector Search.

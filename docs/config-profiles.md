@@ -154,9 +154,32 @@ Implemented behavior:
 
 ### Z5.7 Profile Smoke Matrix
 
-Done when:
+Implemented contract:
 
+- `src/deal_intel/profile_smoke_matrix.py` is the source contract.
 - `sample` smoke is fully local and deterministic.
 - `full` smoke checks Atlas readiness without mutating data.
 - `pro` smoke verifies config shape and defers live OpenAI/Atlas Vector Search
   checks when credentials or paid infra are unavailable.
+
+| Profile | BI Smoke Setup | Expected Unconfigured Offline Result | Warnings | Writes |
+|---|---|---|---|---|
+| `sample` | None | pass; sample storage ping is skipped offline | `llm_provider` if ChatGPT OAuth is not logged in | none; read-only |
+| `full` | `MONGODB_URI` | fail on `mongodb_uri` when missing | `llm_provider` if ChatGPT OAuth is not logged in | none; read-check only |
+| `pro` | `MONGODB_URI`, Atlas M10+, Atlas Vector Search index | fail on `mongodb_uri` and `llm_provider` when missing | `vector_search` warns that Atlas Vector Search requires paid infra | none; read-check only |
+
+Non-goals for Z5.7:
+
+- No live OpenAI API calls.
+- No Atlas admin API calls.
+- No MongoDB writes.
+
+Result:
+
+- `build_profile_smoke_matrix()` returns a serializable profile matrix.
+- Targeted tests verify the matrix against profile patches, config init
+  dry-run output, and config doctor pass/warn/fail behavior.
+- `deal-intel smoke-profile --profile sample|full|pro` builds a no-write smoke
+  report from the matrix and shared config doctor.
+- `--offline` skips storage ping.
+- `--json` returns the same structured report shape for agents.

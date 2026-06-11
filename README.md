@@ -120,6 +120,7 @@ the profile-managed keys.
 **Step 4 - Run a local sample smoke**
 
 ```bash
+deal-intel smoke-profile --profile sample
 deal-intel storage-status
 deal-intel smoke-natural-questions --as-of 2026-06-10
 ```

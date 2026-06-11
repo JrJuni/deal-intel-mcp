@@ -67,9 +67,10 @@ Run the offline doctor first:
 & "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli config doctor --offline
 ```
 
-Then run storage status:
+Then run the profile smoke and storage status:
 
 ```powershell
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli smoke-profile --profile sample
 & "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli storage-status
 ```
 

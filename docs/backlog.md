@@ -26,9 +26,7 @@ Next candidate units:
 
 1. Local personal data -> MongoDB migration, dry-run by default, so users can
    graduate to `full` without retyping their sample-mode deals.
-2. Config-driven MCP tool filtering from the Z5.8a tool surface contract, after
-   local personal write support exists.
-3. Release packaging check: rebuild/validate the `.mcpb` artifact once the
+2. Release packaging check: rebuild/validate the `.mcpb` artifact once the
    `mcpb` CLI is available.
 
 Principle: agents and new users should start in `sample` before being asked for
@@ -87,16 +85,14 @@ Backlog items:
 - Keep one repository and one package.
 - Expose `sample`, `full`, and `pro` through config profiles, not separate
   repositories.
-- Use the Z5.8a tool surface contract to separate `sample`, `standard`, and
-  `developer` MCP tool lists before a stable external release.
+- Keep the config-driven `sample`, `standard`, and `developer` MCP tool
+  surfaces aligned with the actual tool set before a stable external release.
 - Keep local personal mode safe for temporary user data. The `sample` profile
   starts with bundled fictional data, then switches active reads to local
   `deals.json` once a user creates personal deals. Reset/export is now
   available; real team/shared operation still uses MongoDB-backed `full`.
 - Consider whether natural-language smoke tools should remain CLI-only in
   production bundles.
-- Apply config-driven MCP filtering so default users see the relevant `sample`
-  or `standard` tool list instead of every maintainer/debug tool.
 - Add a dry-run-first local-to-Mongo migration tool after local personal
   storage is stable.
 - Rebuild and attach a fresh `.mcpb` artifact after bundle manifest changes.

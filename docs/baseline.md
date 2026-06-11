@@ -57,6 +57,16 @@ available.
 
 ### MCP Tool Contracts
 
+The Python server keeps all 22 handler functions available internally, but MCP
+clients see a config-filtered tool surface:
+
+- `tools.surface: auto` resolves from the effective profile.
+- `sample` exposes 15 tools for bundled/local personal sample mode.
+- `standard` exposes 20 tools for normal MongoDB-backed operation.
+- `developer` exposes all 22 tools, including demo database seed/cleanup.
+- Invalid `tools.surface` config exposes only `config_doctor` so setup can be
+  diagnosed.
+
 | Tool | Required inputs | Optional inputs | Success response | Persistence or external effects |
 |---|---|---|---|---|
 | `config_doctor` | None | `offline` | `ok`, `profile`, `generated_at`, `summary`, `checks`, `next_actions` | Read only; checks config, storage readiness, vector-search mode, and LLM provider readiness without LLM calls, embeddings, or writes. The default path may perform a bounded storage ping; `offline=true` skips it |
@@ -256,7 +266,8 @@ Before Milestone 1 started, all 28 findings were resolved. The current gate is:
 pytest -> 128 passed
 ruff check . -> All checks passed
 wheel build -> passed
-FastMCP runtime registration -> 22 tools
+FastMCP runtime surface exposure -> sample 15 tools, standard 20 tools,
+developer 22 tools
 MongoDB Atlas read smoke -> passed
 ```
 

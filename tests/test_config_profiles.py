@@ -21,7 +21,7 @@ def test_profile_names_are_stable_and_ordered() -> None:
     ]
 
 
-def test_sample_profile_is_zero_config_read_only_default() -> None:
+def test_sample_profile_is_zero_config_local_personal_default() -> None:
     profile = get_config_profile("sample")
 
     assert profile.config_patch["storage"]["backend"] == "local_sample"
@@ -33,8 +33,8 @@ def test_sample_profile_is_zero_config_read_only_default() -> None:
     assert any("No MongoDB" in item for item in profile.requirements)
     assert any("sample testing" in item for item in profile.requirements)
     assert any("intentionally unavailable" in item for item in profile.limitations)
-    assert any("read-only" in item for item in profile.limitations)
-    assert any("Local personal" in item for item in profile.limitations)
+    assert any("immutable" in item for item in profile.limitations)
+    assert any("user-created local data" in item for item in profile.limitations)
     assert any("MongoDB-backed full mode" in item for item in profile.limitations)
 
 

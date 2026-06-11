@@ -74,6 +74,11 @@ def test_config_show_cli_summarizes_effective_config_without_secrets(
     assert payload["effective_config"]["storage"]["local_data_dir"] == (
         "~/.deal-intel/local-data"
     )
+    assert payload["effective_config"]["tools"] == {
+        "surface": "auto",
+        "resolved_surface": "sample",
+        "mcp_tool_count": 15,
+    }
     assert payload["effective_config"]["llm"]["provider"] == "openai_api"
     assert payload["environment"]["MONGODB_URI"]["configured"] is True
     assert payload["environment"]["OPENAI_API_KEY"]["configured"] is True
@@ -94,6 +99,7 @@ def test_config_show_cli_uses_env_storage_override(monkeypatch, tmp_path) -> Non
     assert payload["effective_config"]["storage"]["local_data_dir"] == (
         "~/.deal-intel/local-data"
     )
+    assert payload["effective_config"]["tools"]["resolved_surface"] == "sample"
     assert payload["environment"]["DEAL_INTEL_STORAGE_BACKEND"]["configured"] is True
 
 

@@ -13,18 +13,19 @@ infrastructure until the bundled sample smoke path works.
 
 The project has one package and three profiles:
 
-- `sample`: local bundled fictional data for feature testing, intended to grow
-  into lightweight personal/local data use. Some persistence, search, and
-  LLM-heavy paths are intentionally unavailable in the current MVP.
+- `sample`: local bundled fictional data for feature testing, plus lightweight
+  local personal create/update/stage/lifecycle flows. LLM meeting ingestion,
+  semantic search, and demo-database maintenance are intentionally unavailable
+  in the default sample surface.
 - `full`: MongoDB Atlas-backed real team data.
 - `pro`: paid-infrastructure path with Atlas Vector Search and API-key LLM
   providers.
 
 Your first job is not to configure production. Your first job is to prove the
 tool experience works in `sample`. For team/shared operation, the real
-operating path assumes MongoDB-backed deal data. For solo experiments, prefer
-the future local personal sample path once available; until then, help the user
-migrate to `full` only after the sample smoke succeeds.
+operating path assumes MongoDB-backed deal data. For solo experiments, sample
+mode can now persist small local personal datasets before the user graduates to
+`full`.
 
 ## Step 1 - Inspect, Do Not Guess
 
@@ -102,15 +103,22 @@ After sample succeeds, ask what the user wants next:
 - Move to `pro` only when paid Atlas Vector Search and API-key LLM providers
   are intentional.
 
-If the user wants to try their own temporary data, explain the current state:
-the bundled sample fixture is read-first today, while mutable/resettable local
-personal data is the intended sample-mode upgrade. Until that lands, recommend
-`full` mode with a small MongoDB database. You can help them inspect profiles,
-set `MONGODB_URI`, and run `config doctor`.
+If the user wants to try their own temporary data, use sample mode's local
+personal storage. It defaults to `~/.deal-intel/local-data` and can be
+overridden with `storage.local_data_dir`.
 
-When local personal storage is available, its default directory is
-`~/.deal-intel/local-data`; users should be able to override it with
-`storage.local_data_dir`.
+Useful local personal commands:
+
+```powershell
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli local-data status
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli local-data export
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli local-data reset
+```
+
+Tell the user that `local-data reset` is dry-run by default and
+`local-data reset --force` clears only local personal deals while preserving
+delete audit logs. Help the user migrate to `full` only after local/sample smoke
+succeeds and they want shared MongoDB-backed operation.
 
 Only request `MONGODB_URI`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or Atlas
 Vector Search setup after the user chooses `full` or `pro`.

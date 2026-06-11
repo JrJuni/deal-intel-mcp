@@ -15,6 +15,9 @@ storage:
   backend: mongo                  # mongo | local_sample
   local_data_dir: ~/.deal-intel/local-data
 
+tools:
+  surface: auto                   # auto | sample | standard | developer
+
 reporting:
   timezone: Asia/Seoul
   output_dir: outputs/reports

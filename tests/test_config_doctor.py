@@ -65,6 +65,8 @@ def test_config_doctor_sample_profile_passes_without_mongodb_uri(
 
     assert result["ok"] is True
     assert result["profile"] == "sample"
+    assert _status(result, "tool_surface") == "pass"
+    assert result["summary"]["resolved_tool_surface"] == "sample"
     assert _status(result, "sample_storage") == "pass"
     assert _status(result, "llm_provider") == "warn"
 
@@ -176,6 +178,24 @@ def test_config_doctor_offline_skips_storage_ping(monkeypatch, tmp_path) -> None
     assert _status(result, "sample_storage") == "skipped"
 
 
+def test_config_doctor_invalid_tool_surface_fails(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(_env, "_USER_CONFIG_PATH", tmp_path / "missing.yaml")
+    monkeypatch.setattr(ChatGPTOAuthProvider, "_TOKEN_PATH", tmp_path / "missing.json")
+
+    result = build_config_doctor_report(
+        {
+            **_cfg(),
+            "tools": {"surface": "everything"},
+        },
+        storage_ping=_ok_sample_ping,
+    )
+
+    assert result["ok"] is False
+    assert _status(result, "tool_surface") == "fail"
+    assert result["summary"]["resolved_tool_surface"] is None
+    assert result["summary"]["mcp_tool_count"] == 1
+
+
 def test_config_doctor_cli_json_and_text_are_secret_safe(monkeypatch, tmp_path) -> None:
     user_config = tmp_path / "config.yaml"
     user_config.write_text(
@@ -238,7 +258,12 @@ def test_config_doctor_mcp_wrapper_uses_shared_report(monkeypatch, tmp_path) -> 
     assert _status(result, "sample_storage") == "pass"
 
 
-def test_config_doctor_mcp_runtime_registers_tool() -> None:
+def test_config_doctor_mcp_runtime_registers_tool(monkeypatch) -> None:
+    monkeypatch.setattr(
+        _context,
+        "config",
+        lambda: {"tools": {"surface": "developer"}},
+    )
     tools = asyncio.run(mcp_server.app.list_tools())
     names = sorted(tool.name for tool in tools)
 

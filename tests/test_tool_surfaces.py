@@ -5,19 +5,26 @@ import json
 
 import pytest
 
-from deal_intel import mcp_server
+from deal_intel import _context, mcp_server
 from deal_intel.tool_surfaces import (
     build_tool_surface_matrix,
     default_surface_for_profile,
     get_tool_surface_contract,
     list_tool_surface_contracts,
+    resolve_tool_surface,
     sample_local_personal_target_tool_names,
     surface_names,
+    tool_names_for_config,
     tool_names_for_surface,
 )
 
 
-def test_tool_surface_contract_covers_registered_mcp_tools() -> None:
+def test_tool_surface_contract_covers_registered_mcp_tools(monkeypatch) -> None:
+    monkeypatch.setattr(
+        _context,
+        "config",
+        lambda: {"tools": {"surface": "developer"}},
+    )
     registered = {tool.name for tool in asyncio.run(mcp_server.app.list_tools())}
     contracted = {contract.name for contract in list_tool_surface_contracts()}
 
@@ -41,11 +48,17 @@ def test_tool_surface_matrix_is_stable_and_serializable() -> None:
     assert json.loads(json.dumps(matrix)) == matrix
 
 
-def test_sample_surface_is_zero_config_read_first() -> None:
+def test_sample_surface_is_zero_config_safe_local_personal() -> None:
     sample_tools = set(tool_names_for_surface("sample"))
 
     assert sample_tools == {
         "config_doctor",
+        "create_deal",
+        "update_stage",
+        "update_deal",
+        "archive_deal",
+        "restore_deal",
+        "delete_deal",
         "get_deal",
         "list_deals",
         "get_metrics",
@@ -59,19 +72,24 @@ def test_sample_surface_is_zero_config_read_first() -> None:
     for tool_name in sample_tools:
         contract = get_tool_surface_contract(tool_name)
         assert contract.llm_calls is False
-        assert contract.db_writes is False
-
-
-@pytest.mark.parametrize(
-    "hidden_tool",
-    [
+    assert {
+        tool_name
+        for tool_name in sample_tools
+        if get_tool_surface_contract(tool_name).db_writes
+    } == {
         "create_deal",
-        "add_meeting",
         "update_stage",
         "update_deal",
         "archive_deal",
         "restore_deal",
         "delete_deal",
+    }
+
+
+@pytest.mark.parametrize(
+    "hidden_tool",
+    [
+        "add_meeting",
         "create_sample_data",
         "delete_sample_data",
         "search_deals",
@@ -160,3 +178,46 @@ def test_surface_names_and_invalid_inputs_are_explicit() -> None:
 
     with pytest.raises(ValueError, match="profile must be one of"):
         default_surface_for_profile("enterprise")
+
+    with pytest.raises(ValueError, match="tools.surface must be"):
+        resolve_tool_surface({"tools": {"surface": 3}})
+
+
+def test_resolve_tool_surface_defaults_from_profile() -> None:
+    assert tool_names_for_config({"storage": {"backend": "local_sample"}}) == (
+        tool_names_for_surface("sample")
+    )
+    assert tool_names_for_config({"storage": {"backend": "mongo"}}) == (
+        tool_names_for_surface("standard")
+    )
+    assert tool_names_for_config({"tools": {"surface": "developer"}}) == (
+        tool_names_for_surface("developer")
+    )
+
+
+def test_mcp_runtime_filters_tools_by_surface(monkeypatch) -> None:
+    monkeypatch.setattr(
+        _context,
+        "config",
+        lambda: {"storage": {"backend": "local_sample"}, "tools": {"surface": "auto"}},
+    )
+
+    names = {tool.name for tool in asyncio.run(mcp_server.app.list_tools())}
+
+    assert names == set(tool_names_for_surface("sample"))
+    assert "create_deal" in names
+    assert "add_meeting" not in names
+    assert "create_sample_data" not in names
+
+
+def test_mcp_runtime_blocks_hidden_tool_calls(monkeypatch) -> None:
+    from fastmcp.exceptions import NotFoundError
+
+    monkeypatch.setattr(
+        _context,
+        "config",
+        lambda: {"storage": {"backend": "local_sample"}, "tools": {"surface": "auto"}},
+    )
+
+    with pytest.raises(NotFoundError):
+        asyncio.run(mcp_server.app.call_tool("add_meeting", {}))

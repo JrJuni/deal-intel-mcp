@@ -34,8 +34,8 @@ _PROFILES: dict[ConfigProfileName, ConfigProfile] = {
         name="sample",
         title="Sample",
         description=(
-            "Zero-config feature-test mode with bundled fictional data, intended "
-            "to grow into lightweight local personal use before MongoDB setup."
+            "Zero-config feature-test mode with bundled fictional data and "
+            "optional lightweight local personal use before MongoDB setup."
         ),
         config_patch={
             "storage": {
@@ -52,10 +52,9 @@ _PROFILES: dict[ConfigProfileName, ConfigProfile] = {
         ),
         limitations=(
             "Feature-test surface with some tools intentionally unavailable.",
-            "Bundled fictional data is read-only in the current MVP.",
-            "Local personal create/update/delete persistence is planned next.",
+            "Bundled fictional data is immutable; user-created local data is separate.",
+            "LLM meeting ingestion and semantic search remain unavailable in sample.",
             "Team/shared operation assumes MongoDB-backed full mode.",
-            "No semantic search in the local sample MVP.",
         ),
         first_run_commands=(
             "deal-intel config show",

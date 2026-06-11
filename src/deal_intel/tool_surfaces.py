@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal, cast
 
+from deal_intel.config_profiles import infer_config_profile
+
 ToolSurfaceName = Literal["sample", "standard", "developer"]
 ToolCategory = Literal[
     "diagnostic",
@@ -58,10 +60,11 @@ MCP_TOOL_SURFACE_CONTRACTS: tuple[MCPToolSurfaceContract, ...] = (
     MCPToolSurfaceContract(
         name="create_deal",
         category="core_write",
-        surfaces=_STANDARD,
+        surfaces=_SAMPLE,
         user_facing=True,
         db_writes=True,
         llm_calls=False,
+        notes="Safe in sample after local personal storage is active.",
     ),
     MCPToolSurfaceContract(
         name="add_meeting",
@@ -75,15 +78,16 @@ MCP_TOOL_SURFACE_CONTRACTS: tuple[MCPToolSurfaceContract, ...] = (
     MCPToolSurfaceContract(
         name="update_stage",
         category="core_write",
-        surfaces=_STANDARD,
+        surfaces=_SAMPLE,
         user_facing=True,
         db_writes=True,
         llm_calls=False,
+        notes="Safe in sample after local personal storage is active.",
     ),
     MCPToolSurfaceContract(
         name="update_deal",
         category="admin",
-        surfaces=_STANDARD,
+        surfaces=_SAMPLE,
         user_facing=True,
         db_writes=True,
         llm_calls=False,
@@ -92,7 +96,7 @@ MCP_TOOL_SURFACE_CONTRACTS: tuple[MCPToolSurfaceContract, ...] = (
     MCPToolSurfaceContract(
         name="archive_deal",
         category="admin",
-        surfaces=_STANDARD,
+        surfaces=_SAMPLE,
         user_facing=True,
         db_writes=True,
         llm_calls=False,
@@ -101,7 +105,7 @@ MCP_TOOL_SURFACE_CONTRACTS: tuple[MCPToolSurfaceContract, ...] = (
     MCPToolSurfaceContract(
         name="restore_deal",
         category="admin",
-        surfaces=_STANDARD,
+        surfaces=_SAMPLE,
         user_facing=True,
         db_writes=True,
         llm_calls=False,
@@ -110,7 +114,7 @@ MCP_TOOL_SURFACE_CONTRACTS: tuple[MCPToolSurfaceContract, ...] = (
     MCPToolSurfaceContract(
         name="delete_deal",
         category="admin",
-        surfaces=_STANDARD,
+        surfaces=_SAMPLE,
         user_facing=True,
         db_writes=True,
         llm_calls=False,
@@ -264,6 +268,23 @@ def tool_names_for_surface(surface: str) -> tuple[str, ...]:
     )
 
 
+def resolve_tool_surface(cfg: dict) -> ToolSurfaceName:
+    tools = _mapping(cfg.get("tools"))
+    configured = tools.get("surface", "auto")
+    if configured is None or configured == "":
+        configured = "auto"
+    if not isinstance(configured, str):
+        raise ValueError("tools.surface must be auto, sample, standard, or developer")
+    normalized = configured.strip().lower()
+    if normalized == "auto":
+        return default_surface_for_profile(infer_config_profile(cfg))
+    return _normalize_surface(normalized)
+
+
+def tool_names_for_config(cfg: dict) -> tuple[str, ...]:
+    return tool_names_for_surface(resolve_tool_surface(cfg))
+
+
 def default_surface_for_profile(profile: str) -> ToolSurfaceName:
     normalized = profile.strip().lower()
     if normalized == "sample":
@@ -294,17 +315,12 @@ def build_tool_surface_matrix() -> dict:
 
 
 def sample_local_personal_target_tool_names() -> tuple[str, ...]:
-    """Tools to promote into sample after mutable local storage is implemented."""
-    current_sample = tool_names_for_surface("sample")
-    safe_local_writes = (
-        "create_deal",
-        "update_stage",
-        "update_deal",
-        "archive_deal",
-        "restore_deal",
-        "delete_deal",
-    )
-    return current_sample + safe_local_writes
+    """Backward-compatible alias for the now-current sample tool set."""
+    return tool_names_for_surface("sample")
+
+
+def _mapping(value: object) -> dict:
+    return value if isinstance(value, dict) else {}
 
 
 def _normalize_surface(surface: str) -> ToolSurfaceName:

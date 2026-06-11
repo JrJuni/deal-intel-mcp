@@ -275,7 +275,6 @@ def test_mcp_runtime_registers_customer_theme_expansion_tools() -> None:
     tools = asyncio.run(mcp_server.app.list_tools())
     names = sorted(tool.name for tool in tools)
 
-    assert len(names) == 22
     assert {"get_customer_theme_breakdown", "get_customer_theme_evidence"}.issubset(
         names
     )

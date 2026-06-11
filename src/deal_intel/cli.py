@@ -26,6 +26,7 @@ CONFIG_ENV_KEYS = (
     "DEAL_INTEL_LLM_PROVIDER",
     "DEAL_INTEL_USE_CHATGPT_OAUTH",
     "DEAL_INTEL_STORAGE_BACKEND",
+    "DEAL_INTEL_TOOLS_SURFACE",
 )
 
 
@@ -968,18 +969,32 @@ def _format_local_data_reset(payload: dict) -> str:
 
 
 def _summarize_config_for_display(cfg: dict[str, Any]) -> dict[str, Any]:
+    from deal_intel.tool_surfaces import resolve_tool_surface, tool_names_for_config
+
     llm = _mapping(cfg.get("llm"))
     mongodb = _mapping(cfg.get("mongodb"))
     storage = _mapping(cfg.get("storage"))
+    tools = _mapping(cfg.get("tools"))
     reporting = _mapping(cfg.get("reporting"))
     pipeline = _mapping(cfg.get("pipeline"))
     expected_close = _mapping(pipeline.get("expected_close"))
     metrics = _mapping(cfg.get("metrics"))
     health_bands = _mapping(metrics.get("health_bands"))
+    try:
+        resolved_tool_surface = resolve_tool_surface(cfg)
+        mcp_tool_count = len(tool_names_for_config(cfg))
+    except ValueError:
+        resolved_tool_surface = None
+        mcp_tool_count = 1
     return {
         "storage": {
             "backend": storage.get("backend", "mongo"),
             "local_data_dir": storage.get("local_data_dir"),
+        },
+        "tools": {
+            "surface": tools.get("surface", "auto"),
+            "resolved_surface": resolved_tool_surface,
+            "mcp_tool_count": mcp_tool_count,
         },
         "mongodb": {
             "database": mongodb.get("database", "deal_intel"),
@@ -1053,6 +1068,12 @@ def _format_config_show(payload: dict) -> str:
             f"Vector search: {cfg['mongodb']['vector_search']}"
         ),
         (
+            "Tools: "
+            f"surface={cfg['tools']['surface']} | "
+            f"resolved={cfg['tools']['resolved_surface']} | "
+            f"mcp_tools={cfg['tools']['mcp_tool_count']}"
+        ),
+        (
             "LLM: "
             f"{cfg['llm']['provider']} | "
             f"ChatGPT model: {cfg['llm']['chatgpt_oauth_model']} | "
@@ -1082,7 +1103,8 @@ def _format_config_doctor(payload: dict) -> str:
             f"storage={summary['storage_backend']}, "
             f"database={summary['mongodb_database']}, "
             f"vector_search={summary['vector_search']}, "
-            f"llm={summary['llm_provider']}"
+            f"llm={summary['llm_provider']}, "
+            f"tools={summary.get('resolved_tool_surface')}"
         ),
         (
             "Checks: "

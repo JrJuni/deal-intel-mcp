@@ -7,8 +7,8 @@ def local_sample_mode_hint() -> dict[str, str]:
     return {
         "purpose": (
             "Use the bundled sample dataset when MongoDB Atlas is not configured "
-            "yet. The current fixture is read-first; local personal data is the "
-            "next sample-mode target."
+            "yet. The bundled fixture is immutable; user-created local personal "
+            "deals are stored separately under storage.local_data_dir."
         ),
         "temporary_env": "DEAL_INTEL_STORAGE_BACKEND=local_sample",
         "powershell": "$env:DEAL_INTEL_STORAGE_BACKEND='local_sample'",

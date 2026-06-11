@@ -72,6 +72,15 @@ Some search and LLM-heavy paths remain limited in sample mode. Move to `full`
 when you are ready to connect real MongoDB-backed team storage. Move to `pro`
 only when paid infrastructure is intentional.
 
+MCP tools are profile-filtered by default:
+
+- `sample`: 15 zero-config/local personal tools
+- `standard`: 20 normal real-data tools
+- `developer`: all 22 tools, including demo seed/cleanup helpers
+
+Use `tools.surface: developer` or `DEAL_INTEL_TOOLS_SURFACE=developer` only
+when you intentionally want the full maintainer/debug surface.
+
 ---
 
 ## Install (5 minutes)
@@ -682,7 +691,7 @@ Current source of truth:
          |          -> runs locally / no API key / 384 dims
          |
          `-- Storage
-               |-- local_sample  : bundled read-first fictional dataset
+               |-- local_sample  : bundled fixture + local personal deals
                `-- MongoDB Atlas : real deals collection and analytics snapshots
 
 search_deals

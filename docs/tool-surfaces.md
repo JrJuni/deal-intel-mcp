@@ -12,8 +12,8 @@ The source contract lives in `src/deal_intel/tool_surfaces.py`.
 
 ## Mental Model
 
-- `sample`: a zero-config, bundled, limited feature-test surface that should
-  grow into local personal data use.
+- `sample`: a zero-config, bundled, limited feature-test surface with safe
+  local personal write/admin tools.
 - `standard`: the normal operator surface for real team data.
 - `developer`: everything, including demo seeding and internal QA helpers.
 
@@ -27,16 +27,22 @@ and future local personal path.
 
 | Surface | Default Profiles | Purpose | Tool Policy |
 |---|---|---|---|
-| `sample` | `sample` | Let a new user or AI agent test useful questions with no setup | Current MVP: LLM-free, DB-write-free tools that work against bundled fictional local sample data |
+| `sample` | `sample` | Let a new user or AI agent test useful questions and small local personal datasets with no setup | LLM-free tools that work against bundled sample data or local personal `deals.json` |
 | `standard` | `full`, `pro`, `custom` | Real operating mode for teams using MongoDB-backed data | User-facing core, admin, analysis, semantic search, and reporting tools |
 | `developer` | none by default | Maintainer/debug mode | Every MCP tool, including sample-data seeding helpers |
 
 ## Sample Surface
 
 `sample` intentionally contains only tools that should work in local sample mode
-without MongoDB or API keys today. It is not the full operating surface yet:
+without MongoDB or API keys today. It is not the full operating surface:
 
 - `config_doctor`
+- `create_deal`
+- `update_stage`
+- `update_deal`
+- `archive_deal`
+- `restore_deal`
+- `delete_deal`
 - `get_deal`
 - `list_deals`
 - `get_metrics`
@@ -48,10 +54,9 @@ without MongoDB or API keys today. It is not the full operating surface yet:
 
 Why this matters:
 
-- `create_deal`, `add_meeting`, and update/delete tools imply persistence.
 - `create_deal`, `update_stage`, `update_deal`, `archive_deal`,
-  `restore_deal`, and `delete_deal` should be promoted into `sample` after
-  mutable/resettable local storage exists.
+  `restore_deal`, and `delete_deal` now persist through local personal storage
+  and keep their existing confirmation/dry-run safety gates.
 - `add_meeting` remains separate from the first local-personal target because
   it needs LLM readiness.
 - `search_deals` currently needs Mongo-backed embeddings or Atlas Vector Search.
@@ -88,17 +93,35 @@ make the default real-data tool list noisier.
 management, and local debugging. Future release work can expose this through
 explicit config such as `tools.surface: developer`.
 
-## Current Implementation Boundary
+## Runtime Filtering
 
-Z5.8a defines and tests the surface contract only. It does not yet filter MCP
-registration.
+Runtime MCP exposure is now config-driven:
 
-Next implementation unit:
+```yaml
+tools:
+  surface: auto   # auto | sample | standard | developer
+```
 
-1. Add config-driven MCP registration filtering.
-2. Add mutable/resettable local personal storage before exposing sample write
-   tools.
-3. Promote safe non-LLM write/admin tools into sample once local storage exists.
-4. Default `sample` profile to the `sample` surface.
-5. Default `full`, `pro`, and `custom` profiles to the `standard` surface.
-6. Allow `tools.surface: developer` for maintainers.
+Behavior:
+
+- `auto` resolves from the effective profile.
+- `sample` profile exposes the `sample` surface.
+- `full`, `pro`, and `custom` profiles expose the `standard` surface.
+- `developer` exposes every registered tool.
+- Invalid `tools.surface` config leaves only `config_doctor` visible so the
+  server can explain the configuration problem.
+
+Current exposed counts:
+
+- `sample`: 15 tools
+- `standard`: 20 tools
+- `developer`: 22 tools
+
+Implementation notes:
+
+- The server registers all Python handlers internally, then filters
+  `list_tools()` and blocks hidden `call_tool()` requests by surface.
+- This keeps developer tests and direct module imports stable while making the
+  MCP client-facing tool list non-developer friendly.
+- `DEAL_INTEL_TOOLS_SURFACE` can override the configured surface for smoke
+  tests or packaged installs.

@@ -3,8 +3,8 @@
   "name": "deal-intel-mcp",
   "display_name": "Deal Intelligence MCP",
   "version": "0.1.9",
-  "description": "Turn meeting notes into MEDDPICC-structured deal intelligence. 22 MCP tools, zero-config sample mode, MongoDB Atlas storage, semantic deal search, ChatGPT OAuth, Anthropic, or OpenAI API LLM backend.",
-  "long_description": "deal-intel-mcp captures consultation records and meeting notes, extracts MEDDPICC qualification signals and customer concern themes via LLM, and can run either on bundled read-only sample data or MongoDB Atlas-backed real team data. Tools: config_doctor, create_deal, add_meeting, update_stage, update_deal, archive_deal, restore_deal, delete_deal, create_sample_data, delete_sample_data, get_deal, list_deals, get_insights, get_metrics, get_deal_gaps, get_deal_review, export_report, get_customer_themes, get_customer_theme_breakdown, get_customer_theme_evidence, search_deals, analyze_deal. Supports ChatGPT Plus OAuth, Anthropic Claude API, or the official OpenAI API as LLM backends.",
+  "description": "Turn meeting notes into MEDDPICC-structured deal intelligence. Profile-aware MCP tool surfaces, zero-config sample mode, MongoDB Atlas storage, semantic deal search, ChatGPT OAuth, Anthropic, or OpenAI API LLM backend.",
+  "long_description": "deal-intel-mcp captures consultation records and meeting notes, extracts MEDDPICC qualification signals and customer concern themes via LLM, and can run on bundled/local sample data or MongoDB Atlas-backed real team data. Runtime tool surfaces expose sample, standard, or developer tool lists from the same package. Supports ChatGPT Plus OAuth, Anthropic Claude API, or the official OpenAI API as LLM backends.",
   "author": {
     "name": "JrJuni",
     "email": "tyrical@naver.com",
@@ -51,8 +51,15 @@
     "storage_backend": {
       "type": "string",
       "title": "Storage backend",
-      "description": "Use local_sample for the zero-config read-only demo, or mongo for real Atlas-backed data.",
+      "description": "Use local_sample for zero-config sample/local personal mode, or mongo for real Atlas-backed data.",
       "default": "local_sample",
+      "required": false
+    },
+    "tools_surface": {
+      "type": "string",
+      "title": "MCP tool surface",
+      "description": "Use auto for profile-based filtering, sample for zero-config/local personal tools, standard for normal real-data operation, or developer for all tools.",
+      "default": "auto",
       "required": false
     },
     "mongodb_uri": {
@@ -100,6 +107,7 @@
       "env": {
         "MONGODB_URI": "${user_config.mongodb_uri}",
         "DEAL_INTEL_STORAGE_BACKEND": "${user_config.storage_backend}",
+        "DEAL_INTEL_TOOLS_SURFACE": "${user_config.tools_surface}",
         "ANTHROPIC_API_KEY": "${user_config.anthropic_api_key}",
         "OPENAI_API_KEY": "${user_config.openai_api_key}",
         "DEAL_INTEL_LLM_PROVIDER": "${user_config.llm_provider}",

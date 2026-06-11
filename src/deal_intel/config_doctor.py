@@ -9,6 +9,7 @@ from deal_intel import _env
 from deal_intel.config_profiles import list_config_profiles
 from deal_intel.providers.llm import make_llm_provider
 from deal_intel.storage.diagnostics import local_sample_mode_hint
+from deal_intel.tool_surfaces import resolve_tool_surface, tool_names_for_config
 
 CheckStatus = str
 StoragePing = Callable[[], dict[str, Any]]
@@ -16,6 +17,7 @@ StoragePing = Callable[[], dict[str, Any]]
 _VALID_STORAGE_BACKENDS = {"mongo", "local_sample"}
 _VALID_VECTOR_SEARCH_MODES = {"python_cosine", "atlas"}
 _VALID_LLM_PROVIDERS = {"chatgpt_oauth", "openai_api", "anthropic"}
+_VALID_TOOL_SURFACES = {"auto", "sample", "standard", "developer"}
 _SECRET_ENV_KEYS = ("MONGODB_URI", "ANTHROPIC_API_KEY", "OPENAI_API_KEY")
 
 
@@ -36,11 +38,14 @@ def build_config_doctor_report(
     storage = _mapping(cfg.get("storage"))
     mongodb = _mapping(cfg.get("mongodb"))
     llm = _mapping(cfg.get("llm"))
+    tools = _mapping(cfg.get("tools"))
 
     backend = storage.get("backend", "mongo")
     database = mongodb.get("database", "deal_intel")
     vector_search = mongodb.get("vector_search", "python_cosine")
     provider_name = llm.get("provider", "chatgpt_oauth")
+    configured_tool_surface = tools.get("surface", "auto")
+    resolved_tool_surface, mcp_tool_count = _resolve_surface_summary(cfg)
 
     _add_check(
         checks,
@@ -59,6 +64,12 @@ def build_config_doctor_report(
     )
     _add_user_config_check(checks)
     _add_storage_backend_check(checks, backend)
+    _add_tool_surface_check(
+        checks,
+        configured_surface=configured_tool_surface,
+        resolved_surface=resolved_tool_surface,
+        mcp_tool_count=mcp_tool_count,
+    )
     _add_mongo_readiness_check(
         checks,
         backend=backend,
@@ -88,6 +99,9 @@ def build_config_doctor_report(
             "mongodb_database": database,
             "vector_search": vector_search,
             "llm_provider": provider_name,
+            "tools_surface": configured_tool_surface,
+            "resolved_tool_surface": resolved_tool_surface,
+            "mcp_tool_count": mcp_tool_count,
             "failed_checks": failed,
             "warning_checks": warnings,
             "skipped_checks": skipped,
@@ -156,6 +170,46 @@ def _add_storage_backend_check(checks: list[dict[str, Any]], backend: Any) -> No
         message="storage.backend must be 'mongo' or 'local_sample'.",
         details={"storage_backend": backend},
         hint="Set storage.backend to mongo or local_sample.",
+    )
+
+
+def _add_tool_surface_check(
+    checks: list[dict[str, Any]],
+    *,
+    configured_surface: Any,
+    resolved_surface: str | None,
+    mcp_tool_count: int,
+) -> None:
+    if configured_surface in _VALID_TOOL_SURFACES:
+        _add_check(
+            checks,
+            check_id="tool_surface",
+            label="MCP tool surface",
+            status="pass",
+            message=(
+                f"tools.surface is {configured_surface}; MCP will expose "
+                f"{mcp_tool_count} tool(s) through the {resolved_surface} surface."
+            ),
+            details={
+                "tools_surface": configured_surface,
+                "resolved_tool_surface": resolved_surface,
+                "mcp_tool_count": mcp_tool_count,
+            },
+        )
+        return
+
+    _add_check(
+        checks,
+        check_id="tool_surface",
+        label="MCP tool surface",
+        status="fail",
+        message="tools.surface must be auto, sample, standard, or developer.",
+        details={
+            "tools_surface": configured_surface,
+            "resolved_tool_surface": resolved_surface,
+            "mcp_tool_count": mcp_tool_count,
+        },
+        hint="Set tools.surface to auto, sample, standard, or developer.",
     )
 
 
@@ -506,6 +560,13 @@ def _safe_llm_ping_details(provider_name: str, ping: dict[str, Any]) -> dict[str
     }
     details["llm_provider"] = provider_name
     return details
+
+
+def _resolve_surface_summary(cfg: dict[str, Any]) -> tuple[str | None, int]:
+    try:
+        return resolve_tool_surface(cfg), len(tool_names_for_config(cfg))
+    except ValueError:
+        return None, 1
 
 
 def _severity_for_status(status: str) -> str:

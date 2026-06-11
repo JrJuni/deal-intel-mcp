@@ -178,7 +178,7 @@ Implemented contract:
 
 | Profile | BI Smoke Setup | Expected Unconfigured Offline Result | Warnings | Writes |
 |---|---|---|---|---|
-| `sample` | None | pass; sample storage ping is skipped offline | `llm_provider` if ChatGPT OAuth is not logged in | none; read-only |
+| `sample` | None | pass; sample storage ping is skipped offline | `llm_provider` if ChatGPT OAuth is not logged in | local personal writes only when the user uses create/update/stage/lifecycle tools |
 | `full` | `MONGODB_URI` | fail on `mongodb_uri` when missing | `llm_provider` if ChatGPT OAuth is not logged in | none; read-check only |
 | `pro` | `MONGODB_URI`, Atlas M10+, Atlas Vector Search index | fail on `mongodb_uri` and `llm_provider` when missing | `vector_search` warns that Atlas Vector Search requires paid infra | none; read-check only |
 
@@ -198,22 +198,29 @@ Result:
 - `--offline` skips storage ping.
 - `--json` returns the same structured report shape for agents.
 
-### Z5.8 Tool Surface Split
+### Z5.8-Z5.10 Tool Surface Split And Runtime Filtering
 
-Implemented contract:
+Implemented:
 
 - `src/deal_intel/tool_surfaces.py` is the source contract.
 - Tool surfaces are optimized for non-developer first-run clarity:
   `sample`, `standard`, and `developer`.
-- `sample` is a bundled read-first surface. It exposes only LLM-free,
-  DB-write-free tools that work against local sample data.
-- The sample local-personal target promotes safe non-LLM write/admin tools once
-  mutable local storage exists: `create_deal`, `update_stage`, `update_deal`,
-  `archive_deal`, `restore_deal`, and `delete_deal`.
+- `sample` exposes LLM-free tools that work against bundled sample data or
+  local personal `deals.json`.
+- `sample` now includes safe non-LLM write/admin tools:
+  `create_deal`, `update_stage`, `update_deal`, `archive_deal`,
+  `restore_deal`, and `delete_deal`.
 - `standard` is the normal real-data operating surface for `full`, `pro`, and
   custom Mongo-backed configs.
 - `developer` contains every MCP tool, including Atlas demo-database seed and
   cleanup helpers.
+- `tools.surface: auto` resolves the default surface from the effective
+  profile.
+- `DEAL_INTEL_TOOLS_SURFACE` can override the configured surface for packaged
+  installs and smoke tests.
+- The MCP server filters `list_tools()` and blocks hidden `call_tool()` calls.
+- Invalid `tools.surface` config leaves only `config_doctor` visible so the
+  server can explain the configuration problem.
 
 Default mapping:
 
@@ -224,22 +231,15 @@ Default mapping:
 | `pro` | `standard` |
 | `custom` | `standard` |
 
-Non-goals for Z5.8a:
-
-- No MCP registration filtering yet.
-- No tool hiding in the current runtime yet.
-- No mutable local sample storage yet.
-- No CLI command regrouping yet.
-
 Result:
 
 - `build_tool_surface_matrix()` returns a serializable surface matrix.
 - Targeted tests verify that all 22 registered MCP tools are classified.
-- Targeted tests verify that `sample` excludes persistence, LLM, semantic
-  search, and Mongo demo-database maintenance tools.
-- Targeted tests verify the future local-personal sample target includes safe
-  non-LLM write/admin tools but still excludes LLM-heavy, semantic-search, and
-  demo-database maintenance tools.
+- Targeted tests verify that `sample` includes safe local personal write/admin
+  tools while excluding LLM-heavy, semantic-search, legacy Mongo aggregation,
+  and Mongo demo-database maintenance tools.
+- Targeted tests verify runtime MCP filtering for sample/developer surfaces and
+  hidden-tool call blocking.
 - Detailed policy lives in `docs/tool-surfaces.md`.
 
 ### Z5.9 Local Personal Sample Storage
@@ -303,15 +303,6 @@ Non-goals for Z5.9:
 - No Atlas demo-database seed/cleanup behavior.
 - No local-to-Mongo migration implementation in the first local storage slice.
 
-Why this comes before MCP filtering:
-
-- If `sample` is filtered too early, first-run users only see read-only demo
-  behavior.
-- Local personal storage lets `sample` become useful for a small personal
-  dataset before asking for MongoDB.
-- Once local write support exists, Z5.10 can safely expose the right sample
-  write/admin tools through config-driven MCP filtering.
-
 ### Z5.9 Follow-Up: Local To Mongo Migration
 
 Planned scope:
@@ -329,18 +320,3 @@ Non-goals:
 - No automatic background sync.
 - No two-way sync between local and MongoDB.
 - No migration of bundled fictional fixture data.
-
-### Z5.10 Config-Driven MCP Tool Filtering
-
-Planned scope:
-
-- Apply the Z5.8 tool surface contract to actual FastMCP registration.
-- Default `sample` profile to the `sample` surface.
-- Default `full`, `pro`, and `custom` profiles to the `standard` surface.
-- Allow explicit maintainer override such as `tools.surface: developer`.
-- Keep developer/QA/smoke helpers out of the default non-developer surface.
-
-Dependency:
-
-- Z5.9 should land first so the `sample` surface can include useful local
-  personal write/admin tools instead of staying read-only.

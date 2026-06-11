@@ -1,12 +1,58 @@
 from __future__ import annotations
 
 from fastmcp import FastMCP
+from fastmcp.exceptions import NotFoundError
 
 import deal_intel._env  # noqa: F401 — triggers dotenv load at import time
 from deal_intel.errors import Stage, envelope_from_exception
 
 app = FastMCP("deal-intel")
 _MAX_EMBEDDING_WARMUP_SECONDS = 30
+
+
+def _enabled_mcp_tool_names() -> set[str]:
+    try:
+        from deal_intel import _context
+        from deal_intel.tool_surfaces import tool_names_for_config
+
+        return set(tool_names_for_config(_context.config()))
+    except Exception:
+        # Keep config_doctor visible so invalid config can explain itself.
+        return {"config_doctor"}
+
+
+def _install_tool_surface_filter(server: FastMCP) -> None:
+    original_list_tools = server.list_tools
+    original_call_tool = server.call_tool
+
+    async def list_tools(*, run_middleware: bool = True):
+        enabled = _enabled_mcp_tool_names()
+        tools = await original_list_tools(run_middleware=run_middleware)
+        return [tool for tool in tools if tool.name in enabled]
+
+    async def call_tool(
+        name: str,
+        arguments: dict | None = None,
+        *,
+        version=None,
+        run_middleware: bool = True,
+        task_meta=None,
+    ):
+        if name not in _enabled_mcp_tool_names():
+            raise NotFoundError(f"Unknown tool: {name!r}")
+        return await original_call_tool(
+            name,
+            arguments,
+            version=version,
+            run_middleware=run_middleware,
+            task_meta=task_meta,
+        )
+
+    server.list_tools = list_tools
+    server.call_tool = call_tool
+
+
+_install_tool_surface_filter(app)
 
 
 @app.tool()

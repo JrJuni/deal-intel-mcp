@@ -12,7 +12,7 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-11
 
-### Config profiles Z5.8a tool surface contract
+### Config profiles Z5.8-Z5.10 tool surface runtime filtering
 
 Implemented:
 
@@ -22,25 +22,21 @@ Implemented:
   `sample`, `standard`, and `developer`.
 - Mapped `sample` profile to the `sample` surface, and `full`/`pro`/`custom`
   to the `standard` surface.
-- Kept `sample` read-first: no DB writes, no LLM calls, no semantic search,
-  and no Atlas demo-database seed/cleanup tools.
+- Kept `sample` LLM-free and semantic-search-free while allowing safe local
+  personal create/update/stage/lifecycle writes.
 - Kept real operator admin tools such as `delete_deal` in `standard`, relying
   on their existing dry-run, confirmation, exact-company, archive-gate safety
   contracts.
 - Added [tool-surfaces.md](tool-surfaces.md) and linked it from the docs map.
 - Updated [config-profiles.md](config-profiles.md) and [backlog.md](backlog.md)
-  to mark Z5.8a as contract-only and make mutable local personal storage the
-  next sample-mode implementation target.
+  to mark tool filtering and local personal storage as implemented.
 - Clarified user-facing sample-mode positioning: sample is a limited
   feature-test path with bundled fictional data, while real operation assumes
   MongoDB-backed `full` mode.
-- Revised that positioning so `sample` is not permanently read-only: the next
-  sample-mode target is mutable/resettable local personal data for small user
-  datasets before MongoDB.
-- Added `sample_local_personal_target` to the tool surface matrix. It promotes
-  safe non-LLM write/admin tools after mutable local storage exists while still
-  excluding LLM-heavy analysis, semantic search, and Atlas demo-database
-  maintenance.
+- Revised that positioning so `sample` is not read-only: mutable/resettable
+  local personal data now supports small user datasets before MongoDB.
+- Kept `sample_local_personal_target` as a backward-compatible matrix alias for
+  the now-current sample tool set.
 - Reordered the Z5 plan tree: the originally planned next step was
   config-driven MCP tool filtering, but mutable/resettable local personal
   storage now comes first so the filtered `sample` surface is actually useful
@@ -74,6 +70,21 @@ Implemented:
   does not silently re-mix fictional sample data into the active working set.
 - `local-data export` writes a secret-safe JSON snapshot without raw notes,
   contacts, or embeddings.
+- Added Z5.10 config-driven MCP runtime filtering:
+  `tools.surface: auto|sample|standard|developer`.
+- Added `DEAL_INTEL_TOOLS_SURFACE` as a packaged/runtime override.
+- Runtime `auto` resolves from the effective profile:
+  `sample -> sample`, `full/pro/custom -> standard`.
+- `sample` now exposes safe local personal write/admin tools alongside
+  LLM-free read/reporting tools.
+- MCP `list_tools()` is filtered by surface and hidden `call_tool()` requests
+  are blocked.
+- Invalid `tools.surface` config exposes only `config_doctor` so the setup
+  problem remains diagnosable.
+- `config show` and `config doctor` now report configured/resolved tool
+  surface and MCP tool count.
+- Updated the MCP bundle manifest with `tools_surface` and
+  `DEAL_INTEL_TOOLS_SURFACE`.
 
 Verification:
 
@@ -93,11 +104,17 @@ Verification:
   `45 passed`, `1 warning`
 - Local data/config/profile regression:
   `68 passed`
+- Tool surface runtime targeted regression:
+  `61 passed`, `1 warning`
+- Expanded MCP surface regression:
+  `109 passed`, `1 warning`
+- Runtime surface count smoke:
+  `sample=15`, `standard=20`, `developer=22`
 - Config CLI smoke:
   `config init --profile sample --dry-run` shows
   `storage.local_data_dir: ~/.deal-intel/local-data`
 - Full pytest:
-  `390 passed`, `1 warning`
+  `388 passed`, `1 warning`
 - Diff whitespace check:
   `git diff --check`
 - Ruff:

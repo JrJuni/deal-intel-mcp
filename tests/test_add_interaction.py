@@ -107,6 +107,19 @@ def test_add_interaction_stores_canonical_customer_evidence() -> None:
     assert result["interaction_type"] == "email_thread"
     assert result["source_confidence"] == "customer_stated"
     assert result["scoring_applied"] is True
+    assert result["source_policy"] == {
+        "interaction_type": "email_thread",
+        "direction": "inbound",
+        "source_confidence": "customer_stated",
+        "scoring_applied": True,
+        "score_policy": "confirmed_evidence",
+        "reason": (
+            "Direct customer-stated evidence can update MEDDPICC and customer "
+            "themes."
+        ),
+        "stage_policy": "suggest_only",
+        "content_policy": "retained_for_single_deal_detail_excluded_from_bi",
+    }
     assert result["meddpicc"]["identify_pain"]["score"] == 4
     assert result["meddpicc_latest"]["filled_count"] == 1
 
@@ -139,6 +152,8 @@ def test_outbound_only_interaction_is_stored_but_not_scored() -> None:
 
     assert result["source_confidence"] == "outbound_unconfirmed"
     assert result["scoring_applied"] is False
+    assert result["source_policy"]["score_policy"] == "stored_unconfirmed"
+    assert "does not update MEDDPICC" in result["source_policy"]["reason"]
     assert result["meddpicc"] == {}
     assert result["unconfirmed_meddpicc"]["identify_pain"]["score"] == 5
     assert result["meddpicc_latest"]["filled_count"] == 0

@@ -159,6 +159,13 @@ Current implementation note:
     criteria source labels,
   - the natural-question smoke summary includes a Source Evidence section so
     source-aware answers can be checked without reopening an MCP client.
+- P3.7 closed the MVP intake contract:
+  - `add_interaction` responses include `source_policy` so clients can explain
+    confirmed-evidence versus stored-unconfirmed behavior,
+  - first-run guidance now describes meeting, email, interview, call-summary,
+    and internal-note intake through the single public tool,
+  - policy text remains response-only and does not expand restricted BI/list/
+    report projections.
 
 #### P3.3 cleanup: single public intake surface
 

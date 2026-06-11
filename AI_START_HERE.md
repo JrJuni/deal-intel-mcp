@@ -123,6 +123,22 @@ succeeds and they want shared MongoDB-backed operation. Migration is also
 dry-run by default; use `local-data migrate-to-mongo --apply` only after the
 target database and skipped/overwrite counts look right.
 
+When adding user-provided evidence, use `add_interaction` as the single public
+intake tool:
+
+- meeting notes: `interaction_type=meeting`, usually `direction=inbound`
+- customer email replies: `interaction_type=email_thread`, use `direction=mixed`
+  for a thread with both seller and customer messages
+- user interviews: `interaction_type=user_interview`, usually
+  `direction=inbound`
+- internal account notes: `interaction_type=internal_note`,
+  `direction=internal`
+
+Check the returned `source_policy` before summarizing the result. Inbound
+customer-stated evidence can update MEDDPICC/customer themes. Outbound-only and
+internal-only content is retained as context but should be described as
+unconfirmed, not as improved deal health.
+
 Only request `MONGODB_URI`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or Atlas
 Vector Search setup after the user chooses `full` or `pro`.
 

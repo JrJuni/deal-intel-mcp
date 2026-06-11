@@ -335,13 +335,21 @@ end of June.
 | `source_confidence` | optional | Override source confidence when needed |
 
 **What the result includes**:
-- `meddpicc` - scores + evidence extracted from this meeting
+- `meddpicc` - scores + evidence extracted from this interaction
 - `meddpicc_latest` - the deal's cumulative health_pct + per-dimension trend
 - `summary` - a 2-3 sentence LLM-generated summary
-- `customer_themes` - customer concerns / selection criteria extracted from this meeting
+- `customer_themes` - customer concerns / selection criteria extracted from this interaction
 - `scoring_applied` - whether this source updated MEDDPICC health/customer themes
+- `source_policy` - why this source was treated as confirmed evidence or stored as unconfirmed context
 - `stage_suggestion` - filled only when the content explicitly implies a stage transition (e.g., contract signed -> won, lost deal -> lost); otherwise `null`
 - `embedding_stored` - whether the similar-deal-search embedding was stored
+
+Source-aware scoring is deliberately conservative:
+
+- `direction=inbound` defaults to `source_confidence=customer_stated`, so explicit customer replies, interviews, and meeting notes can update MEDDPICC/customer themes.
+- `direction=outbound` defaults to `source_confidence=outbound_unconfirmed`, so seller-only emails are stored but do not improve health scores.
+- `interaction_type=internal_note` or `direction=internal` defaults to `source_confidence=internal`, so internal hypotheses stay out of confirmed scoring.
+- `direction=mixed` is allowed for email threads or calls with both sides represented; only explicit customer statements should be treated as evidence.
 
 > **The stage never changes automatically.** Even if the content says "contract signed," `add_interaction` does not change the stage directly - it only **suggests** via `stage_suggestion`. When Claude asks "shall I move this deal to won?", `update_stage` makes the actual change after you confirm. This is a deliberate separation to prevent wrong auto-closing.
 

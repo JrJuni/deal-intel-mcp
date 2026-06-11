@@ -128,6 +128,52 @@ def scoring_applies(source_confidence: str) -> bool:
     return source_confidence not in NON_SCORING_SOURCE_CONFIDENCE
 
 
+def source_policy_summary(
+    *,
+    interaction_type: str,
+    direction: str,
+    source_confidence: str,
+) -> dict:
+    """Explain how this interaction source affects scoring and review output."""
+    scoring = scoring_applies(source_confidence)
+    if source_confidence == "customer_stated":
+        reason = (
+            "Direct customer-stated evidence can update MEDDPICC and customer "
+            "themes."
+        )
+    elif source_confidence == "mixed":
+        reason = (
+            "Mixed interaction evidence can update scoring when customer "
+            "statements are explicit; outbound/internal claims should remain "
+            "unconfirmed."
+        )
+    elif source_confidence == "outbound_unconfirmed":
+        reason = (
+            "Outbound-only content is stored as context but does not update "
+            "MEDDPICC or customer themes without a customer reply."
+        )
+    elif source_confidence == "internal":
+        reason = (
+            "Internal notes are stored as context but do not update MEDDPICC or "
+            "customer themes as confirmed customer evidence."
+        )
+    else:
+        reason = (
+            "Unknown source confidence is stored with conservative scoring "
+            "behavior."
+        )
+    return {
+        "interaction_type": interaction_type,
+        "direction": direction,
+        "source_confidence": source_confidence,
+        "scoring_applied": scoring,
+        "score_policy": "confirmed_evidence" if scoring else "stored_unconfirmed",
+        "reason": reason,
+        "stage_policy": "suggest_only",
+        "content_policy": "retained_for_single_deal_detail_excluded_from_bi",
+    }
+
+
 def parse_participants(value: str | list[str] | None) -> list[str]:
     if value is None:
         return []

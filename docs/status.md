@@ -12,6 +12,34 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-11
 
+### P3.7 interaction intake MVP closeout
+
+Implemented:
+
+- Added `source_policy` to `add_interaction` responses so MCP clients can
+  explain whether the submitted interaction was treated as confirmed evidence
+  or stored as unconfirmed context.
+- Kept `source_policy` response-only; persisted interaction records keep source
+  metadata, but restricted BI/list/report paths do not carry extra policy text
+  or raw interaction content.
+- Clarified README and AI-start guidance for meeting notes, email threads, user
+  interviews, call summaries, and internal notes.
+- Updated the MCP baseline contract for the new response field.
+
+Verification:
+
+- Targeted interaction/surface/fixture/natural-smoke regression:
+  `49 passed`, `1 warning`
+- Targeted Ruff:
+  `All checks passed`
+- Local sample natural-question smoke:
+  `questions=9`, `answerability=derived=4,direct=5`,
+  `source_evidence=2 (email_thread=1, user_interview=1)`
+- Full pytest:
+  `427 passed`, `1 warning`
+- Ruff:
+  `All checks passed`
+
 ### P3.6 source-aware evidence rendering
 
 Implemented:

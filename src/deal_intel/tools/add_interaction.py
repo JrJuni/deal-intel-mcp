@@ -19,6 +19,7 @@ from deal_intel.schema.interactions import (
     resolve_source_confidence,
     scoring_applies,
     scoring_interactions,
+    source_policy_summary,
 )
 from deal_intel.schema.meddpicc import compute_meddpicc_latest
 from deal_intel.storage.mongodb import MongoDBClient
@@ -213,6 +214,11 @@ def handle(
         stage_signal = None
 
     scoring_applied = scoring_applies(resolved_confidence)
+    source_policy = source_policy_summary(
+        interaction_type=normalized_type,
+        direction=normalized_direction,
+        source_confidence=resolved_confidence,
+    )
     scored_meddpicc = meddpicc_raw if scoring_applied else {}
     scored_customer_themes = customer_themes if scoring_applied else []
 
@@ -297,6 +303,7 @@ def handle(
         "interaction_type": normalized_type,
         "direction": normalized_direction,
         "source_confidence": resolved_confidence,
+        "source_policy": source_policy,
         "participants": normalized_participants,
         "subject": normalized_subject,
         "summary": summary,

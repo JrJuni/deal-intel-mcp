@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from collections import defaultdict
 from datetime import datetime
@@ -91,7 +91,9 @@ def _pipeline_overview(
             "stage": row["stage"],
             "count": row["count"],
             "avg_health_pct": row["avg_health_pct"],
-            "total_size_krw": row["pipeline_value_krw"],
+            "total_size_amount": row["pipeline_value_amount"],
+            "total_size_currency": row["pipeline_value_currency"],
+            "mixed_total_size_currency": row["mixed_pipeline_value_currency"],
         }
         for row in summary["stage_breakdown"]
         if row["count"]
@@ -100,7 +102,12 @@ def _pipeline_overview(
         **summary,
         "stages": stages,
         "total_deals": summary["kpis"]["deal_count"],
-        "total_size_krw": summary["pipeline_values"]["open"]["pipeline_value_krw"],
+        "total_size_amount": summary["pipeline_values"]["open"]["pipeline_value_amount"],
+        "total_size_currency": summary["pipeline_values"]["open"]["currency"],
+        "total_size_currencies": summary["pipeline_values"]["open"]["currencies"],
+        "mixed_total_size_currency": summary["pipeline_values"]["open"][
+            "mixed_currency"
+        ],
     }
 
 
@@ -182,7 +189,12 @@ def _industry_benchmark(
                     ]
                 }
             },
-            "total_size_krw": {"$sum": {"$ifNull": ["$deal_size_krw", 0]}},
+            "amounts": {
+                "$push": {
+                    "amount": "$deal_size_amount",
+                    "currency": {"$ifNull": ["$deal_size_currency", "KRW"]},
+                }
+            },
         }},
         {"$addFields": {
             "win_rate_pct": {
@@ -207,6 +219,7 @@ def _industry_benchmark(
     ]
     rows = []
     for r in col.aggregate(pipeline):
+        amount_summary = _summarize_amounts_by_currency(r.get("amounts") or [])
         rows.append({
             "industry": r["_id"],
             "deal_count": r["deal_count"],
@@ -224,9 +237,36 @@ def _industry_benchmark(
                 if r["closed_count"] < settings.minimum_closed_sample
                 else []
             ),
-            "total_size_krw": r["total_size_krw"],
+            "total_size_amount": amount_summary["amount"],
+            "total_size_currency": amount_summary["currency"],
+            "total_size_currencies": amount_summary["currencies"],
+            "mixed_total_size_currency": amount_summary["mixed_currency"],
+            "total_size_by_currency": amount_summary["amount_by_currency"],
         })
     return {"industries": rows}
+
+
+def _summarize_amounts_by_currency(amounts: list[dict]) -> dict:
+    by_currency: dict[str, int] = {}
+    for row in amounts:
+        amount = row.get("amount") if isinstance(row, dict) else None
+        if amount is None or isinstance(amount, bool):
+            continue
+        if not isinstance(amount, (int, float)):
+            continue
+        currency = str(row.get("currency") or "KRW").strip().upper()
+        if len(currency) != 3 or not currency.isalpha():
+            currency = "KRW"
+        by_currency[currency] = by_currency.get(currency, 0) + int(amount)
+    currencies = sorted(by_currency) or ["KRW"]
+    mixed_currency = len(by_currency) > 1
+    return {
+        "amount": None if mixed_currency else by_currency.get(currencies[0], 0),
+        "currency": None if mixed_currency else currencies[0],
+        "currencies": currencies,
+        "mixed_currency": mixed_currency,
+        "amount_by_currency": dict(sorted(by_currency.items())),
+    }
 
 
 def _stage_velocity(col) -> dict:

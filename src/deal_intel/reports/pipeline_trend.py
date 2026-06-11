@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
@@ -18,7 +18,7 @@ COLUMNS = [
 KPI_ORDER = [
     "active_deal_count",
     "open_deal_count",
-    "open_pipeline_value_krw",
+    "open_pipeline_value_amount",
     "avg_health_pct",
     "attention_deal_count",
     "won_deal_count",
@@ -28,7 +28,7 @@ KPI_ORDER = [
 KPI_LABELS = {
     "active_deal_count": "Active deals",
     "open_deal_count": "Open deals",
-    "open_pipeline_value_krw": "Open pipeline value KRW",
+    "open_pipeline_value_amount": "Open pipeline value",
     "avg_health_pct": "Average health pct",
     "attention_deal_count": "Attention deals",
     "won_deal_count": "Won deals",

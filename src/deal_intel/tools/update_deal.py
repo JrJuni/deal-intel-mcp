@@ -1,9 +1,10 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from datetime import UTC, date, datetime
 
 from deal_intel.errors import ErrorCode, MCPError, Stage
 from deal_intel.schema.metrics import (
+    DEFAULT_DEAL_CURRENCY,
     OPEN_STAGES,
     TERMINAL_STAGES,
     DealValueStatus,
@@ -19,9 +20,10 @@ def handle(
     deal_size_status: str | None = None,
     deal_size_note: str | None = None,
     confirmed_by_user: bool = False,
-    deal_size_krw: int | None = None,
-    deal_size_low_krw: int | None = None,
-    deal_size_high_krw: int | None = None,
+    deal_size_amount: int | None = None,
+    deal_size_low_amount: int | None = None,
+    deal_size_high_amount: int | None = None,
+    deal_size_currency: str | None = None,
     company: str | None = None,
     industry: str | None = None,
     expected_close_date: str | None = None,
@@ -50,9 +52,10 @@ def handle(
 
     value_update_requested = _value_update_requested(
         deal_size_status=deal_size_status,
-        deal_size_krw=deal_size_krw,
-        deal_size_low_krw=deal_size_low_krw,
-        deal_size_high_krw=deal_size_high_krw,
+        deal_size_amount=deal_size_amount,
+        deal_size_low_amount=deal_size_low_amount,
+        deal_size_high_amount=deal_size_high_amount,
+        deal_size_currency=deal_size_currency,
     )
     metadata_update_requested = _metadata_update_requested(
         company=company,
@@ -69,9 +72,10 @@ def handle(
             hint={
                 "value_fields": [
                     "deal_size_status",
-                    "deal_size_krw",
-                    "deal_size_low_krw",
-                    "deal_size_high_krw",
+                    "deal_size_amount",
+                    "deal_size_low_amount",
+                    "deal_size_high_amount",
+                    "deal_size_currency",
                 ],
                 "metadata_fields": [
                     "company",
@@ -109,9 +113,10 @@ def handle(
             old_value,
             status=status,
             note=value_note,
-            deal_size_krw=deal_size_krw,
-            deal_size_low_krw=deal_size_low_krw,
-            deal_size_high_krw=deal_size_high_krw,
+            deal_size_amount=deal_size_amount,
+            deal_size_low_amount=deal_size_low_amount,
+            deal_size_high_amount=deal_size_high_amount,
+            deal_size_currency=deal_size_currency,
         )
         assessment = assess_deal_value(new_value)
         if not assessment.is_valid:
@@ -206,15 +211,17 @@ def handle(
 def _value_update_requested(
     *,
     deal_size_status: str | None,
-    deal_size_krw: int | None,
-    deal_size_low_krw: int | None,
-    deal_size_high_krw: int | None,
+    deal_size_amount: int | None,
+    deal_size_low_amount: int | None,
+    deal_size_high_amount: int | None,
+    deal_size_currency: str | None,
 ) -> bool:
     return (
         bool((deal_size_status or "").strip())
-        or deal_size_krw is not None
-        or deal_size_low_krw is not None
-        or deal_size_high_krw is not None
+        or bool((deal_size_currency or "").strip())
+        or deal_size_amount is not None
+        or deal_size_low_amount is not None
+        or deal_size_high_amount is not None
     )
 
 
@@ -290,9 +297,10 @@ def _clean_metadata_note(value: str | None, *, fallback: str | None = None) -> s
 
 def _deal_value_snapshot(deal: dict) -> dict:
     return {
-        "deal_size_krw": deal.get("deal_size_krw"),
-        "deal_size_low_krw": deal.get("deal_size_low_krw"),
-        "deal_size_high_krw": deal.get("deal_size_high_krw"),
+        "deal_size_amount": deal.get("deal_size_amount"),
+        "deal_size_low_amount": deal.get("deal_size_low_amount"),
+        "deal_size_high_amount": deal.get("deal_size_high_amount"),
+        "deal_size_currency": deal.get("deal_size_currency") or DEFAULT_DEAL_CURRENCY,
         "deal_size_status": deal.get("deal_size_status"),
         "deal_size_note": deal.get("deal_size_note"),
     }
@@ -314,41 +322,57 @@ def _build_updated_value(
     *,
     status: DealValueStatus,
     note: str,
-    deal_size_krw: int | None,
-    deal_size_low_krw: int | None,
-    deal_size_high_krw: int | None,
+    deal_size_amount: int | None,
+    deal_size_low_amount: int | None,
+    deal_size_high_amount: int | None,
+    deal_size_currency: str | None,
 ) -> dict:
     if status == DealValueStatus.UNKNOWN:
         return {
-            "deal_size_krw": None,
-            "deal_size_low_krw": None,
-            "deal_size_high_krw": None,
+            "deal_size_amount": None,
+            "deal_size_low_amount": None,
+            "deal_size_high_amount": None,
+            "deal_size_currency": (
+                (deal_size_currency or "").strip().upper()
+                or current.get("deal_size_currency")
+                or DEFAULT_DEAL_CURRENCY
+            ),
             "deal_size_status": status.value,
             "deal_size_note": note,
         }
     if status == DealValueStatus.STRATEGIC_ZERO:
         return {
-            "deal_size_krw": 0,
-            "deal_size_low_krw": 0 if deal_size_low_krw == 0 else None,
-            "deal_size_high_krw": 0 if deal_size_high_krw == 0 else None,
+            "deal_size_amount": 0,
+            "deal_size_low_amount": 0 if deal_size_low_amount == 0 else None,
+            "deal_size_high_amount": 0 if deal_size_high_amount == 0 else None,
+            "deal_size_currency": (
+                (deal_size_currency or "").strip().upper()
+                or current.get("deal_size_currency")
+                or DEFAULT_DEAL_CURRENCY
+            ),
             "deal_size_status": status.value,
             "deal_size_note": note,
         }
     return {
-        "deal_size_krw": (
-            deal_size_krw
-            if deal_size_krw is not None
-            else current.get("deal_size_krw")
+        "deal_size_amount": (
+            deal_size_amount
+            if deal_size_amount is not None
+            else current.get("deal_size_amount")
         ),
-        "deal_size_low_krw": (
-            deal_size_low_krw
-            if deal_size_low_krw is not None
-            else current.get("deal_size_low_krw")
+        "deal_size_low_amount": (
+            deal_size_low_amount
+            if deal_size_low_amount is not None
+            else current.get("deal_size_low_amount")
         ),
-        "deal_size_high_krw": (
-            deal_size_high_krw
-            if deal_size_high_krw is not None
-            else current.get("deal_size_high_krw")
+        "deal_size_high_amount": (
+            deal_size_high_amount
+            if deal_size_high_amount is not None
+            else current.get("deal_size_high_amount")
+        ),
+        "deal_size_currency": (
+            (deal_size_currency or "").strip().upper()
+            or current.get("deal_size_currency")
+            or DEFAULT_DEAL_CURRENCY
         ),
         "deal_size_status": status.value,
         "deal_size_note": note,

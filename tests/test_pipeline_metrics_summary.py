@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from datetime import date
 
@@ -36,7 +36,7 @@ def _deal(
         "company": f"Company {deal_id}",
         "industry": industry,
         "deal_stage": stage,
-        "deal_size_krw": amount,
+        "deal_size_amount": amount,
         "deal_size_status": amount_status,
         "stage_history": [{"stage": stage, "entered_at": entered_at}],
         "expected_close_date": expected_close_date,
@@ -59,7 +59,7 @@ def test_empty_summary_has_null_averages_and_zero_values() -> None:
     assert result["kpis"]["deal_count"] == 0
     assert result["kpis"]["avg_health_pct"] is None
     assert result["kpis"]["health_coverage_pct"] is None
-    assert result["pipeline_values"]["open"]["pipeline_value_krw"] == 0
+    assert result["pipeline_values"]["open"]["pipeline_value_amount"] == 0
     assert [row["stage"] for row in result["stage_breakdown"]] == list(
         CANONICAL_STAGE_ORDER
     )
@@ -116,11 +116,11 @@ def test_summary_separates_populations_health_and_current_pipeline_value() -> No
         "at_risk": 1,
         "unassessed": 1,
     }
-    assert result["pipeline_values"]["active"]["pipeline_value_krw"] == 100
-    assert result["pipeline_values"]["stalled"]["pipeline_value_krw"] == 50
-    assert result["pipeline_values"]["open"]["pipeline_value_krw"] == 150
+    assert result["pipeline_values"]["active"]["pipeline_value_amount"] == 100
+    assert result["pipeline_values"]["stalled"]["pipeline_value_amount"] == 50
+    assert result["pipeline_values"]["open"]["pipeline_value_amount"] == 150
     assert result["stage_breakdown"][-2]["stage"] == "won"
-    assert result["stage_breakdown"][-2]["pipeline_value_krw"] == 0
+    assert result["stage_breakdown"][-2]["pipeline_value_amount"] == 0
     assert "missing_amount" in result["warnings"]
     assert "unassessed_health" in result["warnings"]
 
@@ -162,7 +162,7 @@ def test_pipeline_value_keeps_invalid_unknown_and_terminal_amounts_separate() ->
     )
 
     open_value = result["pipeline_values"]["open"]
-    assert open_value["pipeline_value_krw"] == 0
+    assert open_value["pipeline_value_amount"] == 0
     assert open_value["invalid_amount_count"] == 1
     assert open_value["missing_amount_count"] == 1
     assert result["pipeline_values"]["open"]["deal_count"] == 2
@@ -270,7 +270,7 @@ def test_stage_and_industry_filters_apply_before_calculation() -> None:
 
     assert result["filters"] == {"stage": "discovery", "industry": "IT"}
     assert result["kpis"]["deal_count"] == 1
-    assert result["pipeline_values"]["open"]["pipeline_value_krw"] == 100
+    assert result["pipeline_values"]["open"]["pipeline_value_amount"] == 100
 
     with pytest.raises(ValueError, match="stage"):
         build_pipeline_health_summary([], as_of=AS_OF, stage="not-a-stage")

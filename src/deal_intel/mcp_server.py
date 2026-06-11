@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import NotFoundError
@@ -83,10 +83,11 @@ def config_doctor(offline: bool = False) -> dict:
 def create_deal(
     company: str,
     industry: str = "",
-    deal_size_krw: int | None = None,
+    deal_size_amount: int | None = None,
     deal_size_status: str = "",
-    deal_size_low_krw: int | None = None,
-    deal_size_high_krw: int | None = None,
+    deal_size_low_amount: int | None = None,
+    deal_size_high_amount: int | None = None,
+    deal_size_currency: str = "",
     deal_size_note: str = "",
     expected_close_date: str = "",
 ) -> dict:
@@ -94,7 +95,7 @@ def create_deal(
 
     deal_size_status can be: unknown, rough_estimate, customer_budget,
     quoted, or strategic_zero. A zero amount is valid only with
-    strategic_zero; omit deal_size_krw when the amount is unknown.
+    strategic_zero; omit deal_size_amount when the amount is unknown.
 
     When expected_close_date is omitted, config supplies a default date with
     optional exact industry overrides.
@@ -108,10 +109,11 @@ def create_deal(
             cfg=_context.config(),
             company=company,
             industry=industry or None,
-            deal_size_krw=deal_size_krw,
+            deal_size_amount=deal_size_amount,
             deal_size_status=deal_size_status or None,
-            deal_size_low_krw=deal_size_low_krw,
-            deal_size_high_krw=deal_size_high_krw,
+            deal_size_low_amount=deal_size_low_amount,
+            deal_size_high_amount=deal_size_high_amount,
+            deal_size_currency=deal_size_currency or None,
             deal_size_note=deal_size_note or None,
             expected_close_date=expected_close_date or None,
         )
@@ -239,9 +241,10 @@ def update_deal(
     deal_size_status: str = "",
     deal_size_note: str = "",
     confirmed_by_user: bool = False,
-    deal_size_krw: int | None = None,
-    deal_size_low_krw: int | None = None,
-    deal_size_high_krw: int | None = None,
+    deal_size_amount: int | None = None,
+    deal_size_low_amount: int | None = None,
+    deal_size_high_amount: int | None = None,
+    deal_size_currency: str = "",
     company: str = "",
     industry: str = "",
     expected_close_date: str = "",
@@ -265,9 +268,10 @@ def update_deal(
             deal_size_status=deal_size_status,
             deal_size_note=deal_size_note,
             confirmed_by_user=confirmed_by_user,
-            deal_size_krw=deal_size_krw,
-            deal_size_low_krw=deal_size_low_krw,
-            deal_size_high_krw=deal_size_high_krw,
+            deal_size_amount=deal_size_amount,
+            deal_size_low_amount=deal_size_low_amount,
+            deal_size_high_amount=deal_size_high_amount,
+            deal_size_currency=deal_size_currency or None,
             company=company or None,
             industry=industry or None,
             expected_close_date=expected_close_date or None,

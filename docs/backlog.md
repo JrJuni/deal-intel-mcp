@@ -36,35 +36,29 @@ Current positioning:
 
 Recommended implementation order:
 
-1. Currency abstraction.
-   - Rename the canonical amount fields from KRW-specific names to generic
-     amount/currency fields.
-   - Because there are currently no external users, prefer a clean canonical
-     schema over a long-lived legacy alias layer.
-   - Keep any compatibility shims short-lived and explicit only where tests or
-     migration tooling need them.
-2. Pro profile skeleton and infrastructure path.
+1. Pro profile skeleton and infrastructure path.
    - Add the paid-infra upgrade path around MongoDB M10+, Atlas Vector Search,
      and related MongoDB ecosystem features where they provide real value.
    - Keep `sample` and `full` working without paid infrastructure.
-3. v1.0 distribution decision.
+2. v1.0 distribution decision.
    - Confirm the first external distribution path after the MVP package is
      stable enough: git-clone assisted install, MCPB, uvx/Python-native, or a
      thin npx wrapper.
-4. Review and CSV quality improvements.
+3. Review and CSV quality improvements.
    - Improve human-readable deal review and reporting artifacts using external
      feedback after the architecture is stable enough to trial.
-5. Other MVP polish and issue fixes.
-6. Qualification framework abstraction for v2.0.
+4. Other MVP polish and issue fixes.
+5. Qualification framework abstraction for v2.0.
    - Defer full MEDDPICC abstraction until after v1.0.
    - Do it on a dedicated branch or separate repository if needed, because it
      touches extraction prompts, score calculation, gap logic, reports,
      dashboards, tests, and user mental models.
 
-### Currency Abstraction
+### Currency Abstraction - Implemented 2026-06-12
 
-Goal: remove KRW-specific field names from the core schema so the product can
-serve non-KRW teams without making every metric/report feel Korea-specific.
+Goal: remove currency-specific field names from the core schema so the product
+can serve non-KRW teams without making every metric/report feel tied to one
+market.
 
 Preferred v1 canonical fields:
 
@@ -90,16 +84,22 @@ Implementation stance:
   migration/read helpers and remove or mark them temporary before v1.0.
 - Output labels should include currency explicitly, for example
   `pipeline_value_amount` plus `currency`, or user-facing labels such as
-  `Pipeline value (KRW)`.
+  `Pipeline value (configured currency)`.
 
 Acceptance criteria:
 
 - `create_deal` and `update_deal` accept the new amount/currency fields.
-- Pipeline metrics no longer expose KRW-only canonical keys.
+- Pipeline metrics no longer expose single-currency canonical keys.
 - Reports and Atlas specs render values with the configured/default currency.
 - Local sample fixtures and Mongo migration paths use the new schema.
 - Full pytest, Ruff, natural smoke, report smoke, and Atlas chart render tests
   pass.
+
+Follow-up:
+
+- Atlas Charts remain easiest to operate as one reporting currency per
+  dashboard. Python metrics and reports already detect mixed currencies and
+  expose per-currency breakdowns.
 
 ### Qualification Framework Abstraction v2.0
 

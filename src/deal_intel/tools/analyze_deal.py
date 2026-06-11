@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from collections import defaultdict
 from datetime import UTC, datetime
@@ -67,8 +67,11 @@ def handle(mongo: MongoDBClient, llm: LLMProvider, *, deal_id: str) -> dict:
         )
 
     interactions = scoring_interactions(deal)
+    currency = deal.get("deal_size_currency") or "KRW"
     size_line = (
-        f"Deal size: {deal['deal_size_krw']:,} KRW\n" if deal.get("deal_size_krw") else ""
+        f"Deal size: {deal['deal_size_amount']:,} {currency}\n"
+        if deal.get("deal_size_amount")
+        else ""
     )
     prompt = _PROMPT.format(
         company=deal["company"],

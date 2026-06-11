@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import os
 from typing import Any
@@ -215,7 +215,8 @@ class MongoDBClient:
                 "company": 1,
                 "deal_stage": 1,
                 "industry": 1,
-                "deal_size_krw": 1,
+                "deal_size_amount": 1,
+                "deal_size_currency": 1,
                 "meddpicc_latest.health_pct": 1,
                 "meddpicc_latest.gaps": 1,
                 "summary_embedding": 1,
@@ -271,7 +272,8 @@ class MongoDBClient:
                     "company": 1,
                     "deal_stage": 1,
                     "industry": 1,
-                    "deal_size_krw": 1,
+                    "deal_size_amount": 1,
+                    "deal_size_currency": 1,
                     "health_pct": "$meddpicc_latest.health_pct",
                     "gaps": "$meddpicc_latest.gaps",
                     "score": {"$meta": "vectorSearchScore"},
@@ -351,9 +353,10 @@ class MongoDBClient:
             "company": 1,
             "industry": 1,
             "deal_stage": 1,
-            "deal_size_krw": 1,
-            "deal_size_low_krw": 1,
-            "deal_size_high_krw": 1,
+            "deal_size_amount": 1,
+            "deal_size_low_amount": 1,
+            "deal_size_high_amount": 1,
+            "deal_size_currency": 1,
             "deal_size_status": 1,
             "expected_close_date": 1,
             "expected_close_date_source": 1,

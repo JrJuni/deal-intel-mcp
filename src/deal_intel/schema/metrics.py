@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import math
 from collections.abc import Iterable
@@ -69,6 +69,7 @@ VALIDATED_VALUE_STATUSES = frozenset(
         DealValueStatus.QUOTED,
     }
 )
+DEFAULT_DEAL_CURRENCY = "KRW"
 
 
 @dataclass(frozen=True)
@@ -97,9 +98,10 @@ class HealthBandThresholds:
 @dataclass(frozen=True)
 class DealValueAssessment:
     status: DealValueStatus | None
-    amount_krw: int | None
-    low_krw: int | None
-    high_krw: int | None
+    amount: int | None
+    low: int | None
+    high: int | None
+    currency: str
     is_valid: bool
     is_known: bool
     is_classified: bool
@@ -339,27 +341,73 @@ def _as_positive_int(value: Any, field_name: str) -> int:
     return number
 
 
-def _is_krw_integer(value: Any) -> bool:
+def _is_amount_integer(value: Any) -> bool:
     return isinstance(value, int) and not isinstance(value, bool)
 
 
-def assess_deal_value(deal: dict) -> DealValueAssessment:
+def normalize_currency(value: Any, *, default: str = DEFAULT_DEAL_CURRENCY) -> str:
+    """Normalize a currency code for deal-value fields."""
+    raw = default if value in (None, "") else value
+    if not isinstance(raw, str):
+        raise ValueError("deal_size_currency must be a 3-letter currency code")
+    currency = raw.strip().upper()
+    if len(currency) != 3 or not currency.isalpha():
+        raise ValueError("deal_size_currency must be a 3-letter currency code")
+    return currency
+
+
+def default_deal_currency(cfg: dict | None) -> str:
+    deal_value = _as_mapping((cfg or {}).get("deal_value", {}), "deal_value")
+    return normalize_currency(deal_value.get("default_currency", DEFAULT_DEAL_CURRENCY))
+
+
+def assess_deal_value(
+    deal: dict,
+    *,
+    default_currency: str = DEFAULT_DEAL_CURRENCY,
+) -> DealValueAssessment:
     """Validate a deal's amount classification without mutating the document."""
     raw_status = deal.get("deal_size_status")
-    amount = deal.get("deal_size_krw")
-    low = deal.get("deal_size_low_krw")
-    high = deal.get("deal_size_high_krw")
+    amount = deal.get("deal_size_amount")
+    low = deal.get("deal_size_low_amount")
+    high = deal.get("deal_size_high_amount")
+    try:
+        currency = normalize_currency(
+            deal.get("deal_size_currency"),
+            default=default_currency,
+        )
+    except ValueError:
+        currency = normalize_currency(None, default=default_currency)
+        return _invalid_value_assessment(
+            amount,
+            low,
+            high,
+            "invalid_currency",
+            currency=currency,
+        )
 
     status = None
     if raw_status not in (None, ""):
         try:
             status = DealValueStatus(str(raw_status))
         except ValueError:
-            return _invalid_value_assessment(amount, low, high, "invalid_status")
+            return _invalid_value_assessment(
+                amount,
+                low,
+                high,
+                "invalid_status",
+                currency=currency,
+            )
 
     for value in (amount, low, high):
-        if value is not None and not _is_krw_integer(value):
-            return _invalid_value_assessment(amount, low, high, "invalid_amount_type")
+        if value is not None and not _is_amount_integer(value):
+            return _invalid_value_assessment(
+                amount,
+                low,
+                high,
+                "invalid_amount_type",
+                currency=currency,
+            )
 
     if status == DealValueStatus.UNKNOWN:
         if any(value is not None for value in (amount, low, high)):
@@ -369,12 +417,14 @@ def assess_deal_value(deal: dict) -> DealValueAssessment:
                 high,
                 "unknown_status_must_not_have_amount",
                 status=status,
+                currency=currency,
             )
         return DealValueAssessment(
             status=status,
-            amount_krw=None,
-            low_krw=None,
-            high_krw=None,
+            amount=None,
+            low=None,
+            high=None,
+            currency=currency,
             is_valid=True,
             is_known=False,
             is_classified=True,
@@ -390,12 +440,14 @@ def assess_deal_value(deal: dict) -> DealValueAssessment:
                 high,
                 "strategic_zero_requires_zero_amount",
                 status=status,
+                currency=currency,
             )
         return DealValueAssessment(
             status=status,
-            amount_krw=0,
-            low_krw=0,
-            high_krw=0,
+            amount=0,
+            low=0,
+            high=0,
+            currency=currency,
             is_valid=True,
             is_known=True,
             is_classified=True,
@@ -411,12 +463,14 @@ def assess_deal_value(deal: dict) -> DealValueAssessment:
                 high,
                 "known_status_requires_positive_amount",
                 status=status,
+                currency=currency,
             )
         return DealValueAssessment(
             status=None,
-            amount_krw=None,
-            low_krw=None,
-            high_krw=None,
+            amount=None,
+            low=None,
+            high=None,
+            currency=currency,
             is_valid=True,
             is_known=False,
             is_classified=False,
@@ -431,6 +485,7 @@ def assess_deal_value(deal: dict) -> DealValueAssessment:
             high,
             "non_positive_amount_requires_strategic_zero",
             status=status,
+            currency=currency,
         )
 
     effective_low = amount if low is None else low
@@ -442,6 +497,7 @@ def assess_deal_value(deal: dict) -> DealValueAssessment:
             high,
             "estimated_range_must_be_positive",
             status=status,
+            currency=currency,
         )
     if not effective_low <= amount <= effective_high:
         return _invalid_value_assessment(
@@ -450,13 +506,15 @@ def assess_deal_value(deal: dict) -> DealValueAssessment:
             high,
             "estimated_range_must_include_amount",
             status=status,
+            currency=currency,
         )
 
     return DealValueAssessment(
         status=status,
-        amount_krw=amount,
-        low_krw=effective_low,
-        high_krw=effective_high,
+        amount=amount,
+        low=effective_low,
+        high=effective_high,
+        currency=currency,
         is_valid=True,
         is_known=True,
         is_classified=status is not None,
@@ -472,12 +530,14 @@ def _invalid_value_assessment(
     issue: str,
     *,
     status: DealValueStatus | None = None,
+    currency: str = DEFAULT_DEAL_CURRENCY,
 ) -> DealValueAssessment:
     return DealValueAssessment(
         status=status,
-        amount_krw=amount if _is_krw_integer(amount) else None,
-        low_krw=low if _is_krw_integer(low) else None,
-        high_krw=high if _is_krw_integer(high) else None,
+        amount=amount if _is_amount_integer(amount) else None,
+        low=low if _is_amount_integer(low) else None,
+        high=high if _is_amount_integer(high) else None,
+        currency=currency,
         is_valid=False,
         is_known=False,
         is_classified=status is not None,
@@ -491,13 +551,31 @@ def summarize_pipeline_value(
     deals: Iterable[dict],
     *,
     stages: frozenset[str] | set[str] | None = None,
+    default_currency: str = DEFAULT_DEAL_CURRENCY,
 ) -> dict:
     """Summarize known deal values for the requested stage population."""
     population = [
         deal for deal in deals if stages is None or deal.get("deal_stage") in stages
     ]
-    assessments = [assess_deal_value(deal) for deal in population]
+    currency = normalize_currency(None, default=default_currency)
+    assessments = [
+        assess_deal_value(deal, default_currency=currency) for deal in population
+    ]
     known = [item for item in assessments if item.is_valid and item.is_known]
+    known_currencies = sorted({item.currency for item in known})
+    mixed_currency = len(known_currencies) > 1
+    amount_by_currency = {
+        item_currency: _summarize_known_values(
+            [item for item in known if item.currency == item_currency]
+        )
+        for item_currency in known_currencies
+    }
+    single_currency = known_currencies[0] if len(known_currencies) == 1 else currency
+    single_currency_values = (
+        amount_by_currency[known_currencies[0]]
+        if len(known_currencies) == 1
+        else _empty_value_totals()
+    )
 
     deal_count = len(population)
     known_count = len(known)
@@ -509,11 +587,27 @@ def summarize_pipeline_value(
 
     return {
         "deal_count": deal_count,
-        "pipeline_value_krw": sum(item.amount_krw or 0 for item in known),
-        "pipeline_value_low_krw": sum(item.low_krw or 0 for item in known),
-        "pipeline_value_high_krw": sum(item.high_krw or 0 for item in known),
-        "validated_pipeline_value_krw": sum(
-            item.amount_krw or 0 for item in known if item.is_validated
+        "currency": None if mixed_currency else single_currency,
+        "currencies": known_currencies or [currency],
+        "mixed_currency": mixed_currency,
+        "amount_by_currency": amount_by_currency,
+        "pipeline_value_amount": (
+            None if mixed_currency else single_currency_values["pipeline_value_amount"]
+        ),
+        "pipeline_value_low_amount": (
+            None
+            if mixed_currency
+            else single_currency_values["pipeline_value_low_amount"]
+        ),
+        "pipeline_value_high_amount": (
+            None
+            if mixed_currency
+            else single_currency_values["pipeline_value_high_amount"]
+        ),
+        "validated_pipeline_value_amount": (
+            None
+            if mixed_currency
+            else single_currency_values["validated_pipeline_value_amount"]
         ),
         "known_amount_count": known_count,
         "missing_amount_count": sum(
@@ -527,6 +621,28 @@ def summarize_pipeline_value(
         "strategic_zero_count": sum(item.is_strategic_zero for item in known),
         "amount_coverage_pct": coverage_pct,
         "status_counts": status_counts,
+    }
+
+
+def _summarize_known_values(items: list[DealValueAssessment]) -> dict:
+    return {
+        "pipeline_value_amount": sum(item.amount or 0 for item in items),
+        "pipeline_value_low_amount": sum(item.low or 0 for item in items),
+        "pipeline_value_high_amount": sum(item.high or 0 for item in items),
+        "validated_pipeline_value_amount": sum(
+            item.amount or 0 for item in items if item.is_validated
+        ),
+        "known_amount_count": len(items),
+    }
+
+
+def _empty_value_totals() -> dict:
+    return {
+        "pipeline_value_amount": 0,
+        "pipeline_value_low_amount": 0,
+        "pipeline_value_high_amount": 0,
+        "validated_pipeline_value_amount": 0,
+        "known_amount_count": 0,
     }
 
 
@@ -888,7 +1004,7 @@ def _deal_value_quality_status(deal: dict) -> DataQualityStatus:
     if assessment.status is None:
         return (
             DataQualityStatus.MISSING
-            if assessment.amount_krw is None
+            if assessment.amount is None
             else DataQualityStatus.INVALID
         )
     if assessment.status == DealValueStatus.ROUGH_ESTIMATE:

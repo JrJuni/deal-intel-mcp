@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import os
@@ -1719,7 +1719,7 @@ def _build_high_health_uncertain_payload(
                 "deal_id": review.get("deal_id"),
                 "company": review.get("company"),
                 "deal_stage": review.get("deal_stage"),
-                "deal_size_krw": review.get("deal_size_krw"),
+                "deal_size_amount": review.get("deal_size_amount"),
                 "review_band": interpretation.get("review_band"),
                 "uncertainty_level": interpretation.get("uncertainty_level"),
                 "evidence_coverage_pct": interpretation.get("evidence_coverage_pct"),
@@ -1733,7 +1733,7 @@ def _build_high_health_uncertain_payload(
             -UNCERTAINTY_RANK.get(row.get("uncertainty_level"), 0),
             -int(row.get("missing_information_count") or 0),
             -int(row.get("confirmed_risk_count") or 0),
-            -(row.get("deal_size_krw") or 0),
+            -(row.get("deal_size_amount") or 0),
             str(row.get("company") or ""),
         )
     )
@@ -1755,7 +1755,7 @@ def _build_closing_candidate_gap_payload(gap_payload: dict) -> dict:
         key=lambda row: (
             _date_sort_value(row.get("expected_close_date")),
             -float(row.get("priority_score") or 0),
-            -(row.get("deal_size_krw") or 0),
+            -(row.get("deal_size_amount") or 0),
             str(row.get("company") or ""),
         )
     )
@@ -2025,8 +2025,13 @@ def _natural_question_quick_read(question_id: str, payload: dict) -> str:
         )
     if question_id == "q10_pipeline_trend":
         delta = payload.get("delta") or {}
+        end = payload.get("end") or {}
+        open_value_delta = _format_money(
+            delta.get("open_pipeline_value_amount"),
+            currency=end.get("open_pipeline_value_currency"),
+        )
         return (
-            f"open_value_delta={_format_krw(delta.get('open_pipeline_value_krw'))}, "
+            f"open_value_delta={open_value_delta}, "
             f"won_delta={delta.get('won_deal_count')}"
         )
     if question_id == "q11_deal_review_actionability":
@@ -2346,7 +2351,7 @@ def _build_deal_review_audit_row(review: dict) -> dict:
         "company": review.get("company"),
         "industry": review.get("industry"),
         "deal_stage": review.get("deal_stage"),
-        "deal_size_krw": review.get("deal_size_krw"),
+        "deal_size_amount": review.get("deal_size_amount"),
         "deal_size_status": review.get("deal_size_status"),
         "expected_close_date": review.get("expected_close_date"),
         "legacy_health_pct": interpretation.get("legacy_health_pct"),
@@ -2649,7 +2654,7 @@ def _deal_review_audit_sort_key(row: dict) -> tuple:
         -UNCERTAINTY_RANK.get(row["uncertainty_level"], 0),
         -row["confirmed_risk_count"],
         -row["missing_information_count"],
-        -(row.get("deal_size_krw") or 0),
+        -(row.get("deal_size_amount") or 0),
         str(row.get("company") or ""),
     )
 
@@ -2688,13 +2693,17 @@ def _format_deal_review_smoke(payload: dict) -> str:
     for result in payload.get("results", []):
         review = result.get("review") or {}
         interpretation = review.get("health_interpretation") or {}
+        deal_value = _format_money(
+            review.get("deal_size_amount"),
+            currency=review.get("deal_size_currency"),
+        )
         lines.extend(
             [
                 f"[{review.get('company')}] {review.get('deal_id')}",
                 (
                     f"Stage: {review.get('deal_stage')} | "
                     f"Industry: {review.get('industry')} | "
-                    f"Value: {_format_krw(review.get('deal_size_krw'))} "
+                    f"Value: {deal_value} "
                     f"({review.get('deal_size_status') or 'unknown'})"
                 ),
                 (
@@ -2778,10 +2787,11 @@ def _format_issue_ids(issues: list[dict]) -> str:
     return ", ".join(str(issue.get("issue_id")) for issue in issues[:3])
 
 
-def _format_krw(value: Any) -> str:
+def _format_money(value: Any, *, currency: Any = None) -> str:
     if isinstance(value, bool) or not isinstance(value, int | float):
         return "unknown"
-    return f"{int(value):,} KRW"
+    currency_text = str(currency or "").strip().upper() or "amount"
+    return f"{int(value):,} {currency_text}"
 
 
 def _format_string_list(items: list[Any], *, limit: int = 5) -> str:

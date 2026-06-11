@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import asyncio
 import json
@@ -51,7 +51,7 @@ def _deal(deal_id: str, *, stage: str = "discovery") -> dict:
         "company": f"Company {deal_id}",
         "industry": "IT",
         "deal_stage": stage,
-        "deal_size_krw": None,
+        "deal_size_amount": None,
         "deal_size_status": "unknown",
         "expected_close_date": "2026-06-30",
         "expected_close_date_source": "user_provided",

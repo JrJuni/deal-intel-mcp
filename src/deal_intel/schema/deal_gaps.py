@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Iterable
@@ -161,7 +161,7 @@ def build_deal_gaps_summary(
         key=lambda row: (
             -row["priority_score"],
             -len(row["attention_reasons"]),
-            -(row["deal_size_krw"] or 0),
+            -(row["deal_size_amount"] or 0),
             str(row["company"] or ""),
         )
     )
@@ -274,7 +274,8 @@ def _build_deal_gap_row(
         "company": deal.get("company"),
         "industry": deal.get("industry"),
         "deal_stage": deal.get("deal_stage"),
-        "deal_size_krw": deal.get("deal_size_krw"),
+        "deal_size_amount": deal.get("deal_size_amount"),
+        "deal_size_currency": deal.get("deal_size_currency") or "KRW",
         "deal_size_status": deal.get("deal_size_status"),
         "expected_close_date": deal.get("expected_close_date"),
         "health_pct": meddpicc_latest.get("health_pct"),
@@ -532,7 +533,7 @@ def _priority_score(deal: dict, base_score: int, attention_reasons: list[str]) -
         "won": 15,
         "lost": 15,
     }.get(str(deal.get("deal_stage") or ""), 0)
-    value = deal.get("deal_size_krw")
+    value = deal.get("deal_size_amount")
     value_bonus = 0
     if isinstance(value, int) and not isinstance(value, bool):
         if value >= 100_000_000:

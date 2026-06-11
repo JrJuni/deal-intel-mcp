@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import csv
 from datetime import UTC, datetime, timedelta, timezone
@@ -13,7 +13,7 @@ def _report() -> dict:
         "report_type": "weekly_pipeline",
         "columns": [
             "company",
-            "deal_size_krw",
+            "deal_size_amount",
             "primary_pain",
             "attention_reasons",
             "formula_like",
@@ -24,7 +24,7 @@ def _report() -> dict:
         "rows": [
             {
                 "company": "페이브릿지",
-                "deal_size_krw": 72_000_000,
+                "deal_size_amount": 72_000_000,
                 "primary_pain": {
                     "evidence": "보고 자동화 필요",
                     "importance": 5,

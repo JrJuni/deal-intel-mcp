@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from copy import deepcopy
 from datetime import date
@@ -31,7 +31,7 @@ def _deal(
         "company": f"Company {deal_id}",
         "industry": industry,
         "deal_stage": stage,
-        "deal_size_krw": amount,
+        "deal_size_amount": amount,
         "deal_size_status": amount_status,
         "expected_close_date": expected_close_date,
         "expected_close_date_source": expected_close_date_source,

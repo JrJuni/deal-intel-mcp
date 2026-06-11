@@ -1,4 +1,4 @@
-# deal-intel-mcp
+﻿# deal-intel-mcp
 
 [English](README.md) | **한국어**
 
@@ -216,9 +216,10 @@ semantic `search_deals`는 real storage가 연결된 뒤 사용한다.
 |---|---|---|
 | `company` | 필수 | 고객사 이름 |
 | `industry` | 선택 | 업종 (예: "제조", "IT SaaS") |
-| `deal_size_krw` | 선택 | 예상 계약 규모의 중앙값 (원 단위, 예: 200000000) |
+| `deal_size_amount` | 선택 | `deal_size_currency` 기준 예상 계약 규모의 중앙값 (예: 200000000) |
+| `deal_size_currency` | 선택 | 3글자 통화 코드. 생략 시 `deal_value.default_currency` 사용 (`KRW` 기본값) |
 | `deal_size_status` | 금액 입력 시 필수 | 금액 상태: `unknown`, `rough_estimate`, `customer_budget`, `quoted`, `strategic_zero` |
-| `deal_size_low_krw` / `deal_size_high_krw` | 선택 | 추정 범위. 생략하면 metric 계산에서는 중앙값과 같게 본다 |
+| `deal_size_low_amount` / `deal_size_high_amount` | 선택 | 추정 범위. 생략하면 metric 계산에서는 중앙값과 같게 본다 |
 | `deal_size_note` | 선택 | 금액 분류 근거나 사용자 메모 |
 | `expected_close_date` | 선택 | 예상 클로징 날짜. 생략 시 config 기본값 적용 |
 
@@ -228,7 +229,8 @@ semantic `search_deals`는 real storage가 연결된 뒤 사용한다.
   "ok": true,
   "deal_id": "a3f9...",
   "company": "현대정밀",
-  "deal_size_krw": 200000000,
+  "deal_size_amount": 200000000,
+  "deal_size_currency": "KRW",
   "deal_size_status": "rough_estimate",
   "expected_close_date": "2026-06-15",
   "expected_close_date_source": "config_default"
@@ -246,12 +248,17 @@ semantic `search_deals`는 real storage가 연결된 뒤 사용한다.
 도구는 "영업 추정/고객 예산/견적 발송 중 어떤 기준인지" 확인을 요구한다. 0만
 입력되면 바로 저장하지 않고 "전략적 무료/레퍼런스 딜인지, 금액 미정인지" 확인을
 요구한다. 금액 미정으로 확인되면 `unknown`으로 저장하고 금액은 비운다. 무료
-샘플·레퍼런스 확보처럼 의도적인 0원 딜은 `deal_size_krw=0`과
+샘플·레퍼런스 확보처럼 의도적인 0원 딜은 `deal_size_amount=0`과
 `deal_size_status="strategic_zero"`를 같이 넣어 저장한다. 고객 예산을 들었거나
 견적을 보낸 경우에는 각각 `customer_budget`, `quoted`를 쓰면 metric에서 검증된
 pipeline value로 집계된다.
+서로 다른 통화가 섞이면 시스템은 조용히 합산하지 않고 metric/report 응답에
+통화별 breakdown 또는 mixed-currency warning을 반환한다.
 
 ```yaml
+deal_value:
+  default_currency: KRW
+
 pipeline:
   expected_close:
     default_days: 7
@@ -670,7 +677,7 @@ search_deals
   "deal_id": "uuid",
   "company": "현대정밀",
   "industry": "제조",
-  "deal_size_krw": 200000000,
+  "deal_size_amount": 200000000,
   "deal_stage": "proposal",
   "expected_close_date": "2026-09-30",
   "expected_close_date_source": "user_provided",

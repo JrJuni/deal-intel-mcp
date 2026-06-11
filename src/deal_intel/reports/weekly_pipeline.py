@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from collections.abc import Iterable
 from datetime import date, datetime
@@ -34,7 +34,8 @@ COLUMNS = [
     "company",
     "industry",
     "deal_stage",
-    "deal_size_krw",
+    "deal_size_amount",
+    "deal_size_currency",
     "deal_size_status",
     "expected_close_date",
     "days_in_stage",
@@ -138,7 +139,8 @@ def _build_row(
         "company": deal.get("company"),
         "industry": deal.get("industry"),
         "deal_stage": deal.get("deal_stage"),
-        "deal_size_krw": deal.get("deal_size_krw"),
+        "deal_size_amount": deal.get("deal_size_amount"),
+        "deal_size_currency": deal.get("deal_size_currency") or "KRW",
         "deal_size_status": deal.get("deal_size_status"),
         "expected_close_date": deal.get("expected_close_date"),
         "days_in_stage": timing.days_in_stage,
@@ -386,7 +388,7 @@ def _expected_close_sort_value(value: Any) -> date:
 def _valid_amount(row: dict) -> int:
     assessment = assess_deal_value(row)
     if assessment.is_valid and assessment.is_known:
-        return assessment.amount_krw or 0
+        return assessment.amount or 0
     return 0
 
 

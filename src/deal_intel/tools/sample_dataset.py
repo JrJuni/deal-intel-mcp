@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from copy import deepcopy
 
@@ -25,7 +25,8 @@ def sample_preview(deals: list[dict], *, limit: int = 3) -> list[dict]:
             "company": deal["company"],
             "deal_stage": deal["deal_stage"],
             "industry": deal["industry"],
-            "deal_size_krw": deal["deal_size_krw"],
+            "deal_size_amount": deal["deal_size_amount"],
+            "deal_size_currency": deal["deal_size_currency"],
             "health_pct": deal["meddpicc_latest"].get("health_pct"),
         }
         for deal in deals[:limit]
@@ -62,16 +63,18 @@ def _build_deal(
         "deal_id": deal_id,
         "company": company,
         "industry": industry,
-        "deal_size_krw": amount,
-        "deal_size_low_krw": None,
-        "deal_size_high_krw": None,
+        "deal_size_amount": amount,
+        "deal_size_low_amount": None,
+        "deal_size_high_amount": None,
+        "deal_size_currency": "KRW",
         "deal_size_status": amount_status,
         "deal_size_note": "Fictional demo amount for onboarding.",
         "deal_value_history": [
             {
                 "updated_at": _BASE_CREATED_AT,
                 "source": "sample_data",
-                "deal_size_krw": amount,
+                "deal_size_amount": amount,
+                "deal_size_currency": "KRW",
                 "deal_size_status": amount_status,
                 "deal_size_note": "Fictional demo amount for onboarding.",
             }

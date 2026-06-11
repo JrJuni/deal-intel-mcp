@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 from copy import deepcopy
@@ -96,9 +96,9 @@ def _deal(**overrides) -> dict:
         "company": "Test Co",
         "industry": "IT",
         "deal_stage": "proposal",
-        "deal_size_krw": 25_000_000,
-        "deal_size_low_krw": None,
-        "deal_size_high_krw": None,
+        "deal_size_amount": 25_000_000,
+        "deal_size_low_amount": None,
+        "deal_size_high_amount": None,
         "deal_size_status": "quoted",
         "expected_close_date": "2026-06-20",
         "expected_close_date_source": "user_provided",
@@ -133,6 +133,7 @@ def test_build_analytics_snapshot_is_safe_and_metric_shaped() -> None:
     assert snapshot["source"] == "deal_intel_mcp"
     assert snapshot["event_id"] == "event-1"
     assert snapshot["deal_id"] == "deal-1"
+    assert snapshot["deal_size_currency"] == "KRW"
     assert snapshot["health_band"] == "healthy"
     assert snapshot["meddpicc_gap_count"] == 1
     assert snapshot["meddpicc_gaps"] == ["champion"]
@@ -176,6 +177,7 @@ def test_mongodb_lists_analytics_snapshots_with_safe_projection() -> None:
     }
     projection = mongo._db.analytics_snapshots.projection
     assert projection["_id"] == 0
+    assert projection["deal_size_currency"] == 1
     assert "raw_notes" not in projection
     assert "contacts" not in projection
     assert "summary_embedding" not in projection
@@ -233,7 +235,7 @@ def test_create_deal_records_analytics_snapshot_after_deal_upsert() -> None:
         cfg={},
         company="New Co",
         industry="IT",
-        deal_size_krw=None,
+        deal_size_amount=None,
     )
 
     assert result["ok"] is True

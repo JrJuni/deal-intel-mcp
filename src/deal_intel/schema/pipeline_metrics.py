@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Iterable
@@ -106,11 +106,16 @@ def build_pipeline_health_summary(
             "open_deal_count": len(open_deals),
             "stalled_deal_count": len(stalled),
             "terminal_deal_count": len(terminal),
-            "active_pipeline_value_krw": pipeline_values["active"][
-                "pipeline_value_krw"
+            "pipeline_value_currency": pipeline_values["open"]["currency"],
+            "pipeline_value_currencies": pipeline_values["open"]["currencies"],
+            "mixed_pipeline_value_currency": pipeline_values["open"][
+                "mixed_currency"
             ],
-            "open_pipeline_value_krw": pipeline_values["open"][
-                "pipeline_value_krw"
+            "active_pipeline_value_amount": pipeline_values["active"][
+                "pipeline_value_amount"
+            ],
+            "open_pipeline_value_amount": pipeline_values["open"][
+                "pipeline_value_amount"
             ],
             "avg_health_pct": active_health["avg_health_pct"],
             "health_coverage_pct": active_health["health_coverage_pct"],
@@ -262,7 +267,9 @@ def _stage_row(
         "health_assessed_count": health["assessed_count"],
         "health_unassessed_count": health["unassessed_count"],
         "health_bands": health["band_counts"],
-        "pipeline_value_krw": stage_value["pipeline_value_krw"],
+        "pipeline_value_amount": stage_value["pipeline_value_amount"],
+        "pipeline_value_currency": stage_value["currency"],
+        "mixed_pipeline_value_currency": stage_value["mixed_currency"],
         "amount_coverage_pct": stage_value["amount_coverage_pct"],
         "stuck_count": sum(row["timing"].is_stuck is True for row in stage_timing),
         "overdue_count": sum(
@@ -289,6 +296,8 @@ def _warnings(
         warnings.append("invalid_amount")
     if open_value["unclassified_amount_count"]:
         warnings.append("unclassified_amount")
+    if open_value["mixed_currency"]:
+        warnings.append("mixed_currency")
 
     open_timing = [
         row["timing"]

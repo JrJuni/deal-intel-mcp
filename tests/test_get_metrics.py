@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import asyncio
 from copy import deepcopy
@@ -68,7 +68,7 @@ def _deal(
         "company": f"Company {deal_id}",
         "industry": industry,
         "deal_stage": stage,
-        "deal_size_krw": amount,
+        "deal_size_amount": amount,
         "deal_size_status": amount_status,
         "stage_history": [
             {
@@ -106,7 +106,7 @@ def _snapshot(
         "occurred_at": f"{as_of}T00:00:00+00:00",
         "industry": industry,
         "deal_stage": stage,
-        "deal_size_krw": amount,
+        "deal_size_amount": amount,
         "health_pct": health_pct,
         "attention_reasons": [],
     }
@@ -135,7 +135,7 @@ def test_get_metrics_pipeline_health_returns_kpis_and_filters() -> None:
     assert result["as_of"] == "2026-06-09"
     assert result["filters"] == {"stage": "discovery", "industry": "IT"}
     assert result["kpis"]["deal_count"] == 1
-    assert result["kpis"]["open_pipeline_value_krw"] == 10
+    assert result["kpis"]["open_pipeline_value_amount"] == 10
     assert result["stage_breakdown"][0]["stage"] == "discovery"
     assert result["stage_breakdown"][0]["count"] == 1
     assert "pipeline_values" in result
@@ -182,7 +182,7 @@ def test_get_metrics_pipeline_trend_uses_snapshot_read_path() -> None:
         "start_date": "2026-06-02",
         "end_date": "2026-06-09",
     }
-    assert result["delta"]["open_pipeline_value_krw"] == 10.0
+    assert result["delta"]["open_pipeline_value_amount"] == 10.0
     assert mongo.read_count == 0
     assert mongo.snapshot_read_count == 1
     assert mongo.snapshot_query == {

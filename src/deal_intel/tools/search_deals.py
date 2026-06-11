@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from deal_intel.errors import ErrorCode, MCPError, Stage
 from deal_intel.storage.mongodb import MongoDBClient
@@ -96,7 +96,8 @@ def _search_python_cosine(
             "company": deal["company"],
             "deal_stage": deal.get("deal_stage"),
             "industry": deal.get("industry"),
-            "deal_size_krw": deal.get("deal_size_krw"),
+            "deal_size_amount": deal.get("deal_size_amount"),
+            "deal_size_currency": deal.get("deal_size_currency") or "KRW",
             "score": round(score, 4),
         }
         hp = meddpicc.get("health_pct")

@@ -12,6 +12,38 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-12
 
+### Currency abstraction implementation
+
+Implemented:
+
+- Replaced currency-specific canonical amount fields with generic amount/currency
+  fields across schema, tools, metrics, reports, local sample data, analytics
+  snapshots, and tests.
+- Added `deal_value.default_currency` with `KRW` as the default.
+- Added `deal_size_currency` to create/update/list/search/deal review/deal gaps
+  surfaces and report rows.
+- Updated pipeline value summaries to expose `currency`, `currencies`,
+  `mixed_currency`, and `amount_by_currency`.
+- Mixed currencies are not silently summed in Python metrics or Markdown
+  reports.
+
+Validation:
+
+- C1 targeted metric/schema tests: `91 passed`
+- C2 storage/sample/snapshot tests: `72 passed`
+- C3 report/Atlas/get_insights tests: `61 passed`
+- Targeted Ruff checks: `All checks passed`
+- Full regression: `436 passed, 1 warning`
+- Full Ruff: `All checks passed`
+- Natural question smoke: `12/12 pass`
+- Deal review smoke: `2/2 pass`, sensitive field check passed
+
+Remaining note:
+
+- Atlas Charts are still best treated as single-reporting-currency dashboards;
+  mixed-currency operation should use Python metric/report outputs for the
+  authoritative breakdown.
+
 ### Product roadmap adjustment before Pro work
 
 Decision:
@@ -40,7 +72,7 @@ Docs:
 
 - Added Product Roadmap, Currency Abstraction, and Qualification Framework
   Abstraction sections to `docs/backlog.md`.
-- Updated `docs/mvp-readiness.md` so KRW-specific schema cleanup is a v1.0
+- Updated `docs/mvp-readiness.md` so currency schema cleanup is a v1.0
   yellow item and MEDDPICC abstraction is explicitly deferred.
 
 ## Previous Update - 2026-06-11

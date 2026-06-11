@@ -29,9 +29,10 @@ Green:
 
 Yellow:
 
-- KRW-specific amount field names remain in the core schema. Because there are
-  no external users yet, this should be cleaned up before locking a v1.0 public
-  contract.
+- Atlas Charts are still intended for one reporting currency per dashboard.
+  Python metrics and CSV/Markdown reports detect mixed currencies, but Atlas
+  dashboard values should be cross-checked when operating with more than one
+  currency.
 - Claude Desktop MCPB reinstall should be smoked once more after any manifest
   or bundle hardening change.
 - Full MongoDB mode works in development, but a disposable live migration smoke

@@ -1,4 +1,4 @@
-# Reporting Contract
+﻿# Reporting Contract
 
 This document records report-specific contracts. Metric definitions remain in
 [metrics.md](metrics.md).
@@ -47,7 +47,8 @@ Terminal deals, `won` and `lost`, are excluded from weekly pipeline rows.
 - `company`
 - `industry`
 - `deal_stage`
-- `deal_size_krw`
+- `deal_size_amount`
+- `deal_size_currency`
 - `deal_size_status`
 - `expected_close_date`
 - `days_in_stage`
@@ -266,7 +267,7 @@ aggregation. This keeps CSV and Markdown numbers aligned.
 The fixed metric surface includes:
 
 - `open_deal_count`
-- `pipeline_value_krw`
+- `pipeline_value_amount`
 - `known_amount_count`
 - `amount_coverage_pct`
 - `avg_health_pct`

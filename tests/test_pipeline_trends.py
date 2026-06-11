@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from datetime import date
 
@@ -19,6 +19,7 @@ def _snapshot(
     amount: int | None = 10,
     health_pct: float | None = 70,
     attention_reasons: list[str] | None = None,
+    currency: str = "KRW",
 ) -> dict:
     return {
         "event_id": event_id,
@@ -27,7 +28,8 @@ def _snapshot(
         "occurred_at": f"{as_of}T00:00:00+00:00",
         "industry": industry,
         "deal_stage": stage,
-        "deal_size_krw": amount,
+        "deal_size_amount": amount,
+        "deal_size_currency": currency,
         "health_pct": health_pct,
         "attention_reasons": attention_reasons or [],
     }
@@ -52,9 +54,11 @@ def test_pipeline_trend_compares_window_start_and_end_kpis() -> None:
     assert result["start"]["active_deal_count"] == 1
     assert result["end"]["active_deal_count"] == 2
     assert result["delta"]["active_deal_count"] == 1.0
-    assert result["start"]["open_pipeline_value_krw"] == 10
-    assert result["end"]["open_pipeline_value_krw"] == 50
-    assert result["delta"]["open_pipeline_value_krw"] == 40.0
+    assert result["start"]["open_pipeline_value_amount"] == 10
+    assert result["start"]["open_pipeline_value_currency"] == "KRW"
+    assert result["end"]["open_pipeline_value_amount"] == 50
+    assert result["end"]["open_pipeline_value_currency"] == "KRW"
+    assert result["delta"]["open_pipeline_value_amount"] == 40.0
     assert result["delta"]["avg_health_pct"] == 15.0
     assert result["stage_changes"]["entered"] == {"proposal": 1}
 
@@ -86,14 +90,14 @@ def test_pipeline_trend_dedupes_event_id() -> None:
         [
             _snapshot("e0", "deal-1", "2026-06-02", amount=10),
             duplicate,
-            {**duplicate, "deal_size_krw": 999},
+            {**duplicate, "deal_size_amount": 999},
         ],
         as_of=AS_OF,
         lookback_days=7,
     )
 
     assert result["snapshot_count"] == 2
-    assert result["end"]["open_pipeline_value_krw"] == 10
+    assert result["end"]["open_pipeline_value_amount"] == 10
 
 
 def test_pipeline_trend_filters_before_calculating() -> None:
@@ -110,7 +114,26 @@ def test_pipeline_trend_filters_before_calculating() -> None:
 
     assert result["filters"] == {"stage": None, "industry": "IT"}
     assert result["deal_count"] == 1
-    assert result["end"]["open_pipeline_value_krw"] == 20
+    assert result["end"]["open_pipeline_value_amount"] == 20
+
+
+def test_pipeline_trend_does_not_sum_mixed_currencies() -> None:
+    result = build_pipeline_trend_summary(
+        [
+            _snapshot("e1", "deal-1", "2026-06-09", amount=10, currency="KRW"),
+            _snapshot("e2", "deal-2", "2026-06-09", amount=20, currency="USD"),
+        ],
+        as_of=AS_OF,
+        lookback_days=7,
+    )
+
+    assert result["end"]["open_pipeline_value_amount"] is None
+    assert result["end"]["open_pipeline_value_currency"] is None
+    assert result["end"]["open_pipeline_value_currencies"] == ["KRW", "USD"]
+    assert result["end"]["mixed_open_pipeline_value_currency"] is True
+    assert result["end"]["open_pipeline_value_by_currency"] == {"KRW": 10, "USD": 20}
+    assert result["delta"]["open_pipeline_value_amount"] is None
+    assert "mixed_currency" in result["warnings"]
 
 
 def test_pipeline_trend_warns_when_snapshots_are_insufficient() -> None:

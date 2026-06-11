@@ -1,4 +1,4 @@
-# BI Metric Contract
+﻿# BI Metric Contract
 
 BI, CSV, and Atlas Charts must use the same definitions in this document.
 Implementation helpers live in `deal_intel.schema.metrics`.
@@ -63,9 +63,9 @@ silently corrected.
 
 ### Amount classifications
 
-`deal_size_krw` is the current central estimate of contract value, not a
-probability-weighted forecast. Its confidence and source are represented by
-`deal_size_status`.
+`deal_size_amount` is the current central estimate of contract value in
+`deal_size_currency`, not a probability-weighted forecast. Its confidence and
+source are represented by `deal_size_status`.
 
 | Status | Meaning | Valid amount |
 |---|---|---|
@@ -75,9 +75,16 @@ probability-weighted forecast. Its confidence and source are represented by
 | `quoted` | A quote or formal commercial proposal was sent | Positive amount; optional positive range |
 | `strategic_zero` | Deliberate no-revenue work such as a reference project or free sample | Exactly zero |
 
-The optional range fields are `deal_size_low_krw` and
-`deal_size_high_krw`. When omitted, both default to `deal_size_krw` for metric
-calculation. A range must contain the central estimate.
+The optional range fields are `deal_size_low_amount` and
+`deal_size_high_amount`. When omitted, both default to `deal_size_amount` for
+metric calculation. A range must contain the central estimate.
+
+`deal_size_currency` is a 3-letter currency code. It defaults to
+`deal_value.default_currency` (`KRW` in the default config). Pipeline value
+summaries include `currency`, `currencies`, `mixed_currency`, and
+`amount_by_currency`. If known values contain more than one currency, the
+top-level amount totals are `null` and callers must use `amount_by_currency`
+instead of silently summing unlike currencies.
 
 `None` and zero have different meanings:
 
@@ -85,16 +92,20 @@ calculation. A range must contain the central estimate.
 - Zero is valid only with `strategic_zero`.
 - A zero or negative amount without `strategic_zero` is invalid data.
 
-Existing positive `deal_size_krw` values without a status remain included for
+Existing positive `deal_size_amount` values without a status remain included for
 backward compatibility, but they increment `unclassified_amount_count`.
 
 ### Pipeline value outputs
 
 For each requested stage population:
 
-- `pipeline_value_krw`: sum of valid central amounts
-- `pipeline_value_low_krw` / `pipeline_value_high_krw`: known value range
-- `validated_pipeline_value_krw`: sum of `customer_budget` and `quoted`
+- `pipeline_value_amount`: sum of valid central amounts
+- `currency`: the single currency for the top-level amount, or `null` when mixed
+- `currencies`: currencies observed in known value rows
+- `mixed_currency`: whether the population contains more than one currency
+- `amount_by_currency`: per-currency value summary
+- `pipeline_value_low_amount` / `pipeline_value_high_amount`: known value range
+- `validated_pipeline_value_amount`: sum of `customer_budget` and `quoted`
   central amounts
 - `amount_coverage_pct`: known values, including `strategic_zero`, divided by
   all deals in the population
@@ -167,9 +178,9 @@ similar-deal estimation do not. The future update tool must enforce this
 boundary and store the user's optional rationale in `deal_size_note`.
 
 `create_deal` accepts the approved initial value fields directly:
-`deal_size_krw`, `deal_size_status`, `deal_size_low_krw`,
-`deal_size_high_krw`, and `deal_size_note`. The same validation contract above
-applies before storage. A bare `deal_size_krw: 0` does not save immediately;
+`deal_size_amount`, `deal_size_status`, `deal_size_low_amount`,
+`deal_size_high_amount`, and `deal_size_note`. The same validation contract above
+applies before storage. A bare `deal_size_amount: 0` does not save immediately;
 it returns a clarification error instructing the assistant to ask whether the
 deal is an intentional `strategic_zero` or an `unknown` amount. If the caller
 explicitly sends `deal_size_status: unknown` with zero amount fields, the
@@ -320,10 +331,10 @@ legacy aliases remain available:
 
 - `stages`
 - `total_deals`
-- `total_size_krw`
+- `total_size_amount`
 
-`total_size_krw` now follows the Part B contract and equals
-`pipeline_values.open.pipeline_value_krw`, not a sum of every terminal and open
+`total_size_amount` now follows the Part B contract and equals
+`pipeline_values.open.pipeline_value_amount`, not a sum of every terminal and open
 deal amount.
 
 `get_metrics(metric_type="pipeline_health")` is the direct MCP metric view over

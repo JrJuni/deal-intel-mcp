@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
@@ -151,9 +151,10 @@ class Deal(BaseModel):
     deal_id: str
     company: str
     industry: str | None = None
-    deal_size_krw: int | None = None
-    deal_size_low_krw: int | None = None
-    deal_size_high_krw: int | None = None
+    deal_size_amount: int | None = None
+    deal_size_low_amount: int | None = None
+    deal_size_high_amount: int | None = None
+    deal_size_currency: str = "KRW"
     deal_size_status: str | None = None
     deal_size_note: str | None = None
     deal_value_history: list[dict] = Field(default_factory=list)

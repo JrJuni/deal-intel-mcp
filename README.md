@@ -1,4 +1,4 @@
-# deal-intel-mcp
+﻿# deal-intel-mcp
 
 **English** | [Korean](README.ko.md)
 
@@ -263,9 +263,10 @@ Create a new deal for Hyundai Precision. Manufacturing industry, deal size 200M 
 |---|---|---|
 | `company` | required | Customer company name |
 | `industry` | optional | Industry (e.g., "Manufacturing", "IT SaaS") |
-| `deal_size_krw` | optional | Median expected contract size (in KRW, e.g., 200000000) |
+| `deal_size_amount` | optional | Median expected contract size in `deal_size_currency` units (e.g., 200000000) |
+| `deal_size_currency` | optional | ISO-style 3-letter currency code. Defaults to `deal_value.default_currency` (`KRW` by default) |
 | `deal_size_status` | required when an amount is given | Amount status: `unknown`, `rough_estimate`, `customer_budget`, `quoted`, `strategic_zero` |
-| `deal_size_low_krw` / `deal_size_high_krw` | optional | Estimate range. Omitted -> treated as equal to the median in metrics |
+| `deal_size_low_amount` / `deal_size_high_amount` | optional | Estimate range. Omitted -> treated as equal to the median in metrics |
 | `deal_size_note` | optional | Rationale for the amount classification, or a user memo |
 | `expected_close_date` | optional | Expected close date. Omitted -> config default applies |
 
@@ -275,7 +276,8 @@ Create a new deal for Hyundai Precision. Manufacturing industry, deal size 200M 
   "ok": true,
   "deal_id": "a3f9...",
   "company": "Hyundai Precision",
-  "deal_size_krw": 200000000,
+  "deal_size_amount": 200000000,
+  "deal_size_currency": "KRW",
   "deal_size_status": "rough_estimate",
   "expected_close_date": "2026-06-15",
   "expected_close_date_source": "config_default"
@@ -286,9 +288,12 @@ Remember this `deal_id`, or look it up later with `list_deals`.
 
 If you omit the expected close date, a default of 7 days after creation is filled in. This is an operational default, not a confirmed schedule. A date you provide always takes precedence over config.
 
-When you enter a deal amount, you must also set its status. If unknown, leave `deal_size_status="unknown"` and leave the amount blank. If only a positive amount is given, the tool asks which basis applies - sales estimate / customer budget / quote sent. If only 0 is given, it doesn't save immediately and asks whether it's a strategic free/reference deal or an undecided amount. If undecided, it's saved as `unknown` with the amount blanked. An intentional zero-KRW deal (free sample, reference win) is saved with `deal_size_krw=0` and `deal_size_status="strategic_zero"`. If you heard a customer budget or sent a quote, use `customer_budget` or `quoted` so it counts as a validated pipeline value in metrics.
+When you enter a deal amount, you must also set its status. If unknown, leave `deal_size_status="unknown"` and leave the amount blank. If only a positive amount is given, the tool asks which basis applies - sales estimate / customer budget / quote sent. If only 0 is given, it doesn't save immediately and asks whether it's a strategic free/reference deal or an undecided amount. If undecided, it's saved as `unknown` with the amount blanked. An intentional zero-value deal (free sample, reference win) is saved with `deal_size_amount=0` and `deal_size_status="strategic_zero"`. If you heard a customer budget or sent a quote, use `customer_budget` or `quoted` so it counts as a validated pipeline value in metrics. Mixed currencies are not silently summed; metric and report outputs expose currency fields or per-currency breakdowns.
 
 ```yaml
+deal_value:
+  default_currency: KRW
+
 pipeline:
   expected_close:
     default_days: 7
@@ -735,7 +740,8 @@ search_deals
   "deal_id": "uuid",
   "company": "Hyundai Precision",
   "industry": "Manufacturing",
-  "deal_size_krw": 200000000,
+  "deal_size_amount": 200000000,
+  "deal_size_currency": "KRW",
   "deal_stage": "proposal",
   "expected_close_date": "2026-09-30",
   "expected_close_date_source": "user_provided",

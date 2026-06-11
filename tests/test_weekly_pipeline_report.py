@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 from datetime import date
@@ -32,7 +32,8 @@ def _deal(
         "company": company or f"Company {deal_id}",
         "industry": industry,
         "deal_stage": stage,
-        "deal_size_krw": amount,
+        "deal_size_amount": amount,
+        "deal_size_currency": "KRW",
         "deal_size_status": amount_status,
         "stage_history": [{"stage": stage, "entered_at": entered_at}],
         "expected_close_date": expected_close_date,
@@ -100,6 +101,7 @@ def test_weekly_pipeline_rows_include_open_deals_only_and_safe_fields() -> None:
     assert result["filters"] == {"stage": None, "industry": None}
     assert result["row_count"] == 1
     assert result["rows"][0]["deal_id"] == "open-1"
+    assert result["rows"][0]["deal_size_currency"] == "KRW"
     payload = json.dumps(result, ensure_ascii=False)
     assert "raw_notes" not in payload
     assert "contacts" not in payload

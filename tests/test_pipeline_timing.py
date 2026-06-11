@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from copy import deepcopy
 from datetime import date, datetime, timedelta
@@ -248,7 +248,7 @@ def test_win_rate_counts_only_terminal_deals_and_warns_on_small_sample() -> None
     result = summarize_win_rate(
         [
             {"deal_stage": "won"},
-            {"deal_stage": "won", "deal_size_krw": 0},
+            {"deal_stage": "won", "deal_size_amount": 0},
             {"deal_stage": "lost"},
             {"deal_stage": "proposal"},
         ],
@@ -306,7 +306,7 @@ def test_create_deal_applies_default_close_date_and_records_source() -> None:
         cfg={"pipeline": {"expected_close": {"default_days": 7}}},
         company="Test Co",
         industry="스타트업",
-        deal_size_krw=None,
+        deal_size_amount=None,
     )
     after = datetime.now(ZoneInfo("Asia/Seoul")).date()
 
@@ -318,10 +318,10 @@ def test_create_deal_applies_default_close_date_and_records_source() -> None:
     assert mongo.saved is not None
     assert mongo.saved["expected_close_date"] == result["expected_close_date"]
     assert mongo.saved["expected_close_date_source"] == "config_default"
-    assert mongo.saved["deal_size_krw"] is None
+    assert mongo.saved["deal_size_amount"] is None
     assert mongo.saved["deal_size_status"] is None
-    assert mongo.saved["deal_size_low_krw"] is None
-    assert mongo.saved["deal_size_high_krw"] is None
+    assert mongo.saved["deal_size_low_amount"] is None
+    assert mongo.saved["deal_size_high_amount"] is None
     assert mongo.saved["deal_size_note"] is None
 
 
@@ -333,18 +333,18 @@ def test_create_deal_accepts_classified_value_range_and_note() -> None:
         cfg={},
         company="Budget Co",
         industry="IT",
-        deal_size_krw=40_000_000,
+        deal_size_amount=40_000_000,
         deal_size_status=" rough_estimate ",
-        deal_size_low_krw=30_000_000,
-        deal_size_high_krw=50_000_000,
+        deal_size_low_amount=30_000_000,
+        deal_size_high_amount=50_000_000,
         deal_size_note="  early scope from discovery call  ",
     )
 
     assert result["ok"] is True
-    assert result["deal_size_krw"] == 40_000_000
+    assert result["deal_size_amount"] == 40_000_000
     assert result["deal_size_status"] == "rough_estimate"
-    assert result["deal_size_low_krw"] == 30_000_000
-    assert result["deal_size_high_krw"] == 50_000_000
+    assert result["deal_size_low_amount"] == 30_000_000
+    assert result["deal_size_high_amount"] == 50_000_000
     assert result["deal_size_note"] == "early scope from discovery call"
     assert mongo.saved is not None
     assert mongo.saved["deal_size_status"] == "rough_estimate"
@@ -358,15 +358,15 @@ def test_create_deal_accepts_strategic_zero_without_dropping_amount() -> None:
         cfg={},
         company="Reference Co",
         industry="Enterprise",
-        deal_size_krw=0,
+        deal_size_amount=0,
         deal_size_status="strategic_zero",
         deal_size_note="reference project approved by user",
     )
 
-    assert result["deal_size_krw"] == 0
+    assert result["deal_size_amount"] == 0
     assert result["deal_size_status"] == "strategic_zero"
     assert mongo.saved is not None
-    assert mongo.saved["deal_size_krw"] == 0
+    assert mongo.saved["deal_size_amount"] == 0
     assert mongo.saved["deal_size_status"] == "strategic_zero"
 
 
@@ -379,13 +379,13 @@ def test_create_deal_requires_confirmation_for_bare_zero_before_storage() -> Non
             cfg={},
             company="Ambiguous Zero Co",
             industry="IT",
-            deal_size_krw=0,
+            deal_size_amount=0,
         )
 
     assert exc_info.value.error_code == ErrorCode.INVALID_INPUT
     assert exc_info.value.stage == "preflight"
     assert exc_info.value.message == (
-        "deal_size_krw=0 needs user confirmation before saving"
+        "deal_size_amount=0 needs user confirmation before saving"
     )
     assert exc_info.value.hint == {
         "ask_user": (
@@ -396,12 +396,12 @@ def test_create_deal_requires_confirmation_for_bare_zero_before_storage() -> Non
             {
                 "meaning": "amount_unknown",
                 "deal_size_status": "unknown",
-                "deal_size_krw": None,
+                "deal_size_amount": None,
             },
             {
                 "meaning": "strategic_zero_revenue",
                 "deal_size_status": "strategic_zero",
-                "deal_size_krw": 0,
+                "deal_size_amount": 0,
             },
         ],
     }
@@ -416,18 +416,18 @@ def test_create_deal_normalizes_unknown_zero_to_missing_amount() -> None:
         cfg={},
         company="Unknown Budget Co",
         industry="IT",
-        deal_size_krw=0,
+        deal_size_amount=0,
         deal_size_status="unknown",
-        deal_size_low_krw=0,
-        deal_size_high_krw=0,
+        deal_size_low_amount=0,
+        deal_size_high_amount=0,
     )
 
-    assert result["deal_size_krw"] is None
+    assert result["deal_size_amount"] is None
     assert result["deal_size_status"] == "unknown"
-    assert result["deal_size_low_krw"] is None
-    assert result["deal_size_high_krw"] is None
+    assert result["deal_size_low_amount"] is None
+    assert result["deal_size_high_amount"] is None
     assert mongo.saved is not None
-    assert mongo.saved["deal_size_krw"] is None
+    assert mongo.saved["deal_size_amount"] is None
     assert mongo.saved["deal_size_status"] == "unknown"
 
 
@@ -440,13 +440,13 @@ def test_create_deal_requires_status_for_positive_amount_before_storage() -> Non
             cfg={},
             company="Unclassified Amount Co",
             industry="IT",
-            deal_size_krw=10_000_000,
+            deal_size_amount=10_000_000,
         )
 
     assert exc_info.value.error_code == ErrorCode.INVALID_INPUT
     assert exc_info.value.stage == "preflight"
     assert exc_info.value.message == (
-        "deal_size_status is required when deal_size_krw is provided"
+        "deal_size_status is required when deal_size_amount is provided"
     )
     assert exc_info.value.hint == {
         "ask_user": (
@@ -475,11 +475,11 @@ def test_create_deal_requires_status_for_positive_amount_before_storage() -> Non
     ("kwargs", "issue"),
     [
         (
-            {"deal_size_krw": None, "deal_size_status": "quoted"},
+            {"deal_size_amount": None, "deal_size_status": "quoted"},
             "known_status_requires_positive_amount",
         ),
         (
-            {"deal_size_krw": 1, "deal_size_status": "unknown"},
+            {"deal_size_amount": 1, "deal_size_status": "unknown"},
             "unknown_status_must_not_have_amount",
         ),
     ],
@@ -521,7 +521,7 @@ def test_create_deal_rejects_invalid_user_date_as_input_error() -> None:
             cfg={},
             company="Test Co",
             industry=None,
-            deal_size_krw=None,
+            deal_size_amount=None,
             expected_close_date="06/30/2026",
         )
 
@@ -560,16 +560,16 @@ def test_mcp_create_deal_forwards_value_classification(monkeypatch) -> None:
     result = mcp_server.create_deal(
         "Reference Co",
         industry="Enterprise",
-        deal_size_krw=0,
+        deal_size_amount=0,
         deal_size_status="strategic_zero",
         deal_size_note="reference project",
     )
 
     assert result["ok"] is True
-    assert result["deal_size_krw"] == 0
+    assert result["deal_size_amount"] == 0
     assert result["deal_size_status"] == "strategic_zero"
     assert mongo.saved is not None
-    assert mongo.saved["deal_size_krw"] == 0
+    assert mongo.saved["deal_size_amount"] == 0
     assert mongo.saved["deal_size_status"] == "strategic_zero"
 
 
@@ -578,7 +578,7 @@ def test_mcp_create_deal_returns_confirmation_for_bare_zero(monkeypatch) -> None
     monkeypatch.setattr(_context, "mongo", lambda: mongo)
     monkeypatch.setattr(_context, "config", lambda: {})
 
-    result = mcp_server.create_deal("Ambiguous Zero Co", deal_size_krw=0)
+    result = mcp_server.create_deal("Ambiguous Zero Co", deal_size_amount=0)
 
     assert result["ok"] is False
     assert result["error_code"] == ErrorCode.INVALID_INPUT
@@ -587,12 +587,12 @@ def test_mcp_create_deal_returns_confirmation_for_bare_zero(monkeypatch) -> None
         {
             "meaning": "amount_unknown",
             "deal_size_status": "unknown",
-            "deal_size_krw": None,
+            "deal_size_amount": None,
         },
         {
             "meaning": "strategic_zero_revenue",
             "deal_size_status": "strategic_zero",
-            "deal_size_krw": 0,
+            "deal_size_amount": 0,
         },
     ]
     assert mongo.saved is None
@@ -661,7 +661,9 @@ def test_industry_benchmark_win_rate_uses_closed_count() -> None:
                     "lost_count": 1,
                     "closed_count": 3,
                     "win_rate_pct": 66.7,
-                    "total_size_krw": 100,
+                    "amounts": [
+                        {"amount": 100, "currency": "KRW"},
+                    ],
                 }
             ]
 
@@ -670,6 +672,9 @@ def test_industry_benchmark_win_rate_uses_closed_count() -> None:
 
     assert result["industries"][0]["win_rate_pct"] == 66.7
     assert result["industries"][0]["closed_count"] == 3
+    assert result["industries"][0]["total_size_amount"] == 100
+    assert result["industries"][0]["total_size_currency"] == "KRW"
+    assert result["industries"][0]["mixed_total_size_currency"] is False
     assert result["industries"][0]["insufficient_sample"] is True
     assert result["industries"][0]["warnings"] == ["insufficient_closed_sample"]
     assert col.pipeline is not None
@@ -678,3 +683,32 @@ def test_industry_benchmark_win_rate_uses_closed_count() -> None:
         "$multiply"
     ][0]["$divide"]
     assert divide == ["$won_count", "$closed_count"]
+
+
+def test_industry_benchmark_does_not_sum_mixed_currencies() -> None:
+    class FakeCollection:
+        def aggregate(self, _pipeline: list[dict]) -> list[dict]:
+            return [
+                {
+                    "_id": "IT",
+                    "deal_count": 2,
+                    "avg_health_pct": 50,
+                    "won_count": 0,
+                    "lost_count": 0,
+                    "closed_count": 0,
+                    "win_rate_pct": None,
+                    "amounts": [
+                        {"amount": 100, "currency": "KRW"},
+                        {"amount": 20, "currency": "USD"},
+                    ],
+                }
+            ]
+
+    result = get_insights._industry_benchmark(FakeCollection())
+    row = result["industries"][0]
+
+    assert row["total_size_amount"] is None
+    assert row["total_size_currency"] is None
+    assert row["total_size_currencies"] == ["KRW", "USD"]
+    assert row["mixed_total_size_currency"] is True
+    assert row["total_size_by_currency"] == {"KRW": 100, "USD": 20}

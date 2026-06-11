@@ -1,4 +1,4 @@
-# Verification Baseline
+﻿# Verification Baseline
 
 BI and reporting work must compare its behavior against this baseline before
 changing shared deal or MCP behavior.
@@ -70,7 +70,7 @@ clients see a config-filtered tool surface:
 | Tool | Required inputs | Optional inputs | Success response | Persistence or external effects |
 |---|---|---|---|---|
 | `config_doctor` | None | `offline` | `ok`, `profile`, `generated_at`, `summary`, `checks`, `next_actions` | Read only; checks config, storage readiness, vector-search mode, and LLM provider readiness without LLM calls, embeddings, or writes. The default path may perform a bounded storage ping; `offline=true` skips it |
-| `create_deal` | `company` | `industry`, `deal_size_krw`, `deal_size_status`, `deal_size_low_krw`, `deal_size_high_krw`, `deal_size_note`, `expected_close_date` | `ok`, `deal_id`, `company`, deal value fields, `expected_close_date`, `expected_close_date_source`, optional `analytics_snapshot` | Validates the initial deal-value classification, applies the configured close-date default when omitted, upserts one deal, initializes `discovery` stage history, and attempts a non-blocking analytics snapshot |
+| `create_deal` | `company` | `industry`, `deal_size_amount`, `deal_size_currency`, `deal_size_status`, `deal_size_low_amount`, `deal_size_high_amount`, `deal_size_note`, `expected_close_date` | `ok`, `deal_id`, `company`, deal value fields, `expected_close_date`, `expected_close_date_source`, optional `analytics_snapshot` | Validates the initial deal-value classification, applies the configured close-date default when omitted, upserts one deal, initializes `discovery` stage history, and attempts a non-blocking analytics snapshot |
 | `add_meeting` | `deal_id`, `date`, `raw_notes` | None | `ok`, `interaction_id`, `meeting_id`, `summary`, `meddpicc`, `meddpicc_latest`, `customer_themes`, `stage_suggestion`, `embedding_stored`, `usage`, optional `analytics_snapshot` | Deprecated developer-surface compatibility alias over `add_interaction` with `interaction_type: meeting`. Calls LLM, writes an `interaction_type: meeting` record under `deal.interactions`, recalculates deal signals, optionally stores an embedding for MongoDB-backed data, upserts the deal, and attempts a non-blocking analytics snapshot. New clients should call `add_interaction` directly |
 | `add_interaction` | `deal_id`, `date`, `interaction_type`, `direction`, `content` | `participants`, `subject`, `source_confidence`, `custom_fields_json` | `ok`, `interaction_id`, `meeting_id`, `interaction_type`, `direction`, `source_confidence`, `source_policy`, `participants`, `subject`, `summary`, `meddpicc`, `unconfirmed_meddpicc`, `meddpicc_latest`, `customer_themes`, `unconfirmed_customer_themes`, `scoring_applied`, `stage_suggestion`, `embedding_stored`, `usage`, optional `analytics_snapshot` | Calls LLM, appends a canonical `deal.interactions` record, stores source metadata and `raw_content`, recalculates deal signals only when the source is scoring-eligible, optionally stores an embedding for MongoDB-backed data, upserts the deal, and attempts a non-blocking analytics snapshot. `source_policy` explains whether the input became confirmed scoring evidence or stored-unconfirmed context. `outbound_unconfirmed` and `internal` evidence is stored but does not update MEDDPICC health or customer-theme counts by default. Custom interaction types must be registered in config |
 | `update_stage` | `deal_id`, `new_stage` | `actual_close_date` | `ok`, `deal_id`, `old_stage`, `new_stage`, `actual_close_date`, `days_in_previous_stage`, `stuck_threshold_days`, optional `analytics_snapshot` | Appends stage history, records the actual terminal date, recalculates stage-aware MEDDPICC gaps, upserts the deal, and attempts a non-blocking analytics snapshot |
@@ -102,12 +102,13 @@ clients see a config-filtered tool surface:
 `create_deal` validates initial deal-value fields with the shared Part B metric
 contract before storage. Valid `deal_size_status` values are `unknown`,
 `rough_estimate`, `customer_budget`, `quoted`, and `strategic_zero`; zero is
-valid only with `strategic_zero`. A bare `deal_size_krw: 0` returns a
+valid only with `strategic_zero`. A bare `deal_size_amount: 0` returns a
 preflight clarification error with retry options instead of saving. Explicit
 `deal_size_status: unknown` with zero amount fields is normalized to a missing
-amount before storage. A positive `deal_size_krw` without `deal_size_status`
+amount before storage. A positive `deal_size_amount` without `deal_size_status`
 also returns a preflight clarification error so new records do not enter BI as
-unclassified amounts.
+unclassified amounts. `deal_size_currency` is optional and defaults from
+`deal_value.default_currency`.
 
 `update_deal` supports confirmed deal value fields plus selected metadata:
 `company`, `industry`, `expected_close_date`, `actual_close_date`, and
@@ -209,8 +210,8 @@ shared summary surface:
 - `data_quality`
 - `warnings`
 
-Compatibility aliases remain: `stages`, `total_deals`, and `total_size_krw`.
-`total_size_krw` is now the Open pipeline value from the shared Part B
+Compatibility aliases remain: `stages`, `total_deals`, and `total_size_amount`.
+`total_size_amount` is now the Open pipeline value from the shared Part B
 contract. The metrics read path uses a restricted projection that excludes
 `_id`, `meetings.raw_notes`, `interactions.raw_content`, `contacts`, and
 `summary_embedding`.

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import csv
 import json
@@ -20,6 +20,7 @@ def _deal(
     company: str,
     stage: str = "proposal",
     amount: int | None = 10_000_000,
+    currency: str = "KRW",
     amount_status: str | None = "quoted",
     health_pct: float | None = 80,
     entered_at: str = "2026-06-01T00:00:00+00:00",
@@ -33,7 +34,8 @@ def _deal(
         "company": company,
         "industry": "IT",
         "deal_stage": stage,
-        "deal_size_krw": amount,
+        "deal_size_amount": amount,
+        "deal_size_currency": currency,
         "deal_size_status": amount_status,
         "stage_history": [{"stage": stage, "entered_at": entered_at}],
         "expected_close_date": expected_close_date,
@@ -142,8 +144,10 @@ def test_weekly_pipeline_markdown_summarizes_kpis_and_matches_csv(tmp_path) -> N
     csv_metrics = _csv_metrics(csv_result["path"])
     metrics = markdown_result["metrics"]
     assert metrics["open_deal_count"] == csv_metrics["open_deal_count"] == 4
-    assert metrics["pipeline_value_krw"] == csv_metrics["pipeline_value_krw"]
-    assert metrics["pipeline_value_krw"] == 98_000_000
+    assert metrics["pipeline_value_amount"] == csv_metrics["pipeline_value_amount"]
+    assert metrics["pipeline_value_amount"] == 98_000_000
+    assert metrics["pipeline_value_currency"] == "KRW"
+    assert metrics["mixed_pipeline_value_currency"] is False
     assert metrics["attention_deal_count"] == csv_metrics["attention_deal_count"]
     assert metrics["attention_deal_count"] == 3
     assert metrics["avg_health_pct"] == 65.0
@@ -166,13 +170,32 @@ def test_weekly_pipeline_markdown_summarizes_kpis_and_matches_csv(tmp_path) -> N
     assert "User interview (customer-stated)" in markdown
 
 
+def test_weekly_pipeline_markdown_breaks_down_mixed_currencies() -> None:
+    report = build_weekly_pipeline_rows(
+        [
+            _deal("krw", company="Korea Co", amount=100, currency="KRW"),
+            _deal("usd", company="US Co", amount=20, currency="USD"),
+        ],
+        as_of=AS_OF,
+    )
+
+    result = build_weekly_pipeline_markdown(report, generated_at=GENERATED_AT)
+
+    assert result["metrics"]["pipeline_value_amount"] is None
+    assert result["metrics"]["pipeline_value_currency"] is None
+    assert result["metrics"]["pipeline_value_currencies"] == ["KRW", "USD"]
+    assert result["metrics"]["mixed_pipeline_value_currency"] is True
+    assert result["metrics"]["pipeline_value_by_currency"] == {"KRW": 100, "USD": 20}
+    assert "| Pipeline value | 100 KRW, 20 USD |" in result["markdown"]
+
+
 def test_weekly_pipeline_markdown_handles_empty_report() -> None:
     report = build_weekly_pipeline_rows([], as_of=AS_OF)
 
     result = build_weekly_pipeline_markdown(report, generated_at=GENERATED_AT)
 
     assert result["metrics"]["open_deal_count"] == 0
-    assert result["metrics"]["pipeline_value_krw"] == 0
+    assert result["metrics"]["pipeline_value_amount"] == 0
     assert result["metrics"]["avg_health_pct"] is None
     assert "| Open deals | 0 |" in result["markdown"]
     assert "| Average health | N/A |" in result["markdown"]
@@ -242,7 +265,7 @@ def _csv_metrics(path: str) -> dict:
         rows = list(csv.DictReader(file))
     return {
         "open_deal_count": len(rows),
-        "pipeline_value_krw": sum(_csv_amount(row) for row in rows),
+        "pipeline_value_amount": sum(_csv_amount(row) for row in rows),
         "attention_deal_count": sum(
             bool(json.loads(row["attention_reasons"] or "[]")) for row in rows
         ),
@@ -257,4 +280,4 @@ def _csv_amount(row: dict) -> int:
         "strategic_zero",
     }:
         return 0
-    return int(row["deal_size_krw"] or 0)
+    return int(row["deal_size_amount"] or 0)

@@ -1,4 +1,4 @@
-# Architecture
+﻿# Architecture
 
 This is the English source-of-truth architecture note. Korean-facing summaries
 belong only in `README.ko.md` and `AGENTS.ko.md`.
@@ -207,10 +207,11 @@ Primary deal fields:
 - `deal_id`
 - `company`
 - `industry`
-- `deal_size_krw`
+- `deal_size_amount`
+- `deal_size_currency`
 - `deal_size_status`
-- `deal_size_low_krw`
-- `deal_size_high_krw`
+- `deal_size_low_amount`
+- `deal_size_high_amount`
 - `deal_size_note`
 - `deal_stage`
 - `expected_close_date`

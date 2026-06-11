@@ -288,28 +288,28 @@
             "end_open_deal_count": {
               "$size": "$_end_open"
             },
-            "start_open_pipeline_value_krw": {
+            "start_open_pipeline_value_amount": {
               "$sum": {
                 "$map": {
                   "input": "$_start_open",
                   "as": "row",
                   "in": {
                     "$ifNull": [
-                      "$$row.deal_size_krw",
+                      "$$row.deal_size_amount",
                       0
                     ]
                   }
                 }
               }
             },
-            "end_open_pipeline_value_krw": {
+            "end_open_pipeline_value_amount": {
               "$sum": {
                 "$map": {
                   "input": "$_end_open",
                   "as": "row",
                   "in": {
                     "$ifNull": [
-                      "$$row.deal_size_krw",
+                      "$$row.deal_size_amount",
                       0
                     ]
                   }
@@ -415,12 +415,12 @@
                 "$start_open_deal_count"
               ]
             },
-            "start_open_pipeline_value_krw": 1,
-            "end_open_pipeline_value_krw": 1,
-            "delta_open_pipeline_value_krw": {
+            "start_open_pipeline_value_amount": 1,
+            "end_open_pipeline_value_amount": 1,
+            "delta_open_pipeline_value_amount": {
               "$subtract": [
-                "$end_open_pipeline_value_krw",
-                "$start_open_pipeline_value_krw"
+                "$end_open_pipeline_value_amount",
+                "$start_open_pipeline_value_amount"
               ]
             },
             "start_avg_health_pct": 1,
@@ -642,28 +642,28 @@
             "end_open_deal_count": {
               "$size": "$_end_open"
             },
-            "start_open_pipeline_value_krw": {
+            "start_open_pipeline_value_amount": {
               "$sum": {
                 "$map": {
                   "input": "$_start_open",
                   "as": "row",
                   "in": {
                     "$ifNull": [
-                      "$$row.deal_size_krw",
+                      "$$row.deal_size_amount",
                       0
                     ]
                   }
                 }
               }
             },
-            "end_open_pipeline_value_krw": {
+            "end_open_pipeline_value_amount": {
               "$sum": {
                 "$map": {
                   "input": "$_end_open",
                   "as": "row",
                   "in": {
                     "$ifNull": [
-                      "$$row.deal_size_krw",
+                      "$$row.deal_size_amount",
                       0
                     ]
                   }
@@ -699,13 +699,13 @@
                 }
               },
               {
-                "metric": "open_pipeline_value_krw",
-                "start_value": "$start_open_pipeline_value_krw",
-                "end_value": "$end_open_pipeline_value_krw",
+                "metric": "open_pipeline_value_amount",
+                "start_value": "$start_open_pipeline_value_amount",
+                "end_value": "$end_open_pipeline_value_amount",
                 "delta": {
                   "$subtract": [
-                    "$end_open_pipeline_value_krw",
-                    "$start_open_pipeline_value_krw"
+                    "$end_open_pipeline_value_amount",
+                    "$start_open_pipeline_value_amount"
                   ]
                 }
               }

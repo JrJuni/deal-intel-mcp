@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 
@@ -63,7 +63,7 @@ def _local_deal(**overrides) -> dict:
         "company": "Local Lifecycle Co",
         "industry": "Trial",
         "deal_stage": "discovery",
-        "deal_size_krw": 1_000_000,
+        "deal_size_amount": 1_000_000,
         "deal_size_status": "rough_estimate",
         "expected_close_date": "2026-06-30",
         "stage_history": [
@@ -178,7 +178,7 @@ def test_local_personal_deals_replace_fixture_in_active_reads(tmp_path) -> None:
                         "company": "Local Trial Co",
                         "industry": "Trial",
                         "deal_stage": "discovery",
-                        "deal_size_krw": 1_000_000,
+                        "deal_size_amount": 1_000_000,
                         "deal_size_status": "rough_estimate",
                         "expected_close_date": "2026-06-30",
                         "meddpicc_latest": {"health_pct": 42, "gaps": []},
@@ -303,7 +303,7 @@ def test_local_personal_safe_write_tools_persist_across_clients(tmp_path) -> Non
         cfg=cfg,
         company="Local Write Co",
         industry="Trial",
-        deal_size_krw=12_000_000,
+        deal_size_amount=12_000_000,
         deal_size_status="rough_estimate",
         deal_size_note="user confirmed local test amount",
     )
@@ -328,7 +328,7 @@ def test_local_personal_safe_write_tools_persist_across_clients(tmp_path) -> Non
         mongo=after_stage,
         deal_id=deal_id,
         deal_size_status="quoted",
-        deal_size_krw=15_000_000,
+        deal_size_amount=15_000_000,
         deal_size_note="user confirmed quote sent",
         confirmed_by_user=True,
     )
@@ -338,7 +338,8 @@ def test_local_personal_safe_write_tools_persist_across_clients(tmp_path) -> Non
     deal = after_update.get_deal(deal_id)
     assert deal["deal_stage"] == "proposal"
     assert deal["deal_size_status"] == "quoted"
-    assert deal["deal_size_krw"] == 15_000_000
+    assert deal["deal_size_amount"] == 15_000_000
+    assert deal["deal_size_currency"] == "KRW"
     assert deal["deal_value_history"][-1]["source"] == "update_deal"
 
 
@@ -384,7 +385,7 @@ def test_local_personal_add_interaction_meeting_persists_canonical_raw_content(
         cfg=cfg,
         company="Local Intake Co",
         industry="Trial",
-        deal_size_krw=None,
+        deal_size_amount=None,
         deal_size_status="unknown",
     )
 

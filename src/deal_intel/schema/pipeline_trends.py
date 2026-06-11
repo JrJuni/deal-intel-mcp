@@ -1,10 +1,15 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from collections import Counter
 from datetime import date, datetime, timedelta
 from typing import Any
 
-from deal_intel.schema.metrics import ACTIVE_STAGES, OPEN_STAGES
+from deal_intel.schema.metrics import (
+    ACTIVE_STAGES,
+    DEFAULT_DEAL_CURRENCY,
+    OPEN_STAGES,
+    normalize_currency,
+)
 
 DEFAULT_LOOKBACK_DAYS = 7
 MAX_LOOKBACK_DAYS = 365
@@ -127,13 +132,16 @@ def _kpis(snapshots: Any) -> dict:
     attention = [row for row in rows if row.get("attention_reasons")]
     won = [row for row in rows if row.get("deal_stage") == "won"]
     lost = [row for row in rows if row.get("deal_stage") == "lost"]
+    open_value = _open_pipeline_value(open_rows)
 
     return {
         "active_deal_count": len(active),
         "open_deal_count": len(open_rows),
-        "open_pipeline_value_krw": sum(
-            int(row.get("deal_size_krw") or 0) for row in open_rows
-        ),
+        "open_pipeline_value_amount": open_value["amount"],
+        "open_pipeline_value_currency": open_value["currency"],
+        "open_pipeline_value_currencies": open_value["currencies"],
+        "mixed_open_pipeline_value_currency": open_value["mixed_currency"],
+        "open_pipeline_value_by_currency": open_value["amount_by_currency"],
         "avg_health_pct": (
             round(sum(assessed_health) / len(assessed_health), 1)
             if assessed_health
@@ -146,13 +154,47 @@ def _kpis(snapshots: Any) -> dict:
     }
 
 
+def _open_pipeline_value(rows: list[dict]) -> dict:
+    amount_by_currency: dict[str, int] = {}
+    for row in rows:
+        amount = row.get("deal_size_amount")
+        if amount is None or isinstance(amount, bool):
+            continue
+        if not isinstance(amount, (int, float)):
+            continue
+        currency = _row_currency(row)
+        amount_by_currency[currency] = amount_by_currency.get(currency, 0) + int(amount)
+
+    currencies = sorted(amount_by_currency) or [DEFAULT_DEAL_CURRENCY]
+    mixed_currency = len(amount_by_currency) > 1
+    currency = None if mixed_currency else currencies[0]
+    amount = None if mixed_currency else amount_by_currency.get(currencies[0], 0)
+    return {
+        "amount": amount,
+        "currency": currency,
+        "currencies": currencies,
+        "mixed_currency": mixed_currency,
+        "amount_by_currency": dict(sorted(amount_by_currency.items())),
+    }
+
+
+def _row_currency(row: dict) -> str:
+    try:
+        return normalize_currency(
+            row.get("deal_size_currency"),
+            default=DEFAULT_DEAL_CURRENCY,
+        )
+    except ValueError:
+        return DEFAULT_DEAL_CURRENCY
+
+
 def _deltas(start: dict, end: dict) -> dict:
     return {
         key: _delta_value(start.get(key), end.get(key))
         for key in (
             "active_deal_count",
             "open_deal_count",
-            "open_pipeline_value_krw",
+            "open_pipeline_value_amount",
             "avg_health_pct",
             "attention_deal_count",
             "won_deal_count",
@@ -213,6 +255,16 @@ def _warnings(
         warnings.append("missing_end_baseline")
     if len(in_window) < 2:
         warnings.append("insufficient_snapshots")
+    start_mixed = (
+        start_snapshots
+        and _kpis(start_snapshots.values())["mixed_open_pipeline_value_currency"]
+    )
+    end_mixed = (
+        end_snapshots
+        and _kpis(end_snapshots.values())["mixed_open_pipeline_value_currency"]
+    )
+    if start_mixed or end_mixed:
+        warnings.append("mixed_currency")
     return warnings
 
 

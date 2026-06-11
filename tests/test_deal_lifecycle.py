@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import asyncio
 import json
@@ -44,7 +44,7 @@ def _deal(**overrides) -> dict:
         "company": "Test Co",
         "industry": "IT",
         "deal_stage": "discovery",
-        "deal_size_krw": 10_000_000,
+        "deal_size_amount": 10_000_000,
         "meetings": [
             {
                 "meeting_id": "meeting-1",

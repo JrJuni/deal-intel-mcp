@@ -1,4 +1,4 @@
-# Atlas Charts Dashboard
+﻿# Atlas Charts Dashboard
 
 This document records the Atlas Charts setup path for the `Weekly Pipeline
 Review`, `Pipeline Trend Review`, and `Customer Themes Review` dashboards in
@@ -155,11 +155,16 @@ Charts do not automatically update from repository JSON files.
 
 | Chart ID | Title | Chart Type | Primary Fields |
 |---|---|---|---|
-| `pipeline_kpis` | Pipeline KPIs | Table | `deal_count`, `active_deal_count`, `open_deal_count`, `active_pipeline_value_krw`, `open_pipeline_value_krw`, `avg_health_pct`, `health_coverage_pct`, `stuck_deal_count`, `overdue_deal_count`, `attention_deal_count` |
-| `stage_breakdown` | Stage Breakdown | Bar or Table | `stage`, `count`, `pipeline_value_krw`, `avg_health_pct`, `health_coverage_pct`, `stuck_count`, `overdue_count` |
+| `pipeline_kpis` | Pipeline KPIs | Table | `deal_count`, `active_deal_count`, `open_deal_count`, `active_pipeline_value_amount`, `open_pipeline_value_amount`, `avg_health_pct`, `health_coverage_pct`, `stuck_deal_count`, `overdue_deal_count`, `attention_deal_count` |
+| `stage_breakdown` | Stage Breakdown | Bar or Table | `stage`, `count`, `pipeline_value_amount`, `avg_health_pct`, `health_coverage_pct`, `stuck_count`, `overdue_count` |
 | `health_bands` | Health Bands | Donut | `health_band`, `count` |
-| `attention_deals` | Stuck / Overdue / At Risk Deals | Table | `company`, `industry`, `deal_stage`, `deal_size_krw`, `expected_close_date`, `days_in_stage`, `is_stuck`, `is_overdue`, `health_pct`, `health_band`, `attention_reasons` |
+| `attention_deals` | Stuck / Overdue / At Risk Deals | Table | `company`, `industry`, `deal_stage`, `deal_size_amount`, `deal_size_currency`, `expected_close_date`, `days_in_stage`, `is_stuck`, `is_overdue`, `health_pct`, `health_band`, `attention_reasons` |
 | `meddpicc_gap_distribution` | MEDDPICC Gap Distribution | Bar | `gap`, `count` |
+
+The v1 Atlas dashboard is intended for a single reporting currency per
+dashboard. Python metrics and CSV/Markdown reports detect mixed currencies and
+return per-currency breakdowns; re-check Atlas values against `get_metrics`
+when operating with more than one currency.
 
 ## Trend Chart Contract
 
@@ -199,9 +204,9 @@ Suggested layout:
 After creating the dashboard:
 
 - No rendered pipeline contains `{{...}}` placeholders.
-- `pipeline_kpis.open_pipeline_value_krw` matches
-  `get_metrics(metric_type="pipeline_health").kpis.open_pipeline_value_krw`.
-- `pipeline_kpis.active_pipeline_value_krw` matches the same `get_metrics`
+- `pipeline_kpis.open_pipeline_value_amount` matches
+  `get_metrics(metric_type="pipeline_health").kpis.open_pipeline_value_amount`.
+- `pipeline_kpis.active_pipeline_value_amount` matches the same `get_metrics`
   result.
 - `pipeline_kpis.avg_health_pct`, `health_coverage_pct`, `stuck_deal_count`,
   `overdue_deal_count`, and `attention_deal_count` match `get_metrics`.

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from copy import deepcopy
 from typing import Any
@@ -152,16 +152,18 @@ def _deal(
         "deal_id": deal_id,
         "company": company,
         "industry": industry,
-        "deal_size_krw": amount,
-        "deal_size_low_krw": amount_low,
-        "deal_size_high_krw": amount_high,
+        "deal_size_amount": amount,
+        "deal_size_low_amount": amount_low,
+        "deal_size_high_amount": amount_high,
+        "deal_size_currency": "KRW",
         "deal_size_status": amount_status,
         "deal_size_note": "Bundled fictional amount for zero-config demos.",
         "deal_value_history": [
             {
                 "updated_at": "2026-06-10T00:00:00+00:00",
                 "source": "zero_config_sample",
-                "deal_size_krw": amount,
+                "deal_size_amount": amount,
+                "deal_size_currency": "KRW",
                 "deal_size_status": amount_status,
                 "deal_size_note": "Bundled fictional amount for zero-config demos.",
             }
@@ -859,7 +861,8 @@ def _snapshot(
         "company": company,
         "industry": industry,
         "deal_stage": stage,
-        "deal_size_krw": amount,
+        "deal_size_amount": amount,
+        "deal_size_currency": "KRW",
         "deal_size_status": amount_status,
         "health_pct": health_pct,
         "attention_reasons": attention_reasons,
@@ -887,7 +890,7 @@ def _build_snapshots() -> list[dict]:
     for deal in _DEALS:
         deal_id = str(deal["deal_id"])
         start_stage = _SNAPSHOT_START_STAGES.get(deal_id, str(deal["deal_stage"]))
-        amount = deal.get("deal_size_krw")
+        amount = deal.get("deal_size_amount")
         start_amount = (
             None
             if amount is None

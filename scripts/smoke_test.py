@@ -1,4 +1,4 @@
-"""E2E smoke test - runs against real MongoDB Atlas and real LLM.
+﻿"""E2E smoke test - runs against real MongoDB Atlas and real LLM.
 
 Usage:
     python scripts/smoke_test.py                # uses config default LLM provider
@@ -68,7 +68,7 @@ def main() -> None:
             mongo,
             company="Acme Corp [smoke-test]",
             industry="SaaS",
-            deal_size_krw=120_000_000,
+            deal_size_amount=120_000_000,
             expected_close_date="2026-09-30",
         )
         _ok("create_deal", r)

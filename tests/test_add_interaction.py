@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 from copy import deepcopy
@@ -241,7 +241,7 @@ def test_local_personal_add_interaction_persists_raw_content_but_restricts_lists
         cfg=cfg,
         company="Local Interaction Co",
         industry="Trial",
-        deal_size_krw=None,
+        deal_size_amount=None,
         deal_size_status="unknown",
     )
 

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from copy import deepcopy
 
@@ -16,8 +16,8 @@ def _metrics_result() -> dict:
             "open_deal_count": 3,
             "stalled_deal_count": 1,
             "terminal_deal_count": 1,
-            "active_pipeline_value_krw": 300,
-            "open_pipeline_value_krw": 350,
+            "active_pipeline_value_amount": 300,
+            "open_pipeline_value_amount": 350,
             "avg_health_pct": 85.5,
             "health_coverage_pct": 100.0,
             "health_assessed_count": 2,
@@ -29,7 +29,7 @@ def _metrics_result() -> dict:
             {
                 "stage": "discovery",
                 "count": 1,
-                "pipeline_value_krw": 100,
+                "pipeline_value_amount": 100,
                 "avg_health_pct": 90.0,
                 "health_coverage_pct": 100.0,
                 "stuck_count": 0,
@@ -38,7 +38,7 @@ def _metrics_result() -> dict:
             {
                 "stage": "proposal",
                 "count": 1,
-                "pipeline_value_krw": 200,
+                "pipeline_value_amount": 200,
                 "avg_health_pct": 81.0,
                 "health_coverage_pct": 100.0,
                 "stuck_count": 0,
@@ -47,7 +47,7 @@ def _metrics_result() -> dict:
             {
                 "stage": "stalled",
                 "count": 1,
-                "pipeline_value_krw": 50,
+                "pipeline_value_amount": 50,
                 "avg_health_pct": 62.9,
                 "health_coverage_pct": 100.0,
                 "stuck_count": 0,
@@ -56,7 +56,7 @@ def _metrics_result() -> dict:
             {
                 "stage": "qualification",
                 "count": 0,
-                "pipeline_value_krw": 0,
+                "pipeline_value_amount": 0,
                 "avg_health_pct": None,
                 "health_coverage_pct": None,
                 "stuck_count": 0,
@@ -65,7 +65,7 @@ def _metrics_result() -> dict:
             {
                 "stage": "won",
                 "count": 1,
-                "pipeline_value_krw": 0,
+                "pipeline_value_amount": 0,
                 "avg_health_pct": 95.0,
                 "health_coverage_pct": 100.0,
                 "stuck_count": 0,
@@ -86,7 +86,7 @@ def _report_result() -> dict:
         "as_of": "2026-06-09",
         "metrics": {
             "open_deal_count": 3,
-            "pipeline_value_krw": 350,
+            "pipeline_value_amount": 350,
             "attention_deal_count": 2,
             "overdue_count": 1,
             "stuck_count": 0,
@@ -110,8 +110,8 @@ def _atlas_results() -> dict:
                 "open_deal_count": 3,
                 "stalled_deal_count": 1,
                 "terminal_deal_count": 1,
-                "active_pipeline_value_krw": 300,
-                "open_pipeline_value_krw": 350,
+                "active_pipeline_value_amount": 300,
+                "open_pipeline_value_amount": 350,
                 "avg_health_pct": 85.5,
                 "health_coverage_pct": 100.0,
                 "health_assessed_count": 2,
@@ -124,7 +124,7 @@ def _atlas_results() -> dict:
             {
                 "stage": "discovery",
                 "count": 1,
-                "pipeline_value_krw": 100,
+                "pipeline_value_amount": 100,
                 "avg_health_pct": 90.0,
                 "health_coverage_pct": 100.0,
                 "stuck_count": 0,
@@ -133,7 +133,7 @@ def _atlas_results() -> dict:
             {
                 "stage": "proposal",
                 "count": 1,
-                "pipeline_value_krw": 200,
+                "pipeline_value_amount": 200,
                 "avg_health_pct": 81.0,
                 "health_coverage_pct": 100.0,
                 "stuck_count": 0,
@@ -142,7 +142,7 @@ def _atlas_results() -> dict:
             {
                 "stage": "stalled",
                 "count": 1,
-                "pipeline_value_krw": 50,
+                "pipeline_value_amount": 50,
                 "avg_health_pct": 62.9,
                 "health_coverage_pct": 100.0,
                 "stuck_count": 0,
@@ -151,7 +151,7 @@ def _atlas_results() -> dict:
             {
                 "stage": "won",
                 "count": 1,
-                "pipeline_value_krw": 0,
+                "pipeline_value_amount": 0,
                 "avg_health_pct": 95.0,
                 "health_coverage_pct": 100.0,
                 "stuck_count": 0,
@@ -179,7 +179,7 @@ def test_weekly_pipeline_dashboard_crosscheck_passes_matching_sources() -> None:
     assert result["mismatches"] == []
     assert result["csv_path"] == "C:/tmp/report.csv"
     assert any(
-        check["metric"] == "open_pipeline_value_krw"
+        check["metric"] == "open_pipeline_value_amount"
         and check["values"] == {
             "get_metrics": 350,
             "csv_markdown": 350,
@@ -202,7 +202,7 @@ def test_weekly_pipeline_dashboard_crosscheck_passes_matching_sources() -> None:
 
 def test_weekly_pipeline_dashboard_crosscheck_reports_mismatches() -> None:
     atlas_results = deepcopy(_atlas_results())
-    atlas_results["pipeline_kpis"][0]["open_pipeline_value_krw"] = 999
+    atlas_results["pipeline_kpis"][0]["open_pipeline_value_amount"] = 999
 
     result = build_weekly_pipeline_dashboard_crosscheck(
         metrics_result=_metrics_result(),
@@ -213,7 +213,7 @@ def test_weekly_pipeline_dashboard_crosscheck_reports_mismatches() -> None:
     assert result["ok"] is False
     assert result["mismatches"] == [
         {
-            "metric": "open_pipeline_value_krw",
+            "metric": "open_pipeline_value_amount",
             "expected_source": "get_metrics",
             "expected": 350,
             "actual_source": "atlas",

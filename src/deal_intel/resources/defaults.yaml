@@ -22,6 +22,9 @@ reporting:
   timezone: Asia/Seoul
   output_dir: outputs/reports
 
+deal_value:
+  default_currency: KRW
+
 # MEDDPICC health score weights.
 # health_pct = sum(score_i * weight_i) / sum(5 * weight_i) * 100
 # Override in ~/.deal-intel/config.yaml if your sales process needs different weighting.

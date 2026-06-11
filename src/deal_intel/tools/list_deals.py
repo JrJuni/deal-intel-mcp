@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from deal_intel.errors import ErrorCode, MCPError, Stage
 from deal_intel.schema.interactions import iter_interactions
@@ -83,7 +83,8 @@ def handle(
             "company": d["company"],
             "industry": d.get("industry"),
             "deal_stage": current_stage,
-            "deal_size_krw": d.get("deal_size_krw"),
+            "deal_size_amount": d.get("deal_size_amount"),
+            "deal_size_currency": d.get("deal_size_currency") or "KRW",
             "expected_close_date": d.get("expected_close_date"),
             "expected_close_date_source": d.get("expected_close_date_source"),
             "actual_close_date": d.get("actual_close_date"),

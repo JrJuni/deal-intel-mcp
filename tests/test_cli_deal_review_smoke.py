@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 from copy import deepcopy
@@ -71,7 +71,7 @@ def _deal(
         "company": company,
         "industry": "IT",
         "deal_stage": stage,
-        "deal_size_krw": 72_000_000,
+        "deal_size_amount": 72_000_000,
         "deal_size_status": "quoted",
         "expected_close_date": "2026-06-30",
         "expected_close_date_source": "user_provided",

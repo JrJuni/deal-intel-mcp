@@ -1,10 +1,14 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from datetime import UTC, datetime
 from typing import Any
 
 from deal_intel.reports.weekly_pipeline import REPORT_TYPE
-from deal_intel.schema.metrics import HealthBand, assess_deal_value
+from deal_intel.schema.metrics import (
+    DEFAULT_DEAL_CURRENCY,
+    HealthBand,
+    assess_deal_value,
+)
 
 WARNING_LABELS = {
     "no_open_deals": "No open deals",
@@ -69,13 +73,27 @@ def _summarize_rows(rows: list[dict]) -> dict:
     known_value_assessments = [
         item for item in value_assessments if item.is_valid and item.is_known
     ]
+    amount_by_currency = {
+        currency: sum(
+            assessment.amount or 0
+            for assessment in known_value_assessments
+            if assessment.currency == currency
+        )
+        for currency in sorted({item.currency for item in known_value_assessments})
+    }
+    currencies = sorted(amount_by_currency) or [DEFAULT_DEAL_CURRENCY]
+    mixed_currency = len(amount_by_currency) > 1
     row_count = len(rows)
     attention_deal_count = sum(bool(row.get("attention_reasons")) for row in rows)
     return {
         "open_deal_count": row_count,
-        "pipeline_value_krw": sum(
-            assessment.amount_krw or 0 for assessment in known_value_assessments
+        "pipeline_value_amount": (
+            None if mixed_currency else amount_by_currency.get(currencies[0], 0)
         ),
+        "pipeline_value_currency": None if mixed_currency else currencies[0],
+        "pipeline_value_currencies": currencies,
+        "mixed_pipeline_value_currency": mixed_currency,
+        "pipeline_value_by_currency": amount_by_currency,
         "known_amount_count": len(known_value_assessments),
         "amount_coverage_pct": _pct(len(known_value_assessments), row_count),
         "avg_health_pct": (
@@ -151,7 +169,10 @@ def _build_markdown(
             ["Metric", "Value"],
             [
                 ["Open deals", str(metrics["open_deal_count"])],
-                ["Pipeline value", _format_krw(metrics["pipeline_value_krw"])],
+                [
+                    "Pipeline value",
+                    _format_pipeline_value(metrics),
+                ],
                 [
                     "Known amount coverage",
                     _format_ratio(
@@ -253,7 +274,10 @@ def _risk_deal_section(rows: list[dict]) -> list[str]:
             [
                 row.get("company"),
                 row.get("deal_stage"),
-                _format_krw(_valid_amount(row)),
+                _format_money(
+                    _valid_amount(row),
+                    currency=row.get("deal_size_currency") or DEFAULT_DEAL_CURRENCY,
+                ),
                 row.get("expected_close_date") or "N/A",
                 _format_health(row),
                 ", ".join(str(reason) for reason in row.get("attention_reasons", [])),
@@ -362,7 +386,7 @@ def _format_action_items(actions: list[dict]) -> str:
 def _valid_amount(row: dict) -> int:
     assessment = assess_deal_value(row)
     if assessment.is_valid and assessment.is_known:
-        return assessment.amount_krw or 0
+        return assessment.amount or 0
     return 0
 
 
@@ -403,10 +427,28 @@ def _filter_value(value: Any) -> str:
     return str(value) if value not in (None, "") else "all"
 
 
-def _format_krw(value: int | float | None) -> str:
+def _format_pipeline_value(metrics: dict) -> str:
+    if metrics.get("mixed_pipeline_value_currency") is True:
+        return _format_currency_breakdown(metrics.get("pipeline_value_by_currency"))
+    return _format_money(
+        metrics.get("pipeline_value_amount"),
+        currency=metrics.get("pipeline_value_currency") or DEFAULT_DEAL_CURRENCY,
+    )
+
+
+def _format_currency_breakdown(value: Any) -> str:
+    if not isinstance(value, dict) or not value:
+        return "N/A"
+    return ", ".join(
+        _format_money(amount, currency=str(currency))
+        for currency, amount in sorted(value.items())
+    )
+
+
+def _format_money(value: int | float | None, *, currency: str) -> str:
     if value is None:
         return "N/A"
-    return f"{int(value):,} KRW"
+    return f"{int(value):,} {currency}"
 
 
 def _format_pct(value: float | None) -> str:

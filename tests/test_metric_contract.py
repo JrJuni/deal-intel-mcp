@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import math
 
@@ -129,7 +129,7 @@ def test_invalid_health_band_config_fails_explicitly(
             False,
         ),
         (
-            {"deal_size_krw": 30_000_000},
+            {"deal_size_amount": 30_000_000},
             None,
             True,
             False,
@@ -138,9 +138,9 @@ def test_invalid_health_band_config_fails_explicitly(
         ),
         (
             {
-                "deal_size_krw": 40_000_000,
-                "deal_size_low_krw": 30_000_000,
-                "deal_size_high_krw": 50_000_000,
+                "deal_size_amount": 40_000_000,
+                "deal_size_low_amount": 30_000_000,
+                "deal_size_high_amount": 50_000_000,
                 "deal_size_status": "rough_estimate",
             },
             DealValueStatus.ROUGH_ESTIMATE,
@@ -151,7 +151,7 @@ def test_invalid_health_band_config_fails_explicitly(
         ),
         (
             {
-                "deal_size_krw": 40_000_000,
+                "deal_size_amount": 40_000_000,
                 "deal_size_status": "customer_budget",
             },
             DealValueStatus.CUSTOMER_BUDGET,
@@ -161,7 +161,7 @@ def test_invalid_health_band_config_fails_explicitly(
             False,
         ),
         (
-            {"deal_size_krw": 0, "deal_size_status": "strategic_zero"},
+            {"deal_size_amount": 0, "deal_size_status": "strategic_zero"},
             DealValueStatus.STRATEGIC_ZERO,
             True,
             True,
@@ -191,35 +191,35 @@ def test_deal_value_classifications(
 @pytest.mark.parametrize(
     ("deal", "issue"),
     [
-        ({"deal_size_krw": 0}, "non_positive_amount_requires_strategic_zero"),
-        ({"deal_size_krw": -1}, "non_positive_amount_requires_strategic_zero"),
+        ({"deal_size_amount": 0}, "non_positive_amount_requires_strategic_zero"),
+        ({"deal_size_amount": -1}, "non_positive_amount_requires_strategic_zero"),
         (
-            {"deal_size_krw": 1, "deal_size_status": "unknown"},
+            {"deal_size_amount": 1, "deal_size_status": "unknown"},
             "unknown_status_must_not_have_amount",
         ),
         (
-            {"deal_size_krw": None, "deal_size_status": "quoted"},
+            {"deal_size_amount": None, "deal_size_status": "quoted"},
             "known_status_requires_positive_amount",
         ),
         (
-            {"deal_size_krw": 1, "deal_size_status": "strategic_zero"},
+            {"deal_size_amount": 1, "deal_size_status": "strategic_zero"},
             "strategic_zero_requires_zero_amount",
         ),
         (
             {
-                "deal_size_krw": 40,
-                "deal_size_low_krw": 50,
-                "deal_size_high_krw": 60,
+                "deal_size_amount": 40,
+                "deal_size_low_amount": 50,
+                "deal_size_high_amount": 60,
                 "deal_size_status": "rough_estimate",
             },
             "estimated_range_must_include_amount",
         ),
         (
-            {"deal_size_krw": 1.5, "deal_size_status": "rough_estimate"},
+            {"deal_size_amount": 1.5, "deal_size_status": "rough_estimate"},
             "invalid_amount_type",
         ),
         (
-            {"deal_size_krw": 1, "deal_size_status": "guess"},
+            {"deal_size_amount": 1, "deal_size_status": "guess"},
             "invalid_status",
         ),
     ],
@@ -239,19 +239,19 @@ def test_pipeline_value_keeps_missing_zero_and_legacy_amounts_distinct() -> None
     deals = [
         {
             "deal_stage": "discovery",
-            "deal_size_krw": 40_000_000,
-            "deal_size_low_krw": 30_000_000,
-            "deal_size_high_krw": 50_000_000,
+            "deal_size_amount": 40_000_000,
+            "deal_size_low_amount": 30_000_000,
+            "deal_size_high_amount": 50_000_000,
             "deal_size_status": "rough_estimate",
         },
         {
             "deal_stage": "proposal",
-            "deal_size_krw": 20_000_000,
+            "deal_size_amount": 20_000_000,
             "deal_size_status": "customer_budget",
         },
         {
             "deal_stage": "negotiation",
-            "deal_size_krw": 25_000_000,
+            "deal_size_amount": 25_000_000,
             "deal_size_status": "quoted",
         },
         {
@@ -260,20 +260,20 @@ def test_pipeline_value_keeps_missing_zero_and_legacy_amounts_distinct() -> None
         },
         {
             "deal_stage": "qualification",
-            "deal_size_krw": 0,
+            "deal_size_amount": 0,
             "deal_size_status": "strategic_zero",
         },
         {
             "deal_stage": "proposal",
-            "deal_size_krw": 10_000_000,
+            "deal_size_amount": 10_000_000,
         },
         {
             "deal_stage": "discovery",
-            "deal_size_krw": 0,
+            "deal_size_amount": 0,
         },
         {
             "deal_stage": "won",
-            "deal_size_krw": 100_000_000,
+            "deal_size_amount": 100_000_000,
             "deal_size_status": "quoted",
         },
     ]
@@ -282,10 +282,22 @@ def test_pipeline_value_keeps_missing_zero_and_legacy_amounts_distinct() -> None
 
     assert result == {
         "deal_count": 7,
-        "pipeline_value_krw": 95_000_000,
-        "pipeline_value_low_krw": 85_000_000,
-        "pipeline_value_high_krw": 105_000_000,
-        "validated_pipeline_value_krw": 45_000_000,
+        "pipeline_value_amount": 95_000_000,
+        "pipeline_value_low_amount": 85_000_000,
+        "pipeline_value_high_amount": 105_000_000,
+        "validated_pipeline_value_amount": 45_000_000,
+        "currency": "KRW",
+        "currencies": ["KRW"],
+        "mixed_currency": False,
+        "amount_by_currency": {
+            "KRW": {
+                "pipeline_value_amount": 95_000_000,
+                "pipeline_value_low_amount": 85_000_000,
+                "pipeline_value_high_amount": 105_000_000,
+                "validated_pipeline_value_amount": 45_000_000,
+                "known_amount_count": 5,
+            }
+        },
         "known_amount_count": 5,
         "missing_amount_count": 1,
         "invalid_amount_count": 1,
@@ -306,5 +318,5 @@ def test_empty_pipeline_value_has_no_misleading_coverage_percentage() -> None:
     result = summarize_pipeline_value([], stages=ACTIVE_STAGES)
 
     assert result["deal_count"] == 0
-    assert result["pipeline_value_krw"] == 0
+    assert result["pipeline_value_amount"] == 0
     assert result["amount_coverage_pct"] is None

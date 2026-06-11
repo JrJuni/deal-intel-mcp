@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import asyncio
 from copy import deepcopy
@@ -30,9 +30,10 @@ def _deal(**overrides) -> dict:
         "company": "Test Co",
         "industry": "IT",
         "deal_stage": "discovery",
-        "deal_size_krw": 18_000_000,
-        "deal_size_low_krw": None,
-        "deal_size_high_krw": None,
+        "deal_size_amount": 18_000_000,
+        "deal_size_low_amount": None,
+        "deal_size_high_amount": None,
+        "deal_size_currency": "KRW",
         "deal_size_status": None,
         "deal_size_note": None,
         "expected_close_date": "2026-06-30",
@@ -93,9 +94,10 @@ def test_update_deal_sets_status_and_preserves_existing_amount() -> None:
     assert result["ok"] is True
     assert result["old_deal_value"]["deal_size_status"] is None
     assert result["new_deal_value"] == {
-        "deal_size_krw": 18_000_000,
-        "deal_size_low_krw": None,
-        "deal_size_high_krw": None,
+        "deal_size_amount": 18_000_000,
+        "deal_size_low_amount": None,
+        "deal_size_high_amount": None,
+        "deal_size_currency": "KRW",
         "deal_size_status": "quoted",
         "deal_size_note": "signed order form confirmed by user",
     }
@@ -112,18 +114,18 @@ def test_update_deal_updates_amount_range_and_history() -> None:
         mongo=mongo,
         deal_id="deal-1",
         deal_size_status="customer_budget",
-        deal_size_krw=20_000_000,
-        deal_size_low_krw=15_000_000,
-        deal_size_high_krw=25_000_000,
+        deal_size_amount=20_000_000,
+        deal_size_low_amount=15_000_000,
+        deal_size_high_amount=25_000_000,
         deal_size_note="customer disclosed budget range",
         confirmed_by_user=True,
     )
 
-    assert result["new_deal_value"]["deal_size_krw"] == 20_000_000
+    assert result["new_deal_value"]["deal_size_amount"] == 20_000_000
     assert result["new_deal_value"]["deal_size_status"] == "customer_budget"
     assert mongo.saved is not None
-    assert mongo.saved["deal_size_low_krw"] == 15_000_000
-    assert mongo.saved["deal_value_history"][-1]["deal_size_high_krw"] == 25_000_000
+    assert mongo.saved["deal_size_low_amount"] == 15_000_000
+    assert mongo.saved["deal_value_history"][-1]["deal_size_high_amount"] == 25_000_000
 
 
 def test_update_deal_unknown_clears_amount_fields() -> None:
@@ -137,10 +139,10 @@ def test_update_deal_unknown_clears_amount_fields() -> None:
         confirmed_by_user=True,
     )
 
-    assert result["new_deal_value"]["deal_size_krw"] is None
+    assert result["new_deal_value"]["deal_size_amount"] is None
     assert result["new_deal_value"]["deal_size_status"] == "unknown"
     assert mongo.saved is not None
-    assert mongo.saved["deal_size_krw"] is None
+    assert mongo.saved["deal_size_amount"] is None
 
 
 def test_update_deal_updates_metadata_with_confirmation_and_history() -> None:
@@ -259,14 +261,14 @@ def test_update_deal_combines_value_and_metadata_updates() -> None:
         deal_id="deal-1",
         deal_size_status="quoted",
         deal_size_note="quote sent and user confirmed",
-        deal_size_krw=20_000_000,
+        deal_size_amount=20_000_000,
         expected_close_date="2026-07-01",
         update_note="user confirmed revised close date",
         confirmed_by_user=True,
     )
 
     assert result["changed_value_fields"] == [
-        "deal_size_krw",
+        "deal_size_amount",
         "deal_size_status",
         "deal_size_note",
     ]
@@ -290,7 +292,7 @@ def test_update_deal_rejects_invalid_value_combination_before_storage() -> None:
             mongo=mongo,
             deal_id="deal-1",
             deal_size_status="quoted",
-            deal_size_krw=0,
+            deal_size_amount=0,
             deal_size_note="bad value",
             confirmed_by_user=True,
         )

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Any
@@ -36,18 +36,18 @@ KPI_CHECKS = (
         },
     },
     {
-        "metric": "active_pipeline_value_krw",
+        "metric": "active_pipeline_value_amount",
         "sources": {
-            "get_metrics": "active_pipeline_value_krw",
-            "atlas": "active_pipeline_value_krw",
+            "get_metrics": "active_pipeline_value_amount",
+            "atlas": "active_pipeline_value_amount",
         },
     },
     {
-        "metric": "open_pipeline_value_krw",
+        "metric": "open_pipeline_value_amount",
         "sources": {
-            "get_metrics": "open_pipeline_value_krw",
-            "csv_markdown": "pipeline_value_krw",
-            "atlas": "open_pipeline_value_krw",
+            "get_metrics": "open_pipeline_value_amount",
+            "csv_markdown": "pipeline_value_amount",
+            "atlas": "open_pipeline_value_amount",
         },
     },
     {
@@ -96,7 +96,7 @@ KPI_CHECKS = (
 
 STAGE_FIELDS = (
     "count",
-    "pipeline_value_krw",
+    "pipeline_value_amount",
     "avg_health_pct",
     "health_coverage_pct",
     "stuck_count",
@@ -307,6 +307,6 @@ def _field_value(value: Mapping[str, Any] | None, field: str) -> Any:
 def _stage_field_value(value: Mapping[str, Any] | None, field: str) -> Any:
     if isinstance(value, Mapping):
         return value.get(field)
-    if field in {"count", "pipeline_value_krw", "stuck_count", "overdue_count"}:
+    if field in {"count", "pipeline_value_amount", "stuck_count", "overdue_count"}:
         return 0
     return None

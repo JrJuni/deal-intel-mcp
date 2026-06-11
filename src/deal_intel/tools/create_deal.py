@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
@@ -9,6 +9,7 @@ from deal_intel.schema.metrics import (
     ExpectedCloseSettings,
     ReportingContext,
     assess_deal_value,
+    default_deal_currency,
     resolve_expected_close_date,
 )
 from deal_intel.storage.mongodb import MongoDBClient
@@ -24,10 +25,11 @@ def handle(
     *,
     company: str,
     industry: str | None,
-    deal_size_krw: int | None,
+    deal_size_amount: int | None,
     deal_size_status: str | None = None,
-    deal_size_low_krw: int | None = None,
-    deal_size_high_krw: int | None = None,
+    deal_size_low_amount: int | None = None,
+    deal_size_high_amount: int | None = None,
+    deal_size_currency: str | None = None,
     deal_size_note: str | None = None,
     expected_close_date: str | None = None,
 ) -> dict:
@@ -43,6 +45,7 @@ def handle(
     try:
         expected_close_settings = ExpectedCloseSettings.from_config(cfg)
         reporting = ReportingContext.from_config(cfg, generated_at=now_dt)
+        default_currency = default_deal_currency(cfg)
     except ValueError as exc:
         raise MCPError(
             error_code=ErrorCode.CONFIG_ERROR,
@@ -65,11 +68,13 @@ def handle(
             retryable=False,
         ) from exc
     deal_value = _build_deal_value(
-        deal_size_krw=deal_size_krw,
+        deal_size_amount=deal_size_amount,
         deal_size_status=deal_size_status,
-        deal_size_low_krw=deal_size_low_krw,
-        deal_size_high_krw=deal_size_high_krw,
+        deal_size_low_amount=deal_size_low_amount,
+        deal_size_high_amount=deal_size_high_amount,
+        deal_size_currency=deal_size_currency,
         deal_size_note=deal_size_note,
+        default_currency=default_currency,
     )
     deal = {
         "deal_id": str(uuid.uuid4()),
@@ -120,10 +125,11 @@ def handle(
         "ok": True,
         "deal_id": deal["deal_id"],
         "company": deal["company"],
-        "deal_size_krw": deal["deal_size_krw"],
+        "deal_size_amount": deal["deal_size_amount"],
         "deal_size_status": deal["deal_size_status"],
-        "deal_size_low_krw": deal["deal_size_low_krw"],
-        "deal_size_high_krw": deal["deal_size_high_krw"],
+        "deal_size_low_amount": deal["deal_size_low_amount"],
+        "deal_size_high_amount": deal["deal_size_high_amount"],
+        "deal_size_currency": deal["deal_size_currency"],
         "deal_size_note": deal["deal_size_note"],
         "expected_close_date": resolved_close_date,
         "expected_close_date_source": close_date_source,
@@ -135,34 +141,37 @@ def handle(
 
 def _build_deal_value(
     *,
-    deal_size_krw: int | None,
+    deal_size_amount: int | None,
     deal_size_status: str | None,
-    deal_size_low_krw: int | None,
-    deal_size_high_krw: int | None,
+    deal_size_low_amount: int | None,
+    deal_size_high_amount: int | None,
+    deal_size_currency: str | None,
     deal_size_note: str | None,
+    default_currency: str,
 ) -> dict:
     cleaned_status = _clean_optional_text(deal_size_status)
     cleaned_note = _clean_optional_text(deal_size_note)
-    if deal_size_krw == 0 and cleaned_status is None:
+    if deal_size_amount == 0 and cleaned_status is None:
         _raise_zero_amount_confirmation()
-    if deal_size_krw is not None and deal_size_krw > 0 and cleaned_status is None:
+    if deal_size_amount is not None and deal_size_amount > 0 and cleaned_status is None:
         _raise_positive_amount_status_confirmation()
     if cleaned_status == DealValueStatus.UNKNOWN.value and all(
         value in (None, 0)
-        for value in (deal_size_krw, deal_size_low_krw, deal_size_high_krw)
+        for value in (deal_size_amount, deal_size_low_amount, deal_size_high_amount)
     ):
-        deal_size_krw = None
-        deal_size_low_krw = None
-        deal_size_high_krw = None
+        deal_size_amount = None
+        deal_size_low_amount = None
+        deal_size_high_amount = None
 
     value = {
-        "deal_size_krw": deal_size_krw,
-        "deal_size_low_krw": deal_size_low_krw,
-        "deal_size_high_krw": deal_size_high_krw,
+        "deal_size_amount": deal_size_amount,
+        "deal_size_low_amount": deal_size_low_amount,
+        "deal_size_high_amount": deal_size_high_amount,
+        "deal_size_currency": deal_size_currency or default_currency,
         "deal_size_status": cleaned_status,
         "deal_size_note": cleaned_note,
     }
-    assessment = assess_deal_value(value)
+    assessment = assess_deal_value(value, default_currency=default_currency)
     if not assessment.is_valid:
         raise MCPError(
             error_code=ErrorCode.INVALID_INPUT,
@@ -181,7 +190,7 @@ def _raise_positive_amount_status_confirmation() -> None:
     raise MCPError(
         error_code=ErrorCode.INVALID_INPUT,
         stage=Stage.PREFLIGHT,
-        message="deal_size_status is required when deal_size_krw is provided",
+        message="deal_size_status is required when deal_size_amount is provided",
         hint={
             "ask_user": (
                 "이 금액은 영업 추정, 고객 예산 확인, 견적 발송 중 "
@@ -210,7 +219,7 @@ def _raise_zero_amount_confirmation() -> None:
     raise MCPError(
         error_code=ErrorCode.INVALID_INPUT,
         stage=Stage.PREFLIGHT,
-        message="deal_size_krw=0 needs user confirmation before saving",
+        message="deal_size_amount=0 needs user confirmation before saving",
         hint={
             "ask_user": (
                 "이 0원은 전략적 무료/레퍼런스 딜인가요, "
@@ -220,12 +229,12 @@ def _raise_zero_amount_confirmation() -> None:
                 {
                     "meaning": "amount_unknown",
                     "deal_size_status": DealValueStatus.UNKNOWN.value,
-                    "deal_size_krw": None,
+                    "deal_size_amount": None,
                 },
                 {
                     "meaning": "strategic_zero_revenue",
                     "deal_size_status": DealValueStatus.STRATEGIC_ZERO.value,
-                    "deal_size_krw": 0,
+                    "deal_size_amount": 0,
                 },
             ],
         },

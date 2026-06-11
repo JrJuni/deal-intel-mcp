@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 from datetime import date
@@ -61,6 +61,8 @@ def test_zero_config_sample_fixture_is_safe_and_varied() -> None:
         if isinstance(interaction, dict)
     }
     assert {"meeting", "email_thread", "user_interview"} <= interaction_types
+    assert {deal.get("deal_size_currency") for deal in deals} == {"KRW"}
+    assert {snapshot.get("deal_size_currency") for snapshot in snapshots} == {"KRW"}
 
     payload = json.dumps(
         {"deals": deals, "snapshots": snapshots},
@@ -79,7 +81,7 @@ def test_zero_config_sample_fixture_drives_pipeline_metrics_and_report() -> None
 
     assert summary["kpis"]["active_deal_count"] > 0
     assert summary["kpis"]["open_deal_count"] > 0
-    assert summary["kpis"]["open_pipeline_value_krw"] > 0
+    assert summary["kpis"]["open_pipeline_value_amount"] > 0
     assert summary["kpis"]["attention_deal_count"] > 0
     assert summary["health_bands"]["healthy"] > 0
     assert summary["health_bands"]["unassessed"] > 0

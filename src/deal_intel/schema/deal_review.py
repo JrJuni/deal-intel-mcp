@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -206,7 +206,8 @@ def build_deal_review(
         "company": deal.get("company"),
         "industry": deal.get("industry"),
         "deal_stage": stage,
-        "deal_size_krw": deal.get("deal_size_krw"),
+        "deal_size_amount": deal.get("deal_size_amount"),
+        "deal_size_currency": deal.get("deal_size_currency") or "KRW",
         "deal_size_status": deal.get("deal_size_status"),
         "expected_close_date": deal.get("expected_close_date"),
         "assessment": assessment,

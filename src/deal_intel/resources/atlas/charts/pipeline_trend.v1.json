@@ -1,0 +1,726 @@
+{
+  "dashboard_title": "Pipeline Trend Review",
+  "version": 1,
+  "database": "deal_intel",
+  "collection": "analytics_snapshots",
+  "description": "Atlas Charts aggregation pipelines for pipeline trend review. Render placeholders before running in Atlas.",
+  "parameters": {
+    "start_date": "{{START_DATE}}",
+    "end_date": "{{AS_OF_DATE}}",
+    "lookback_days": "{{LOOKBACK_DAYS}}"
+  },
+  "charts": [
+    {
+      "id": "trend_kpis",
+      "title": "Pipeline Trend KPIs",
+      "chart_type": "table",
+      "description": "Single-row KPI start/end/delta surface aligned with get_metrics pipeline_trend.",
+      "pipeline": [
+        {
+          "$match": {
+            "as_of": {
+              "$gte": "{{START_DATE}}",
+              "$lte": "{{AS_OF_DATE}}"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "as_of": 1,
+            "occurred_at": 1,
+            "created_at": 1
+          }
+        },
+        {
+          "$facet": {
+            "snapshot_count": [
+              {
+                "$count": "count"
+              }
+            ],
+            "start": [
+              {
+                "$match": {
+                  "as_of": {
+                    "$lte": "{{START_DATE}}"
+                  }
+                }
+              },
+              {
+                "$group": {
+                  "_id": "$deal_id",
+                  "snapshot": {
+                    "$last": "$$ROOT"
+                  }
+                }
+              },
+              {
+                "$replaceRoot": {
+                  "newRoot": "$snapshot"
+                }
+              }
+            ],
+            "end": [
+              {
+                "$match": {
+                  "as_of": {
+                    "$lte": "{{AS_OF_DATE}}"
+                  }
+                }
+              },
+              {
+                "$group": {
+                  "_id": "$deal_id",
+                  "snapshot": {
+                    "$last": "$$ROOT"
+                  }
+                }
+              },
+              {
+                "$replaceRoot": {
+                  "newRoot": "$snapshot"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "$addFields": {
+            "snapshot_count": {
+              "$ifNull": [
+                {
+                  "$first": "$snapshot_count.count"
+                },
+                0
+              ]
+            },
+            "_start_active": {
+              "$filter": {
+                "input": "$start",
+                "as": "row",
+                "cond": {
+                  "$in": [
+                    "$$row.deal_stage",
+                    [
+                      "discovery",
+                      "qualification",
+                      "proposal",
+                      "negotiation"
+                    ]
+                  ]
+                }
+              }
+            },
+            "_end_active": {
+              "$filter": {
+                "input": "$end",
+                "as": "row",
+                "cond": {
+                  "$in": [
+                    "$$row.deal_stage",
+                    [
+                      "discovery",
+                      "qualification",
+                      "proposal",
+                      "negotiation"
+                    ]
+                  ]
+                }
+              }
+            },
+            "_start_open": {
+              "$filter": {
+                "input": "$start",
+                "as": "row",
+                "cond": {
+                  "$in": [
+                    "$$row.deal_stage",
+                    [
+                      "discovery",
+                      "qualification",
+                      "proposal",
+                      "negotiation",
+                      "stalled"
+                    ]
+                  ]
+                }
+              }
+            },
+            "_end_open": {
+              "$filter": {
+                "input": "$end",
+                "as": "row",
+                "cond": {
+                  "$in": [
+                    "$$row.deal_stage",
+                    [
+                      "discovery",
+                      "qualification",
+                      "proposal",
+                      "negotiation",
+                      "stalled"
+                    ]
+                  ]
+                }
+              }
+            },
+            "_start_attention": {
+              "$filter": {
+                "input": "$start",
+                "as": "row",
+                "cond": {
+                  "$gt": [
+                    {
+                      "$size": {
+                        "$ifNull": [
+                          "$$row.attention_reasons",
+                          []
+                        ]
+                      }
+                    },
+                    0
+                  ]
+                }
+              }
+            },
+            "_end_attention": {
+              "$filter": {
+                "input": "$end",
+                "as": "row",
+                "cond": {
+                  "$gt": [
+                    {
+                      "$size": {
+                        "$ifNull": [
+                          "$$row.attention_reasons",
+                          []
+                        ]
+                      }
+                    },
+                    0
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "$addFields": {
+            "_start_health": {
+              "$filter": {
+                "input": "$_start_active",
+                "as": "row",
+                "cond": {
+                  "$isNumber": "$$row.health_pct"
+                }
+              }
+            },
+            "_end_health": {
+              "$filter": {
+                "input": "$_end_active",
+                "as": "row",
+                "cond": {
+                  "$isNumber": "$$row.health_pct"
+                }
+              }
+            },
+            "_start_won": {
+              "$filter": {
+                "input": "$start",
+                "as": "row",
+                "cond": {
+                  "$eq": [
+                    "$$row.deal_stage",
+                    "won"
+                  ]
+                }
+              }
+            },
+            "_end_won": {
+              "$filter": {
+                "input": "$end",
+                "as": "row",
+                "cond": {
+                  "$eq": [
+                    "$$row.deal_stage",
+                    "won"
+                  ]
+                }
+              }
+            },
+            "_start_lost": {
+              "$filter": {
+                "input": "$start",
+                "as": "row",
+                "cond": {
+                  "$eq": [
+                    "$$row.deal_stage",
+                    "lost"
+                  ]
+                }
+              }
+            },
+            "_end_lost": {
+              "$filter": {
+                "input": "$end",
+                "as": "row",
+                "cond": {
+                  "$eq": [
+                    "$$row.deal_stage",
+                    "lost"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "$addFields": {
+            "start_active_deal_count": {
+              "$size": "$_start_active"
+            },
+            "end_active_deal_count": {
+              "$size": "$_end_active"
+            },
+            "start_open_deal_count": {
+              "$size": "$_start_open"
+            },
+            "end_open_deal_count": {
+              "$size": "$_end_open"
+            },
+            "start_open_pipeline_value_krw": {
+              "$sum": {
+                "$map": {
+                  "input": "$_start_open",
+                  "as": "row",
+                  "in": {
+                    "$ifNull": [
+                      "$$row.deal_size_krw",
+                      0
+                    ]
+                  }
+                }
+              }
+            },
+            "end_open_pipeline_value_krw": {
+              "$sum": {
+                "$map": {
+                  "input": "$_end_open",
+                  "as": "row",
+                  "in": {
+                    "$ifNull": [
+                      "$$row.deal_size_krw",
+                      0
+                    ]
+                  }
+                }
+              }
+            },
+            "_start_avg_health_raw": {
+              "$avg": "$_start_health.health_pct"
+            },
+            "_end_avg_health_raw": {
+              "$avg": "$_end_health.health_pct"
+            },
+            "start_attention_deal_count": {
+              "$size": "$_start_attention"
+            },
+            "end_attention_deal_count": {
+              "$size": "$_end_attention"
+            },
+            "start_won_deal_count": {
+              "$size": "$_start_won"
+            },
+            "end_won_deal_count": {
+              "$size": "$_end_won"
+            },
+            "start_lost_deal_count": {
+              "$size": "$_start_lost"
+            },
+            "end_lost_deal_count": {
+              "$size": "$_end_lost"
+            }
+          }
+        },
+        {
+          "$addFields": {
+            "start_avg_health_pct": {
+              "$cond": [
+                {
+                  "$eq": [
+                    "$_start_avg_health_raw",
+                    null
+                  ]
+                },
+                null,
+                {
+                  "$round": [
+                    "$_start_avg_health_raw",
+                    1
+                  ]
+                }
+              ]
+            },
+            "end_avg_health_pct": {
+              "$cond": [
+                {
+                  "$eq": [
+                    "$_end_avg_health_raw",
+                    null
+                  ]
+                },
+                null,
+                {
+                  "$round": [
+                    "$_end_avg_health_raw",
+                    1
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "$project": {
+            "_id": 0,
+            "window_start": {
+              "$literal": "{{START_DATE}}"
+            },
+            "window_end": {
+              "$literal": "{{AS_OF_DATE}}"
+            },
+            "lookback_days": {
+              "$literal": "{{LOOKBACK_DAYS}}"
+            },
+            "snapshot_count": 1,
+            "start_deal_count": {
+              "$size": "$start"
+            },
+            "end_deal_count": {
+              "$size": "$end"
+            },
+            "start_active_deal_count": 1,
+            "end_active_deal_count": 1,
+            "delta_active_deal_count": {
+              "$subtract": [
+                "$end_active_deal_count",
+                "$start_active_deal_count"
+              ]
+            },
+            "start_open_deal_count": 1,
+            "end_open_deal_count": 1,
+            "delta_open_deal_count": {
+              "$subtract": [
+                "$end_open_deal_count",
+                "$start_open_deal_count"
+              ]
+            },
+            "start_open_pipeline_value_krw": 1,
+            "end_open_pipeline_value_krw": 1,
+            "delta_open_pipeline_value_krw": {
+              "$subtract": [
+                "$end_open_pipeline_value_krw",
+                "$start_open_pipeline_value_krw"
+              ]
+            },
+            "start_avg_health_pct": 1,
+            "end_avg_health_pct": 1,
+            "delta_avg_health_pct": {
+              "$cond": [
+                {
+                  "$or": [
+                    {
+                      "$eq": [
+                        "$start_avg_health_pct",
+                        null
+                      ]
+                    },
+                    {
+                      "$eq": [
+                        "$end_avg_health_pct",
+                        null
+                      ]
+                    }
+                  ]
+                },
+                null,
+                {
+                  "$round": [
+                    {
+                      "$subtract": [
+                        "$end_avg_health_pct",
+                        "$start_avg_health_pct"
+                      ]
+                    },
+                    1
+                  ]
+                }
+              ]
+            },
+            "start_attention_deal_count": 1,
+            "end_attention_deal_count": 1,
+            "delta_attention_deal_count": {
+              "$subtract": [
+                "$end_attention_deal_count",
+                "$start_attention_deal_count"
+              ]
+            },
+            "start_won_deal_count": 1,
+            "end_won_deal_count": 1,
+            "delta_won_deal_count": {
+              "$subtract": [
+                "$end_won_deal_count",
+                "$start_won_deal_count"
+              ]
+            },
+            "start_lost_deal_count": 1,
+            "end_lost_deal_count": 1,
+            "delta_lost_deal_count": {
+              "$subtract": [
+                "$end_lost_deal_count",
+                "$start_lost_deal_count"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "trend_delta_bars",
+      "title": "Pipeline Trend Delta",
+      "chart_type": "grouped_bar",
+      "description": "Metric delta rows for bar charts aligned with trend_kpis.",
+      "pipeline": [
+        {
+          "$match": {
+            "as_of": {
+              "$gte": "{{START_DATE}}",
+              "$lte": "{{AS_OF_DATE}}"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "as_of": 1,
+            "occurred_at": 1,
+            "created_at": 1
+          }
+        },
+        {
+          "$facet": {
+            "start": [
+              {
+                "$match": {
+                  "as_of": {
+                    "$lte": "{{START_DATE}}"
+                  }
+                }
+              },
+              {
+                "$group": {
+                  "_id": "$deal_id",
+                  "snapshot": {
+                    "$last": "$$ROOT"
+                  }
+                }
+              },
+              {
+                "$replaceRoot": {
+                  "newRoot": "$snapshot"
+                }
+              }
+            ],
+            "end": [
+              {
+                "$match": {
+                  "as_of": {
+                    "$lte": "{{AS_OF_DATE}}"
+                  }
+                }
+              },
+              {
+                "$group": {
+                  "_id": "$deal_id",
+                  "snapshot": {
+                    "$last": "$$ROOT"
+                  }
+                }
+              },
+              {
+                "$replaceRoot": {
+                  "newRoot": "$snapshot"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "$addFields": {
+            "_start_active": {
+              "$filter": {
+                "input": "$start",
+                "as": "row",
+                "cond": {
+                  "$in": [
+                    "$$row.deal_stage",
+                    [
+                      "discovery",
+                      "qualification",
+                      "proposal",
+                      "negotiation"
+                    ]
+                  ]
+                }
+              }
+            },
+            "_end_active": {
+              "$filter": {
+                "input": "$end",
+                "as": "row",
+                "cond": {
+                  "$in": [
+                    "$$row.deal_stage",
+                    [
+                      "discovery",
+                      "qualification",
+                      "proposal",
+                      "negotiation"
+                    ]
+                  ]
+                }
+              }
+            },
+            "_start_open": {
+              "$filter": {
+                "input": "$start",
+                "as": "row",
+                "cond": {
+                  "$in": [
+                    "$$row.deal_stage",
+                    [
+                      "discovery",
+                      "qualification",
+                      "proposal",
+                      "negotiation",
+                      "stalled"
+                    ]
+                  ]
+                }
+              }
+            },
+            "_end_open": {
+              "$filter": {
+                "input": "$end",
+                "as": "row",
+                "cond": {
+                  "$in": [
+                    "$$row.deal_stage",
+                    [
+                      "discovery",
+                      "qualification",
+                      "proposal",
+                      "negotiation",
+                      "stalled"
+                    ]
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "$addFields": {
+            "start_active_deal_count": {
+              "$size": "$_start_active"
+            },
+            "end_active_deal_count": {
+              "$size": "$_end_active"
+            },
+            "start_open_deal_count": {
+              "$size": "$_start_open"
+            },
+            "end_open_deal_count": {
+              "$size": "$_end_open"
+            },
+            "start_open_pipeline_value_krw": {
+              "$sum": {
+                "$map": {
+                  "input": "$_start_open",
+                  "as": "row",
+                  "in": {
+                    "$ifNull": [
+                      "$$row.deal_size_krw",
+                      0
+                    ]
+                  }
+                }
+              }
+            },
+            "end_open_pipeline_value_krw": {
+              "$sum": {
+                "$map": {
+                  "input": "$_end_open",
+                  "as": "row",
+                  "in": {
+                    "$ifNull": [
+                      "$$row.deal_size_krw",
+                      0
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "$project": {
+            "_id": 0,
+            "rows": [
+              {
+                "metric": "active_deal_count",
+                "start_value": "$start_active_deal_count",
+                "end_value": "$end_active_deal_count",
+                "delta": {
+                  "$subtract": [
+                    "$end_active_deal_count",
+                    "$start_active_deal_count"
+                  ]
+                }
+              },
+              {
+                "metric": "open_deal_count",
+                "start_value": "$start_open_deal_count",
+                "end_value": "$end_open_deal_count",
+                "delta": {
+                  "$subtract": [
+                    "$end_open_deal_count",
+                    "$start_open_deal_count"
+                  ]
+                }
+              },
+              {
+                "metric": "open_pipeline_value_krw",
+                "start_value": "$start_open_pipeline_value_krw",
+                "end_value": "$end_open_pipeline_value_krw",
+                "delta": {
+                  "$subtract": [
+                    "$end_open_pipeline_value_krw",
+                    "$start_open_pipeline_value_krw"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "$unwind": "$rows"
+        },
+        {
+          "$replaceRoot": {
+            "newRoot": "$rows"
+          }
+        }
+      ]
+    }
+  ]
+}

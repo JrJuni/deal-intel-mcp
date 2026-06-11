@@ -1,0 +1,77 @@
+llm:
+  provider: chatgpt_oauth        # chatgpt_oauth | anthropic | openai_api
+  chatgpt_oauth_model: gpt-5.5
+  chatgpt_oauth_reasoning_effort: low
+  openai_api_model: gpt-5.5
+  openai_api_reasoning_effort: low
+  draft_model: claude-sonnet-4-6
+
+mongodb:
+  database: deal_intel
+  demo_database: deal_intel_demo
+  vector_search: python_cosine   # python_cosine | atlas (atlas requires M10+ cluster)
+
+storage:
+  backend: mongo                  # mongo | local_sample
+  local_data_dir: ~/.deal-intel/local-data
+
+tools:
+  surface: auto                   # auto | sample | standard | developer
+
+reporting:
+  timezone: Asia/Seoul
+  output_dir: outputs/reports
+
+# MEDDPICC health score weights.
+# health_pct = sum(score_i * weight_i) / sum(5 * weight_i) * 100
+# Override in ~/.deal-intel/config.yaml if your sales process needs different weighting.
+meddpicc:
+  weights:
+    metrics:          1.0
+    economic_buyer:   1.5
+    decision_criteria: 1.0
+    decision_process: 1.0
+    identify_pain:    1.5
+    champion:         2.0
+    competition:      0.5
+  gap_threshold: 2    # Scores below this threshold are treated as gaps.
+
+# Meeting-note summary embedding settings for vector search.
+# Runs locally with sentence-transformers, without an API key.
+# Override the model in ~/.deal-intel/config.yaml if needed.
+embedding:
+  model: all-MiniLM-L6-v2   # 384 dims, ~90MB first download, CPU friendly.
+
+# Pipeline stuck and expected-close defaults, in days.
+# Stage-specific stuck thresholds override the default when present.
+pipeline:
+  # Used only when the user does not provide an expected close date.
+  expected_close:
+    default_days: 7
+    # Exact industry string match, case-insensitive.
+    # Example: public_sector: 60, enterprise: 28
+    days_by_industry: {}
+  stuck_threshold_days: 14
+  stuck_threshold_days_by_stage:
+    discovery:     7
+    qualification: 14
+    proposal:      21
+    negotiation:   30
+
+# BI metric classification. Override in ~/.deal-intel/config.yaml as operating
+# data accumulates; these bands describe MEDDPICC qualification, not win probability.
+metrics:
+  health_bands:
+    healthy_min: 70
+    watch_min: 40
+  overdue:
+    grace_days: 0
+  win_rate:
+    minimum_closed_sample: 10
+
+# Deal review interpretation. These thresholds control evidence coverage and
+# uncertainty messaging; they do not estimate win probability.
+deal_review:
+  evidence_coverage:
+    low_max: 40
+    high_min: 70

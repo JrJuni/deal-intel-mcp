@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from importlib import resources
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -20,11 +21,18 @@ def user_config_path() -> Path:
 def load_config() -> dict:
     import yaml
 
-    defaults_path = _ROOT / "config" / "defaults.yaml"
     config: dict = {}
+    defaults_path = _ROOT / "config" / "defaults.yaml"
     if defaults_path.exists():
         with open(defaults_path, encoding="utf-8") as f:
             config = yaml.safe_load(f) or {}
+    else:
+        defaults_text = (
+            resources.files("deal_intel.resources")
+            .joinpath("defaults.yaml")
+            .read_text(encoding="utf-8")
+        )
+        config = yaml.safe_load(defaults_text) or {}
 
     if _USER_CONFIG_PATH.exists():
         with open(_USER_CONFIG_PATH, encoding="utf-8") as f:

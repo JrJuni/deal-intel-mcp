@@ -1,0 +1,542 @@
+{
+  "dashboard_title": "Customer Themes Review",
+  "version": 1,
+  "database": "deal_intel",
+  "collection": "deals",
+  "description": "Atlas Charts aggregation pipelines for customer pain, decision criteria, metrics, and curated evidence. Active scope excludes won/lost deals.",
+  "parameters": {},
+  "charts": [
+    {
+      "id": "theme_overview",
+      "title": "Top Customer Themes",
+      "chart_type": "bar or table",
+      "description": "Active-deal customer themes ranked by unique deal count.",
+      "pipeline": [
+        {
+          "$match": {
+            "archived": {
+              "$ne": true
+            },
+            "deal_stage": {
+              "$nin": [
+                "won",
+                "lost"
+              ]
+            },
+            "customer_themes.0": {
+              "$exists": true
+            }
+          }
+        },
+        {
+          "$unwind": "$customer_themes"
+        },
+        {
+          "$match": {
+            "customer_themes.evidence": {
+              "$type": "string",
+              "$ne": ""
+            }
+          }
+        },
+        {
+          "$group": {
+            "_id": {
+              "theme_key": "$customer_themes.theme_key",
+              "deal_id": "$deal_id"
+            },
+            "label": {
+              "$first": "$customer_themes.label"
+            },
+            "importance": {
+              "$max": "$customer_themes.importance"
+            }
+          }
+        },
+        {
+          "$group": {
+            "_id": "$_id.theme_key",
+            "label": {
+              "$first": "$label"
+            },
+            "deal_count": {
+              "$sum": 1
+            },
+            "avg_importance": {
+              "$avg": "$importance"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "deal_count": -1,
+            "avg_importance": -1,
+            "_id": 1
+          }
+        },
+        {
+          "$limit": 12
+        },
+        {
+          "$project": {
+            "_id": 0,
+            "theme_key": "$_id",
+            "label": 1,
+            "deal_count": 1,
+            "avg_importance": {
+              "$round": [
+                "$avg_importance",
+                1
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "decision_criteria_by_stage",
+      "title": "Decision Criteria By Stage",
+      "chart_type": "grouped bar or table",
+      "description": "Decision criteria themes by active pipeline stage.",
+      "pipeline": [
+        {
+          "$match": {
+            "archived": {
+              "$ne": true
+            },
+            "deal_stage": {
+              "$nin": [
+                "won",
+                "lost"
+              ]
+            },
+            "customer_themes.0": {
+              "$exists": true
+            }
+          }
+        },
+        {
+          "$unwind": "$customer_themes"
+        },
+        {
+          "$match": {
+            "customer_themes.dimension": "decision_criteria",
+            "customer_themes.evidence": {
+              "$type": "string",
+              "$ne": ""
+            }
+          }
+        },
+        {
+          "$group": {
+            "_id": {
+              "stage": "$deal_stage",
+              "theme_key": "$customer_themes.theme_key",
+              "deal_id": "$deal_id"
+            },
+            "label": {
+              "$first": "$customer_themes.label"
+            },
+            "importance": {
+              "$max": "$customer_themes.importance"
+            }
+          }
+        },
+        {
+          "$group": {
+            "_id": {
+              "stage": "$_id.stage",
+              "theme_key": "$_id.theme_key"
+            },
+            "label": {
+              "$first": "$label"
+            },
+            "count": {
+              "$sum": 1
+            },
+            "avg_importance": {
+              "$avg": "$importance"
+            }
+          }
+        },
+        {
+          "$addFields": {
+            "stage_order": {
+              "$switch": {
+                "branches": [
+                  {
+                    "case": {
+                      "$eq": [
+                        "$_id.stage",
+                        "discovery"
+                      ]
+                    },
+                    "then": 0
+                  },
+                  {
+                    "case": {
+                      "$eq": [
+                        "$_id.stage",
+                        "qualification"
+                      ]
+                    },
+                    "then": 1
+                  },
+                  {
+                    "case": {
+                      "$eq": [
+                        "$_id.stage",
+                        "proposal"
+                      ]
+                    },
+                    "then": 2
+                  },
+                  {
+                    "case": {
+                      "$eq": [
+                        "$_id.stage",
+                        "negotiation"
+                      ]
+                    },
+                    "then": 3
+                  },
+                  {
+                    "case": {
+                      "$eq": [
+                        "$_id.stage",
+                        "stalled"
+                      ]
+                    },
+                    "then": 4
+                  }
+                ],
+                "default": 99
+              }
+            }
+          }
+        },
+        {
+          "$sort": {
+            "stage_order": 1,
+            "count": -1,
+            "avg_importance": -1,
+            "_id.theme_key": 1
+          }
+        },
+        {
+          "$project": {
+            "_id": 0,
+            "stage": "$_id.stage",
+            "stage_order": 1,
+            "theme_key": "$_id.theme_key",
+            "label": 1,
+            "count": 1,
+            "avg_importance": {
+              "$round": [
+                "$avg_importance",
+                1
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "pain_by_industry",
+      "title": "Pain By Industry",
+      "chart_type": "grouped bar or table",
+      "description": "Identify-pain themes by exact stored industry.",
+      "pipeline": [
+        {
+          "$match": {
+            "archived": {
+              "$ne": true
+            },
+            "deal_stage": {
+              "$nin": [
+                "won",
+                "lost"
+              ]
+            },
+            "customer_themes.0": {
+              "$exists": true
+            }
+          }
+        },
+        {
+          "$unwind": "$customer_themes"
+        },
+        {
+          "$match": {
+            "customer_themes.dimension": "identify_pain",
+            "customer_themes.evidence": {
+              "$type": "string",
+              "$ne": ""
+            }
+          }
+        },
+        {
+          "$group": {
+            "_id": {
+              "industry": "$industry",
+              "theme_key": "$customer_themes.theme_key",
+              "deal_id": "$deal_id"
+            },
+            "label": {
+              "$first": "$customer_themes.label"
+            },
+            "importance": {
+              "$max": "$customer_themes.importance"
+            }
+          }
+        },
+        {
+          "$group": {
+            "_id": {
+              "industry": "$_id.industry",
+              "theme_key": "$_id.theme_key"
+            },
+            "label": {
+              "$first": "$label"
+            },
+            "count": {
+              "$sum": 1
+            },
+            "avg_importance": {
+              "$avg": "$importance"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "_id.industry": 1,
+            "count": -1,
+            "avg_importance": -1,
+            "_id.theme_key": 1
+          }
+        },
+        {
+          "$project": {
+            "_id": 0,
+            "industry": {
+              "$ifNull": [
+                "$_id.industry",
+                "unknown"
+              ]
+            },
+            "theme_key": "$_id.theme_key",
+            "label": 1,
+            "count": 1,
+            "avg_importance": {
+              "$round": [
+                "$avg_importance",
+                1
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "theme_evidence_drilldown",
+      "title": "Theme Evidence Drill-down",
+      "chart_type": "table",
+      "description": "Curated evidence snippets extracted into customer_themes. Raw meeting notes are not selected.",
+      "pipeline": [
+        {
+          "$match": {
+            "archived": {
+              "$ne": true
+            },
+            "deal_stage": {
+              "$nin": [
+                "won",
+                "lost"
+              ]
+            },
+            "customer_themes.0": {
+              "$exists": true
+            }
+          }
+        },
+        {
+          "$unwind": "$customer_themes"
+        },
+        {
+          "$match": {
+            "customer_themes.evidence": {
+              "$type": "string",
+              "$ne": ""
+            }
+          }
+        },
+        {
+          "$addFields": {
+            "_theme_interaction_type": {
+              "$ifNull": [
+                "$customer_themes.interaction_type",
+                {
+                  "$cond": [
+                    {
+                      "$ne": [
+                        {
+                          "$ifNull": [
+                            "$customer_themes.meeting_id",
+                            null
+                          ]
+                        },
+                        null
+                      ]
+                    },
+                    "meeting",
+                    "unknown"
+                  ]
+                }
+              ]
+            },
+            "_theme_source_confidence": {
+              "$ifNull": [
+                "$customer_themes.source_confidence",
+                "unknown"
+              ]
+            }
+          }
+        },
+        {
+          "$addFields": {
+            "_theme_interaction_type_label": {
+              "$switch": {
+                "branches": [
+                  {
+                    "case": {
+                      "$eq": [
+                        "$_theme_interaction_type",
+                        "meeting"
+                      ]
+                    },
+                    "then": "Meeting"
+                  },
+                  {
+                    "case": {
+                      "$eq": [
+                        "$_theme_interaction_type",
+                        "email_thread"
+                      ]
+                    },
+                    "then": "Email thread"
+                  },
+                  {
+                    "case": {
+                      "$eq": [
+                        "$_theme_interaction_type",
+                        "user_interview"
+                      ]
+                    },
+                    "then": "User interview"
+                  },
+                  {
+                    "case": {
+                      "$eq": [
+                        "$_theme_interaction_type",
+                        "call_summary"
+                      ]
+                    },
+                    "then": "Call summary"
+                  },
+                  {
+                    "case": {
+                      "$eq": [
+                        "$_theme_interaction_type",
+                        "internal_note"
+                      ]
+                    },
+                    "then": "Internal note"
+                  }
+                ],
+                "default": "$_theme_interaction_type"
+              }
+            },
+            "_theme_source_confidence_label": {
+              "$switch": {
+                "branches": [
+                  {
+                    "case": {
+                      "$eq": [
+                        "$_theme_source_confidence",
+                        "customer_stated"
+                      ]
+                    },
+                    "then": "customer-stated"
+                  },
+                  {
+                    "case": {
+                      "$eq": [
+                        "$_theme_source_confidence",
+                        "outbound_unconfirmed"
+                      ]
+                    },
+                    "then": "outbound-unconfirmed"
+                  }
+                ],
+                "default": "$_theme_source_confidence"
+              }
+            }
+          }
+        },
+        {
+          "$addFields": {
+            "_theme_source_label": {
+              "$cond": [
+                {
+                  "$eq": [
+                    "$_theme_source_confidence",
+                    "unknown"
+                  ]
+                },
+                "$_theme_interaction_type_label",
+                {
+                  "$concat": [
+                    "$_theme_interaction_type_label",
+                    " (",
+                    "$_theme_source_confidence_label",
+                    ")"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "$project": {
+            "_id": 0,
+            "deal_id": 1,
+            "company": 1,
+            "industry": 1,
+            "deal_stage": 1,
+            "theme_key": "$customer_themes.theme_key",
+            "label": "$customer_themes.label",
+            "dimension": "$customer_themes.dimension",
+            "importance": "$customer_themes.importance",
+            "evidence": "$customer_themes.evidence",
+            "interaction_type": "$_theme_interaction_type",
+            "source_confidence": "$_theme_source_confidence",
+            "source_label": "$_theme_source_label",
+            "subject": "$customer_themes.subject",
+            "interaction_date": "$customer_themes.interaction_date",
+            "meeting_date": "$customer_themes.meeting_date"
+          }
+        },
+        {
+          "$sort": {
+            "importance": -1,
+            "meeting_date": -1,
+            "company": 1
+          }
+        },
+        {
+          "$limit": 50
+        }
+      ]
+    }
+  ]
+}

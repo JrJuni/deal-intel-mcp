@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import json
+from importlib import resources
+from pathlib import Path
 
 import pytest
 
+import deal_intel.reports.atlas_charts as atlas_charts
 from deal_intel.reports.atlas_charts import (
     load_customer_themes_dashboard_spec,
     load_pipeline_trend_dashboard_spec,
@@ -13,6 +16,8 @@ from deal_intel.reports.atlas_charts import (
     render_pipeline_trend_dashboard_spec,
     render_weekly_pipeline_dashboard_spec,
 )
+
+ROOT = Path(__file__).resolve().parents[1]
 
 REQUIRED_CHART_IDS = {
     "pipeline_kpis",
@@ -67,6 +72,35 @@ def test_customer_themes_dashboard_spec_is_versioned_and_complete() -> None:
     assert {chart["id"] for chart in spec["charts"]} == CUSTOMER_THEME_CHART_IDS
     assert all(isinstance(chart["pipeline"], list) for chart in spec["charts"])
     assert all(chart["pipeline"] for chart in spec["charts"])
+
+
+def test_packaged_dashboard_specs_match_repo_specs() -> None:
+    for file_name in (
+        "weekly_pipeline_review.v1.json",
+        "pipeline_trend.v1.json",
+        "customer_themes.v1.json",
+    ):
+        packaged = (
+            resources.files("deal_intel.resources")
+            .joinpath("atlas", "charts", file_name)
+            .read_text(encoding="utf-8")
+        )
+        repo = (ROOT / "atlas" / "charts" / file_name).read_text(encoding="utf-8")
+
+        assert packaged == repo
+
+
+def test_dashboard_specs_fall_back_to_packaged_resources(monkeypatch, tmp_path) -> None:
+    monkeypatch.setitem(
+        atlas_charts.DASHBOARD_SPECS,
+        atlas_charts.WEEKLY_PIPELINE_DASHBOARD,
+        tmp_path / "missing-weekly.json",
+    )
+
+    spec = load_weekly_pipeline_dashboard_spec()
+
+    assert spec["dashboard_title"] == "Weekly Pipeline Review"
+    assert {chart["id"] for chart in spec["charts"]} == REQUIRED_CHART_IDS
 
 
 def test_weekly_pipeline_dashboard_render_replaces_config_tokens() -> None:

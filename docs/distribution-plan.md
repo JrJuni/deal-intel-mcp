@@ -25,20 +25,22 @@ assistant to clone the repo, run setup commands, and configure Claude Desktop.
 
 ## Packaging Constraint
 
-The Python package is not fully wheel/uvx-safe yet.
+The Python package now has the first wheel/uvx-readiness layer, but wrappers
+should still be treated as a follow-up distribution surface.
 
-Current constraint:
+Current contract:
 
-- `src/deal_intel/_env.py` resolves `_ROOT = Path(__file__).resolve().parents[2]`
-  and reads `config/defaults.yaml` from the repo root.
-- Atlas specs, config defaults, docs, and MCPB metadata currently live beside
-  the repo, not as package resources.
-- `pyproject.toml` version is not currently the same as `mcpb/manifest.json`.
+- Editable repo installs keep reading repo-root `config/defaults.yaml` and
+  `atlas/charts/*.json` first.
+- Wheel/uvx-style installs fall back to packaged resources under
+  `deal_intel.resources`.
+- `.env` is still loaded from the repo/runtime root, not from packaged
+  resources.
 
 Implication:
 
-- A plain wheel or `uvx deal-intel-mcp` install would need packaged resource
-  handling before it can behave like the editable repo install.
+- A plain wheel or `uvx deal-intel-mcp` install has the config/dashboard
+  resources it needs.
 - A Node `npx` bridge can work around this by copying the npm package into a
   stable runtime directory and installing that copy in editable mode, but that
   adds a Node maintenance surface.
@@ -49,6 +51,8 @@ Implication:
 
 Goal: make the Python package runnable without assuming a git checkout.
 
+Status: implemented as a first pass.
+
 Tasks:
 
 - Include `config/defaults.yaml` and required Atlas/chart specs as package
@@ -56,7 +60,7 @@ Tasks:
 - Replace repo-root config reads with `importlib.resources` fallback logic.
 - Keep `.env` loading from the runtime working directory or explicit user path,
   not from package resources.
-- Align `pyproject.toml`, MCPB manifest, and future npm package versions.
+- Keep `pyproject.toml`, MCPB manifest, and future npm package versions aligned.
 - Add a wheel smoke:
   `python -m pip wheel . --no-deps --wheel-dir .tmp/wheelhouse`.
 - Install that wheel into an isolated env or temp target and run

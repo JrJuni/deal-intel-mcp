@@ -12,6 +12,38 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-11
 
+### Package-data readiness for future uvx/npx distribution
+
+Implemented:
+
+- Added package resources for `config/defaults.yaml` and Atlas chart specs.
+- Updated config loading to use repo-root defaults first, then packaged
+  defaults when running outside a git checkout.
+- Updated Atlas chart loading to use repo-root specs first, then packaged chart
+  specs.
+- Added package-data metadata in `pyproject.toml`.
+- Aligned `pyproject.toml` version with `mcpb/manifest.json` (`0.1.12`).
+- Added resource drift and fallback tests for config defaults and dashboard
+  specs.
+
+Verification:
+
+- Targeted config/Atlas/MCPB regression:
+  `30 passed`
+- Targeted Ruff:
+  `All checks passed`
+- Wheel build:
+  `deal_intel_mcp-0.1.12-py3-none-any.whl`
+- Wheel resource inspection:
+  packaged defaults and all 3 Atlas chart specs present
+- Wheel target-install smoke:
+  loaded `deal_intel._env` from `.tmp/wheel-install`, read packaged defaults,
+  and loaded the Weekly Pipeline Review spec
+- Full pytest:
+  `433 passed`, `1 warning`
+- Ruff:
+  `All checks passed`
+
 ### Distribution plan
 
 Implemented:

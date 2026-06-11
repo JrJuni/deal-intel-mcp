@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from copy import deepcopy
 from datetime import date, datetime, timedelta
+from importlib import resources
 from pathlib import Path
 from typing import Any
 
@@ -45,24 +46,26 @@ DASHBOARD_SPECS = {
     PIPELINE_TREND_DASHBOARD: DEFAULT_PIPELINE_TREND_SPEC,
     CUSTOMER_THEMES_DASHBOARD: DEFAULT_CUSTOMER_THEMES_SPEC,
 }
+RESOURCE_DASHBOARD_SPECS = {
+    WEEKLY_PIPELINE_DASHBOARD: "weekly_pipeline_review.v1.json",
+    PIPELINE_TREND_DASHBOARD: "pipeline_trend.v1.json",
+    CUSTOMER_THEMES_DASHBOARD: "customer_themes.v1.json",
+}
 
 
 def load_weekly_pipeline_dashboard_spec(path: str | Path | None = None) -> dict:
     """Load the version-managed Atlas Charts dashboard spec."""
-    spec_path = Path(path) if path is not None else DEFAULT_WEEKLY_PIPELINE_SPEC
-    return json.loads(spec_path.read_text(encoding="utf-8"))
+    return _load_dashboard_spec_from_path(path, WEEKLY_PIPELINE_DASHBOARD)
 
 
 def load_pipeline_trend_dashboard_spec(path: str | Path | None = None) -> dict:
     """Load the version-managed Atlas Charts trend dashboard spec."""
-    spec_path = Path(path) if path is not None else DEFAULT_PIPELINE_TREND_SPEC
-    return json.loads(spec_path.read_text(encoding="utf-8"))
+    return _load_dashboard_spec_from_path(path, PIPELINE_TREND_DASHBOARD)
 
 
 def load_customer_themes_dashboard_spec(path: str | Path | None = None) -> dict:
     """Load the version-managed Atlas Charts customer themes dashboard spec."""
-    spec_path = Path(path) if path is not None else DEFAULT_CUSTOMER_THEMES_SPEC
-    return json.loads(spec_path.read_text(encoding="utf-8"))
+    return _load_dashboard_spec_from_path(path, CUSTOMER_THEMES_DASHBOARD)
 
 
 def load_dashboard_spec(
@@ -72,15 +75,54 @@ def load_dashboard_spec(
 ) -> dict:
     if path is not None:
         spec_path = Path(path)
-    else:
-        try:
-            spec_path = DASHBOARD_SPECS[dashboard]
-        except KeyError as exc:
-            valid = sorted(DASHBOARD_SPECS)
-            raise ValueError(
-                f"dashboard {dashboard!r} is not valid; valid ids: {valid}"
-            ) from exc
-    return json.loads(spec_path.read_text(encoding="utf-8"))
+        return json.loads(spec_path.read_text(encoding="utf-8"))
+    if dashboard not in DASHBOARD_SPECS:
+        valid = sorted(DASHBOARD_SPECS)
+        raise ValueError(
+            f"dashboard {dashboard!r} is not valid; valid ids: {valid}"
+        )
+    spec_path = DASHBOARD_SPECS[dashboard]
+    if spec_path.exists():
+        return json.loads(spec_path.read_text(encoding="utf-8"))
+    return json.loads(_dashboard_resource_text(dashboard))
+
+
+def _dashboard_resource_text(dashboard: str) -> str:
+    try:
+        file_name = RESOURCE_DASHBOARD_SPECS[dashboard]
+    except KeyError as exc:
+        valid = sorted(RESOURCE_DASHBOARD_SPECS)
+        raise ValueError(
+            f"dashboard {dashboard!r} is not valid; valid ids: {valid}"
+        ) from exc
+    return (
+        resources.files("deal_intel.resources")
+        .joinpath("atlas", "charts", file_name)
+        .read_text(encoding="utf-8")
+    )
+
+
+def _default_dashboard_path(dashboard: str) -> Path:
+    try:
+        return DASHBOARD_SPECS[dashboard]
+    except KeyError as exc:
+        valid = sorted(DASHBOARD_SPECS)
+        raise ValueError(
+            f"dashboard {dashboard!r} is not valid; valid ids: {valid}"
+        ) from exc
+
+
+def _load_default_dashboard_spec(dashboard: str) -> dict:
+    spec_path = _default_dashboard_path(dashboard)
+    if spec_path.exists():
+        return json.loads(spec_path.read_text(encoding="utf-8"))
+    return json.loads(_dashboard_resource_text(dashboard))
+
+
+def _load_dashboard_spec_from_path(path: str | Path | None, dashboard: str) -> dict:
+    if path is not None:
+        return json.loads(Path(path).read_text(encoding="utf-8"))
+    return _load_default_dashboard_spec(dashboard)
 
 
 def render_weekly_pipeline_dashboard_spec(

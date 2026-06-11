@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "deal-intel-mcp"
-version = "0.1.0"
+version = "0.1.12"
 requires-python = ">=3.11"
 dependencies = [
     "fastmcp>=2.0",
@@ -32,6 +32,9 @@ deal-intel = "deal_intel.cli:app"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"deal_intel.resources" = ["defaults.yaml", "atlas/charts/*.json"]
 
 [tool.ruff]
 line-length = 100

@@ -1,0 +1,1704 @@
+{
+  "dashboard_title": "Weekly Pipeline Review",
+  "version": 1,
+  "database": "deal_intel",
+  "collection": "deals",
+  "description": "Atlas Charts aggregation pipelines for the weekly pipeline review dashboard. Render placeholders before running in Atlas.",
+  "parameters": {
+    "as_of_datetime": "{{AS_OF_DATETIME}}",
+    "healthy_min": "{{HEALTHY_MIN}}",
+    "watch_min": "{{WATCH_MIN}}",
+    "overdue_grace_days": "{{OVERDUE_GRACE_DAYS}}",
+    "stuck_days": {
+      "discovery": "{{STUCK_DISCOVERY_DAYS}}",
+      "qualification": "{{STUCK_QUALIFICATION_DAYS}}",
+      "proposal": "{{STUCK_PROPOSAL_DAYS}}",
+      "negotiation": "{{STUCK_NEGOTIATION_DAYS}}"
+    }
+  },
+  "charts": [
+    {
+      "id": "pipeline_kpis",
+      "title": "Pipeline KPIs",
+      "chart_type": "table",
+      "description": "Single-row KPI surface aligned with get_metrics pipeline_health.",
+      "pipeline": [
+        {
+          "$match": {
+            "archived": {
+              "$ne": true
+            }
+          }
+        },
+        {
+          "$addFields": {
+            "_as_of": {
+              "$dateFromString": {
+                "dateString": "{{AS_OF_DATETIME}}"
+              }
+            },
+            "_current_stage_history": {
+              "$arrayElemAt": [
+                {
+                  "$ifNull": [
+                    "$stage_history",
+                    []
+                  ]
+                },
+                -1
+              ]
+            },
+            "_expected_close": {
+              "$dateFromString": {
+                "dateString": "$expected_close_date",
+                "onError": null,
+                "onNull": null
+              }
+            },
+            "_health_pct": "$meddpicc_latest.health_pct",
+            "_health_assessed": {
+              "$and": [
+                {
+                  "$gte": [
+                    "$meddpicc_latest.filled_count",
+                    1
+                  ]
+                },
+                {
+                  "$isNumber": "$meddpicc_latest.health_pct"
+                }
+              ]
+            },
+            "_valid_pipeline_value": {
+              "$cond": [
+                {
+                  "$or": [
+                    {
+                      "$and": [
+                        {
+                          "$or": [
+                            {
+                              "$eq": [
+                                {
+                                  "$ifNull": [
+                                    "$deal_size_status",
+                                    ""
+                                  ]
+                                },
+                                null
+                              ]
+                            },
+                            {
+                              "$eq": [
+                                {
+                                  "$ifNull": [
+                                    "$deal_size_status",
+                                    ""
+                                  ]
+                                },
+                                ""
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "$gt": [
+                            "$deal_size_krw",
+                            0
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "$and": [
+                        {
+                          "$in": [
+                            {
+                              "$ifNull": [
+                                "$deal_size_status",
+                                ""
+                              ]
+                            },
+                            [
+                              "rough_estimate",
+                              "customer_budget",
+                              "quoted"
+                            ]
+                          ]
+                        },
+                        {
+                          "$gt": [
+                            "$deal_size_krw",
+                            0
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "$and": [
+                        {
+                          "$eq": [
+                            {
+                              "$ifNull": [
+                                "$deal_size_status",
+                                ""
+                              ]
+                            },
+                            "strategic_zero"
+                          ]
+                        },
+                        {
+                          "$eq": [
+                            "$deal_size_krw",
+                            0
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "$deal_size_krw",
+                0
+              ]
+            }
+          }
+        },
+        {
+          "$addFields": {
+            "_stage_entered_at": {
+              "$dateFromString": {
+                "dateString": "$_current_stage_history.entered_at",
+                "onError": null,
+                "onNull": null
+              }
+            },
+            "_stuck_threshold_days": {
+              "$switch": {
+                "branches": [
+                  {
+                    "case": {
+                      "$eq": [
+                        "$deal_stage",
+                        "discovery"
+                      ]
+                    },
+                    "then": "{{STUCK_DISCOVERY_DAYS}}"
+                  },
+                  {
+                    "case": {
+                      "$eq": [
+                        "$deal_stage",
+                        "qualification"
+                      ]
+                    },
+                    "then": "{{STUCK_QUALIFICATION_DAYS}}"
+                  },
+                  {
+                    "case": {
+                      "$eq": [
+                        "$deal_stage",
+                        "proposal"
+                      ]
+                    },
+                    "then": "{{STUCK_PROPOSAL_DAYS}}"
+                  },
+                  {
+                    "case": {
+                      "$eq": [
+                        "$deal_stage",
+                        "negotiation"
+                      ]
+                    },
+                    "then": "{{STUCK_NEGOTIATION_DAYS}}"
+                  }
+                ],
+                "default": null
+              }
+            },
+            "_health_band": {
+              "$switch": {
+                "branches": [
+                  {
+                    "case": {
+                      "$not": "$_health_assessed"
+                    },
+                    "then": "unassessed"
+                  },
+                  {
+                    "case": {
+                      "$gte": [
+                        "$_health_pct",
+                        "{{HEALTHY_MIN}}"
+                      ]
+                    },
+                    "then": "healthy"
+                  },
+                  {
+                    "case": {
+                      "$gte": [
+                        "$_health_pct",
+                        "{{WATCH_MIN}}"
+                      ]
+                    },
+                    "then": "watch"
+                  }
+                ],
+                "default": "at_risk"
+              }
+            }
+          }
+        },
+        {
+          "$addFields": {
+            "_days_in_stage": {
+              "$cond": [
+                {
+                  "$and": [
+                    {
+                      "$eq": [
+                        "$_current_stage_history.stage",
+                        "$deal_stage"
+                      ]
+                    },
+                    {
+                      "$ne": [
+                        "$_stage_entered_at",
+                        null
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "$dateDiff": {
+                    "startDate": "$_stage_entered_at",
+                    "endDate": "$_as_of",
+                    "unit": "day"
+                  }
+                },
+                null
+              ]
+            },
+            "_days_past_close": {
+              "$cond": [
+                {
+                  "$ne": [
+                    "$_expected_close",
+                    null
+                  ]
+                },
+                {
+                  "$dateDiff": {
+                    "startDate": "$_expected_close",
+                    "endDate": "$_as_of",
+                    "unit": "day"
+                  }
+                },
+                null
+              ]
+            }
+          }
+        },
+        {
+          "$addFields": {
+            "_is_stuck": {
+              "$and": [
+                {
+                  "$in": [
+                    "$deal_stage",
+                    [
+                      "discovery",
+                      "qualification",
+                      "proposal",
+                      "negotiation"
+                    ]
+                  ]
+                },
+                {
+                  "$ne": [
+                    "$_days_in_stage",
+                    null
+                  ]
+                },
+                {
+                  "$gte": [
+                    "$_days_in_stage",
+                    "$_stuck_threshold_days"
+                  ]
+                }
+              ]
+            },
+            "_is_overdue": {
+              "$and": [
+                {
+                  "$in": [
+                    "$deal_stage",
+                    [
+                      "discovery",
+                      "qualification",
+                      "proposal",
+                      "negotiation",
+                      "stalled"
+                    ]
+                  ]
+                },
+                {
+                  "$ne": [
+                    "$_days_past_close",
+                    null
+                  ]
+                },
+                {
+                  "$gt": [
+                    "$_days_past_close",
+                    "{{OVERDUE_GRACE_DAYS}}"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "$addFields": {
+            "_attention_reasons": {
+              "$setUnion": [
+                {
+                  "$cond": [
+                    {
+                      "$eq": [
+                        "$deal_stage",
+                        "stalled"
+                      ]
+                    },
+                    [
+                      "stalled"
+                    ],
+                    []
+                  ]
+                },
+                {
+                  "$cond": [
+                    "$_is_overdue",
+                    [
+                      "overdue"
+                    ],
+                    []
+                  ]
+                },
+                {
+                  "$cond": [
+                    "$_is_stuck",
+                    [
+                      "stuck"
+                    ],
+                    []
+                  ]
+                },
+                {
+                  "$cond": [
+                    {
+                      "$eq": [
+                        "$_health_band",
+                        "at_risk"
+                      ]
+                    },
+                    [
+                      "at_risk"
+                    ],
+                    []
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "$group": {
+            "_id": null,
+            "deal_count": {
+              "$sum": 1
+            },
+            "active_deal_count": {
+              "$sum": {
+                "$cond": [
+                  {
+                    "$in": [
+                      "$deal_stage",
+                      [
+                        "discovery",
+                        "qualification",
+                        "proposal",
+                        "negotiation"
+                      ]
+                    ]
+                  },
+                  1,
+                  0
+                ]
+              }
+            },
+            "open_deal_count": {
+              "$sum": {
+                "$cond": [
+                  {
+                    "$in": [
+                      "$deal_stage",
+                      [
+                        "discovery",
+                        "qualification",
+                        "proposal",
+                        "negotiation",
+                        "stalled"
+                      ]
+                    ]
+                  },
+                  1,
+                  0
+                ]
+              }
+            },
+            "stalled_deal_count": {
+              "$sum": {
+                "$cond": [
+                  {
+                    "$eq": [
+                      "$deal_stage",
+                      "stalled"
+                    ]
+                  },
+                  1,
+                  0
+                ]
+              }
+            },
+            "terminal_deal_count": {
+              "$sum": {
+                "$cond": [
+                  {
+                    "$in": [
+                      "$deal_stage",
+                      [
+                        "won",
+                        "lost"
+                      ]
+                    ]
+                  },
+                  1,
+                  0
+                ]
+              }
+            },
+            "active_pipeline_value_krw": {
+              "$sum": {
+                "$cond": [
+                  {
+                    "$in": [
+                      "$deal_stage",
+                      [
+                        "discovery",
+                        "qualification",
+                        "proposal",
+                        "negotiation"
+                      ]
+                    ]
+                  },
+                  "$_valid_pipeline_value",
+                  0
+                ]
+              }
+            },
+            "open_pipeline_value_krw": {
+              "$sum": {
+                "$cond": [
+                  {
+                    "$in": [
+                      "$deal_stage",
+                      [
+                        "discovery",
+                        "qualification",
+                        "proposal",
+                        "negotiation",
+                        "stalled"
+                      ]
+                    ]
+                  },
+                  "$_valid_pipeline_value",
+                  0
+                ]
+              }
+            },
+            "active_health_sum": {
+              "$sum": {
+                "$cond": [
+                  {
+                    "$and": [
+                      "$_health_assessed",
+                      {
+                        "$in": [
+                          "$deal_stage",
+                          [
+                            "discovery",
+                            "qualification",
+                            "proposal",
+                            "negotiation"
+                          ]
+                        ]
+                      }
+                    ]
+                  },
+                  "$_health_pct",
+                  0
+                ]
+              }
+            },
+            "active_health_assessed_count": {
+              "$sum": {
+                "$cond": [
+                  {
+                    "$and": [
+                      "$_health_assessed",
+                      {
+                        "$in": [
+                          "$deal_stage",
+                          [
+                            "discovery",
+                            "qualification",
+                            "proposal",
+                            "negotiation"
+                          ]
+                        ]
+                      }
+                    ]
+                  },
+                  1,
+                  0
+                ]
+              }
+            },
+            "stuck_deal_count": {
+              "$sum": {
+                "$cond": [
+                  "$_is_stuck",
+                  1,
+                  0
+                ]
+              }
+            },
+            "overdue_deal_count": {
+              "$sum": {
+                "$cond": [
+                  "$_is_overdue",
+                  1,
+                  0
+                ]
+              }
+            },
+            "attention_deal_count": {
+              "$sum": {
+                "$cond": [
+                  {
+                    "$gt": [
+                      {
+                        "$size": "$_attention_reasons"
+                      },
+                      0
+                    ]
+                  },
+                  1,
+                  0
+                ]
+              }
+            }
+          }
+        },
+        {
+          "$project": {
+            "_id": 0,
+            "deal_count": 1,
+            "active_deal_count": 1,
+            "open_deal_count": 1,
+            "stalled_deal_count": 1,
+            "terminal_deal_count": 1,
+            "active_pipeline_value_krw": 1,
+            "open_pipeline_value_krw": 1,
+            "avg_health_pct": {
+              "$cond": [
+                {
+                  "$gt": [
+                    "$active_health_assessed_count",
+                    0
+                  ]
+                },
+                {
+                  "$round": [
+                    {
+                      "$divide": [
+                        "$active_health_sum",
+                        "$active_health_assessed_count"
+                      ]
+                    },
+                    1
+                  ]
+                },
+                null
+              ]
+            },
+            "health_coverage_pct": {
+              "$cond": [
+                {
+                  "$gt": [
+                    "$active_deal_count",
+                    0
+                  ]
+                },
+                {
+                  "$round": [
+                    {
+                      "$multiply": [
+                        {
+                          "$divide": [
+                            "$active_health_assessed_count",
+                            "$active_deal_count"
+                          ]
+                        },
+                        100
+                      ]
+                    },
+                    1
+                  ]
+                },
+                null
+              ]
+            },
+            "health_assessed_count": "$active_health_assessed_count",
+            "stuck_deal_count": 1,
+            "overdue_deal_count": 1,
+            "attention_deal_count": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "stage_breakdown",
+      "title": "Stage Breakdown",
+      "chart_type": "bar",
+      "description": "Stage-level count, open value, health, stuck, and overdue metrics.",
+      "pipeline": [
+        {
+          "$match": {
+            "archived": {
+              "$ne": true
+            }
+          }
+        },
+        {
+          "$addFields": {
+            "_as_of": {
+              "$dateFromString": {
+                "dateString": "{{AS_OF_DATETIME}}"
+              }
+            },
+            "_current_stage_history": {
+              "$arrayElemAt": [
+                {
+                  "$ifNull": [
+                    "$stage_history",
+                    []
+                  ]
+                },
+                -1
+              ]
+            },
+            "_expected_close": {
+              "$dateFromString": {
+                "dateString": "$expected_close_date",
+                "onError": null,
+                "onNull": null
+              }
+            },
+            "_health_pct": "$meddpicc_latest.health_pct",
+            "_health_assessed": {
+              "$and": [
+                {
+                  "$gte": [
+                    "$meddpicc_latest.filled_count",
+                    1
+                  ]
+                },
+                {
+                  "$isNumber": "$meddpicc_latest.health_pct"
+                }
+              ]
+            },
+            "_valid_pipeline_value": {
+              "$cond": [
+                {
+                  "$or": [
+                    {
+                      "$and": [
+                        {
+                          "$or": [
+                            {
+                              "$eq": [
+                                {
+                                  "$ifNull": [
+                                    "$deal_size_status",
+                                    ""
+                                  ]
+                                },
+                                null
+                              ]
+                            },
+                            {
+                              "$eq": [
+                                {
+                                  "$ifNull": [
+                                    "$deal_size_status",
+                                    ""
+                                  ]
+                                },
+                                ""
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "$gt": [
+                            "$deal_size_krw",
+                            0
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "$and": [
+                        {
+                          "$in": [
+                            {
+                              "$ifNull": [
+                                "$deal_size_status",
+                                ""
+                              ]
+                            },
+                            [
+                              "rough_estimate",
+                              "customer_budget",
+                              "quoted"
+                            ]
+                          ]
+                        },
+                        {
+                          "$gt": [
+                            "$deal_size_krw",
+                            0
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "$and": [
+                        {
+                          "$eq": [
+                            {
+                              "$ifNull": [
+                                "$deal_size_status",
+                                ""
+                              ]
+                            },
+                            "strategic_zero"
+                          ]
+                        },
+                        {
+                          "$eq": [
+                            "$deal_size_krw",
+                            0
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "$deal_size_krw",
+                0
+              ]
+            }
+          }
+        },
+        {
+          "$addFields": {
+            "_stage_entered_at": {
+              "$dateFromString": {
+                "dateString": "$_current_stage_history.entered_at",
+                "onError": null,
+                "onNull": null
+              }
+            },
+            "_stuck_threshold_days": {
+              "$switch": {
+                "branches": [
+                  {
+                    "case": {
+                      "$eq": [
+                        "$deal_stage",
+                        "discovery"
+                      ]
+                    },
+                    "then": "{{STUCK_DISCOVERY_DAYS}}"
+                  },
+                  {
+                    "case": {
+                      "$eq": [
+                        "$deal_stage",
+                        "qualification"
+                      ]
+                    },
+                    "then": "{{STUCK_QUALIFICATION_DAYS}}"
+                  },
+                  {
+                    "case": {
+                      "$eq": [
+                        "$deal_stage",
+                        "proposal"
+                      ]
+                    },
+                    "then": "{{STUCK_PROPOSAL_DAYS}}"
+                  },
+                  {
+                    "case": {
+                      "$eq": [
+                        "$deal_stage",
+                        "negotiation"
+                      ]
+                    },
+                    "then": "{{STUCK_NEGOTIATION_DAYS}}"
+                  }
+                ],
+                "default": null
+              }
+            },
+            "_health_band": {
+              "$switch": {
+                "branches": [
+                  {
+                    "case": {
+                      "$not": "$_health_assessed"
+                    },
+                    "then": "unassessed"
+                  },
+                  {
+                    "case": {
+                      "$gte": [
+                        "$_health_pct",
+                        "{{HEALTHY_MIN}}"
+                      ]
+                    },
+                    "then": "healthy"
+                  },
+                  {
+                    "case": {
+                      "$gte": [
+                        "$_health_pct",
+                        "{{WATCH_MIN}}"
+                      ]
+                    },
+                    "then": "watch"
+                  }
+                ],
+                "default": "at_risk"
+              }
+            }
+          }
+        },
+        {
+          "$addFields": {
+            "_days_in_stage": {
+              "$cond": [
+                {
+                  "$and": [
+                    {
+                      "$eq": [
+                        "$_current_stage_history.stage",
+                        "$deal_stage"
+                      ]
+                    },
+                    {
+                      "$ne": [
+                        "$_stage_entered_at",
+                        null
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "$dateDiff": {
+                    "startDate": "$_stage_entered_at",
+                    "endDate": "$_as_of",
+                    "unit": "day"
+                  }
+                },
+                null
+              ]
+            },
+            "_days_past_close": {
+              "$cond": [
+                {
+                  "$ne": [
+                    "$_expected_close",
+                    null
+                  ]
+                },
+                {
+                  "$dateDiff": {
+                    "startDate": "$_expected_close",
+                    "endDate": "$_as_of",
+                    "unit": "day"
+                  }
+                },
+                null
+              ]
+            }
+          }
+        },
+        {
+          "$addFields": {
+            "_is_stuck": {
+              "$and": [
+                {
+                  "$in": [
+                    "$deal_stage",
+                    [
+                      "discovery",
+                      "qualification",
+                      "proposal",
+                      "negotiation"
+                    ]
+                  ]
+                },
+                {
+                  "$ne": [
+                    "$_days_in_stage",
+                    null
+                  ]
+                },
+                {
+                  "$gte": [
+                    "$_days_in_stage",
+                    "$_stuck_threshold_days"
+                  ]
+                }
+              ]
+            },
+            "_is_overdue": {
+              "$and": [
+                {
+                  "$in": [
+                    "$deal_stage",
+                    [
+                      "discovery",
+                      "qualification",
+                      "proposal",
+                      "negotiation",
+                      "stalled"
+                    ]
+                  ]
+                },
+                {
+                  "$ne": [
+                    "$_days_past_close",
+                    null
+                  ]
+                },
+                {
+                  "$gt": [
+                    "$_days_past_close",
+                    "{{OVERDUE_GRACE_DAYS}}"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "$group": {
+            "_id": "$deal_stage",
+            "count": {
+              "$sum": 1
+            },
+            "pipeline_value_krw": {
+              "$sum": {
+                "$cond": [
+                  {
+                    "$in": [
+                      "$deal_stage",
+                      [
+                        "discovery",
+                        "qualification",
+                        "proposal",
+                        "negotiation",
+                        "stalled"
+                      ]
+                    ]
+                  },
+                  "$_valid_pipeline_value",
+                  0
+                ]
+              }
+            },
+            "health_sum": {
+              "$sum": {
+                "$cond": [
+                  "$_health_assessed",
+                  "$_health_pct",
+                  0
+                ]
+              }
+            },
+            "health_assessed_count": {
+              "$sum": {
+                "$cond": [
+                  "$_health_assessed",
+                  1,
+                  0
+                ]
+              }
+            },
+            "stuck_count": {
+              "$sum": {
+                "$cond": [
+                  "$_is_stuck",
+                  1,
+                  0
+                ]
+              }
+            },
+            "overdue_count": {
+              "$sum": {
+                "$cond": [
+                  "$_is_overdue",
+                  1,
+                  0
+                ]
+              }
+            }
+          }
+        },
+        {
+          "$addFields": {
+            "stage_order": {
+              "$switch": {
+                "branches": [
+                  {
+                    "case": {
+                      "$eq": [
+                        "$_id",
+                        "discovery"
+                      ]
+                    },
+                    "then": 1
+                  },
+                  {
+                    "case": {
+                      "$eq": [
+                        "$_id",
+                        "qualification"
+                      ]
+                    },
+                    "then": 2
+                  },
+                  {
+                    "case": {
+                      "$eq": [
+                        "$_id",
+                        "proposal"
+                      ]
+                    },
+                    "then": 3
+                  },
+                  {
+                    "case": {
+                      "$eq": [
+                        "$_id",
+                        "negotiation"
+                      ]
+                    },
+                    "then": 4
+                  },
+                  {
+                    "case": {
+                      "$eq": [
+                        "$_id",
+                        "stalled"
+                      ]
+                    },
+                    "then": 5
+                  },
+                  {
+                    "case": {
+                      "$eq": [
+                        "$_id",
+                        "won"
+                      ]
+                    },
+                    "then": 6
+                  },
+                  {
+                    "case": {
+                      "$eq": [
+                        "$_id",
+                        "lost"
+                      ]
+                    },
+                    "then": 7
+                  }
+                ],
+                "default": 99
+              }
+            }
+          }
+        },
+        {
+          "$project": {
+            "_id": 0,
+            "stage": "$_id",
+            "stage_order": 1,
+            "count": 1,
+            "pipeline_value_krw": 1,
+            "avg_health_pct": {
+              "$cond": [
+                {
+                  "$gt": [
+                    "$health_assessed_count",
+                    0
+                  ]
+                },
+                {
+                  "$round": [
+                    {
+                      "$divide": [
+                        "$health_sum",
+                        "$health_assessed_count"
+                      ]
+                    },
+                    1
+                  ]
+                },
+                null
+              ]
+            },
+            "health_coverage_pct": {
+              "$cond": [
+                {
+                  "$gt": [
+                    "$count",
+                    0
+                  ]
+                },
+                {
+                  "$round": [
+                    {
+                      "$multiply": [
+                        {
+                          "$divide": [
+                            "$health_assessed_count",
+                            "$count"
+                          ]
+                        },
+                        100
+                      ]
+                    },
+                    1
+                  ]
+                },
+                null
+              ]
+            },
+            "stuck_count": 1,
+            "overdue_count": 1
+          }
+        },
+        {
+          "$sort": {
+            "stage_order": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "health_bands",
+      "title": "Health Bands",
+      "chart_type": "donut",
+      "description": "MEDDPICC health band distribution across the current collection.",
+      "pipeline": [
+        {
+          "$match": {
+            "archived": {
+              "$ne": true
+            }
+          }
+        },
+        {
+          "$addFields": {
+            "_health_pct": "$meddpicc_latest.health_pct",
+            "_health_assessed": {
+              "$and": [
+                {
+                  "$gte": [
+                    "$meddpicc_latest.filled_count",
+                    1
+                  ]
+                },
+                {
+                  "$isNumber": "$meddpicc_latest.health_pct"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "$addFields": {
+            "health_band": {
+              "$switch": {
+                "branches": [
+                  {
+                    "case": {
+                      "$not": "$_health_assessed"
+                    },
+                    "then": "unassessed"
+                  },
+                  {
+                    "case": {
+                      "$gte": [
+                        "$_health_pct",
+                        "{{HEALTHY_MIN}}"
+                      ]
+                    },
+                    "then": "healthy"
+                  },
+                  {
+                    "case": {
+                      "$gte": [
+                        "$_health_pct",
+                        "{{WATCH_MIN}}"
+                      ]
+                    },
+                    "then": "watch"
+                  }
+                ],
+                "default": "at_risk"
+              }
+            }
+          }
+        },
+        {
+          "$group": {
+            "_id": "$health_band",
+            "count": {
+              "$sum": 1
+            }
+          }
+        },
+        {
+          "$project": {
+            "_id": 0,
+            "health_band": "$_id",
+            "count": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "attention_deals",
+      "title": "Stuck / Overdue / At Risk Deals",
+      "chart_type": "table",
+      "description": "Deal-level attention list for weekly review.",
+      "pipeline": [
+        {
+          "$match": {
+            "archived": {
+              "$ne": true
+            }
+          }
+        },
+        {
+          "$addFields": {
+            "_as_of": {
+              "$dateFromString": {
+                "dateString": "{{AS_OF_DATETIME}}"
+              }
+            },
+            "_current_stage_history": {
+              "$arrayElemAt": [
+                {
+                  "$ifNull": [
+                    "$stage_history",
+                    []
+                  ]
+                },
+                -1
+              ]
+            },
+            "_expected_close": {
+              "$dateFromString": {
+                "dateString": "$expected_close_date",
+                "onError": null,
+                "onNull": null
+              }
+            },
+            "_health_pct": "$meddpicc_latest.health_pct",
+            "_health_assessed": {
+              "$and": [
+                {
+                  "$gte": [
+                    "$meddpicc_latest.filled_count",
+                    1
+                  ]
+                },
+                {
+                  "$isNumber": "$meddpicc_latest.health_pct"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "$addFields": {
+            "_stage_entered_at": {
+              "$dateFromString": {
+                "dateString": "$_current_stage_history.entered_at",
+                "onError": null,
+                "onNull": null
+              }
+            },
+            "_stuck_threshold_days": {
+              "$switch": {
+                "branches": [
+                  {
+                    "case": {
+                      "$eq": [
+                        "$deal_stage",
+                        "discovery"
+                      ]
+                    },
+                    "then": "{{STUCK_DISCOVERY_DAYS}}"
+                  },
+                  {
+                    "case": {
+                      "$eq": [
+                        "$deal_stage",
+                        "qualification"
+                      ]
+                    },
+                    "then": "{{STUCK_QUALIFICATION_DAYS}}"
+                  },
+                  {
+                    "case": {
+                      "$eq": [
+                        "$deal_stage",
+                        "proposal"
+                      ]
+                    },
+                    "then": "{{STUCK_PROPOSAL_DAYS}}"
+                  },
+                  {
+                    "case": {
+                      "$eq": [
+                        "$deal_stage",
+                        "negotiation"
+                      ]
+                    },
+                    "then": "{{STUCK_NEGOTIATION_DAYS}}"
+                  }
+                ],
+                "default": null
+              }
+            },
+            "_health_band": {
+              "$switch": {
+                "branches": [
+                  {
+                    "case": {
+                      "$not": "$_health_assessed"
+                    },
+                    "then": "unassessed"
+                  },
+                  {
+                    "case": {
+                      "$gte": [
+                        "$_health_pct",
+                        "{{HEALTHY_MIN}}"
+                      ]
+                    },
+                    "then": "healthy"
+                  },
+                  {
+                    "case": {
+                      "$gte": [
+                        "$_health_pct",
+                        "{{WATCH_MIN}}"
+                      ]
+                    },
+                    "then": "watch"
+                  }
+                ],
+                "default": "at_risk"
+              }
+            }
+          }
+        },
+        {
+          "$addFields": {
+            "_days_in_stage": {
+              "$cond": [
+                {
+                  "$and": [
+                    {
+                      "$eq": [
+                        "$_current_stage_history.stage",
+                        "$deal_stage"
+                      ]
+                    },
+                    {
+                      "$ne": [
+                        "$_stage_entered_at",
+                        null
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "$dateDiff": {
+                    "startDate": "$_stage_entered_at",
+                    "endDate": "$_as_of",
+                    "unit": "day"
+                  }
+                },
+                null
+              ]
+            },
+            "_days_past_close": {
+              "$cond": [
+                {
+                  "$ne": [
+                    "$_expected_close",
+                    null
+                  ]
+                },
+                {
+                  "$dateDiff": {
+                    "startDate": "$_expected_close",
+                    "endDate": "$_as_of",
+                    "unit": "day"
+                  }
+                },
+                null
+              ]
+            }
+          }
+        },
+        {
+          "$addFields": {
+            "_is_stuck": {
+              "$and": [
+                {
+                  "$in": [
+                    "$deal_stage",
+                    [
+                      "discovery",
+                      "qualification",
+                      "proposal",
+                      "negotiation"
+                    ]
+                  ]
+                },
+                {
+                  "$ne": [
+                    "$_days_in_stage",
+                    null
+                  ]
+                },
+                {
+                  "$gte": [
+                    "$_days_in_stage",
+                    "$_stuck_threshold_days"
+                  ]
+                }
+              ]
+            },
+            "_is_overdue": {
+              "$and": [
+                {
+                  "$in": [
+                    "$deal_stage",
+                    [
+                      "discovery",
+                      "qualification",
+                      "proposal",
+                      "negotiation",
+                      "stalled"
+                    ]
+                  ]
+                },
+                {
+                  "$ne": [
+                    "$_days_past_close",
+                    null
+                  ]
+                },
+                {
+                  "$gt": [
+                    "$_days_past_close",
+                    "{{OVERDUE_GRACE_DAYS}}"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "$addFields": {
+            "attention_reasons": {
+              "$setUnion": [
+                {
+                  "$cond": [
+                    {
+                      "$eq": [
+                        "$deal_stage",
+                        "stalled"
+                      ]
+                    },
+                    [
+                      "stalled"
+                    ],
+                    []
+                  ]
+                },
+                {
+                  "$cond": [
+                    "$_is_overdue",
+                    [
+                      "overdue"
+                    ],
+                    []
+                  ]
+                },
+                {
+                  "$cond": [
+                    "$_is_stuck",
+                    [
+                      "stuck"
+                    ],
+                    []
+                  ]
+                },
+                {
+                  "$cond": [
+                    {
+                      "$eq": [
+                        "$_health_band",
+                        "at_risk"
+                      ]
+                    },
+                    [
+                      "at_risk"
+                    ],
+                    []
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "$match": {
+            "attention_reasons.0": {
+              "$exists": true
+            }
+          }
+        },
+        {
+          "$project": {
+            "_id": 0,
+            "deal_id": 1,
+            "company": 1,
+            "industry": 1,
+            "deal_stage": 1,
+            "deal_size_krw": 1,
+            "expected_close_date": 1,
+            "days_in_stage": "$_days_in_stage",
+            "is_stuck": "$_is_stuck",
+            "is_overdue": "$_is_overdue",
+            "health_pct": "$_health_pct",
+            "health_band": "$_health_band",
+            "attention_reasons": 1
+          }
+        },
+        {
+          "$sort": {
+            "is_overdue": -1,
+            "is_stuck": -1,
+            "health_pct": 1,
+            "deal_size_krw": -1,
+            "company": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "meddpicc_gap_distribution",
+      "title": "MEDDPICC Gap Distribution",
+      "chart_type": "bar",
+      "description": "Open-deal MEDDPICC gap frequency.",
+      "pipeline": [
+        {
+          "$match": {
+            "archived": {
+              "$ne": true
+            }
+          }
+        },
+        {
+          "$match": {
+            "deal_stage": {
+              "$in": [
+                "discovery",
+                "qualification",
+                "proposal",
+                "negotiation",
+                "stalled"
+              ]
+            }
+          }
+        },
+        {
+          "$project": {
+            "_id": 0,
+            "gap": "$meddpicc_latest.gaps"
+          }
+        },
+        {
+          "$unwind": "$gap"
+        },
+        {
+          "$group": {
+            "_id": "$gap",
+            "count": {
+              "$sum": 1
+            }
+          }
+        },
+        {
+          "$project": {
+            "_id": 0,
+            "gap": "$_id",
+            "count": 1
+          }
+        },
+        {
+          "$sort": {
+            "count": -1,
+            "gap": 1
+          }
+        }
+      ]
+    }
+  ]
+}

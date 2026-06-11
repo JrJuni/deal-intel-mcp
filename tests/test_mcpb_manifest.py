@@ -4,6 +4,7 @@ import builtins
 import importlib.util
 import json
 import sys
+import tomllib
 import types
 from pathlib import Path
 
@@ -15,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MCPB_DIR = ROOT / "mcpb"
 MANIFEST_PATH = MCPB_DIR / "manifest.json"
 LAUNCHER_PATH = MCPB_DIR / "server" / "launcher.py"
+PYPROJECT_PATH = ROOT / "pyproject.toml"
 
 
 def _manifest() -> dict:
@@ -53,6 +55,13 @@ def test_mcpb_manifest_user_config_is_sample_first_and_secret_safe() -> None:
     assert user_config["llm_provider"]["default"] == "chatgpt_oauth"
     assert user_config["anthropic_api_key"]["sensitive"] is True
     assert user_config["openai_api_key"]["sensitive"] is True
+
+
+def test_package_version_matches_mcpb_manifest() -> None:
+    manifest = _manifest()
+    pyproject = tomllib.loads(PYPROJECT_PATH.read_text(encoding="utf-8"))
+
+    assert pyproject["project"]["version"] == manifest["version"]
 
 
 def test_mcpb_manifest_launches_installed_python_module_without_shell_wrapper() -> None:

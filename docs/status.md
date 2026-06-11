@@ -12,6 +12,123 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-11
 
+### P3.2 canonical interaction storage
+
+Implemented:
+
+- Added `schema.interactions` as the canonical interaction helper layer.
+- New `add_interaction` writes now append only to `deal.interactions`; they no
+  longer dual-write to `deal.meetings`.
+- `add_meeting` is now a backward-compatible wrapper over canonical
+  `interaction_type: meeting` intake. It keeps returning `meeting_id`, but the
+  stored record lives under `interactions`.
+- Legacy `meetings` remain supported as read fallback. If a deal has both
+  `interactions` and old `meetings`, read helpers merge them and de-duplicate
+  matching ids so historical evidence is not lost.
+- Custom interaction types are config-registered rather than free-form:
+  `interactions.custom_types: ["security_review"]`.
+- Local/full/pro storage preserves `interactions.raw_content` for future
+  security/redaction modules and forked workflows, while restricted BI/list/
+  report/delete-audit paths exclude it.
+- `list_deals`, `update_stage`, weekly reports, deal analysis, customer-theme
+  flattening, and data-quality checks now read through interaction helpers.
+
+Verification so far:
+
+- Canonical interaction targeted regression:
+  `94 passed`, `1 warning`
+- Reporting/review/read-path targeted regression:
+  `77 passed`, `1 warning`
+- Full pytest:
+  `422 passed`, `1 warning`
+- Ruff:
+  `All checks passed`
+- Runtime surface count smoke:
+  `sample=18`, `standard=22`, `developer=24`
+
+Follow-up:
+
+- P3.3 should reduce `add_meeting` from a compatibility wrapper to a
+  deprecated alias and eventually remove it from default user-facing tool
+  surfaces. `add_interaction(interaction_type="meeting")` should become the
+  single clear intake path for new users and forked implementations.
+
+### P3.1 customer interaction intake contract
+
+Implemented:
+
+- Added MCP tool `add_interaction`.
+- Supported interaction types:
+  `meeting`, `email_thread`, `user_interview`, `call_summary`, and
+  `internal_note`.
+- Supported directions:
+  `inbound`, `outbound`, `mixed`, and `internal`.
+- Stored interactions as meeting-compatible evidence so existing
+  MEDDPICC/customer-theme/report paths keep working without a migration.
+- Added source metadata:
+  `interaction_type`, `direction`, `source_confidence`, `participants`, and
+  `subject`.
+- Preserved `add_meeting` as the simpler backward-compatible meeting-note
+  entry point.
+- Added scoring safety for weak sources:
+  `outbound_unconfirmed` and `internal` inputs are saved as unconfirmed
+  structured interaction evidence but do not update MEDDPICC health or
+  customer-theme counts by default.
+- Kept local sample privacy behavior: no embedding warmup, no persisted raw
+  content, and bundled fixture records remain read-only.
+- Bumped MCPB manifest to `0.1.12`.
+- Updated current runtime surface count:
+  `sample=18`, `standard=22`, `developer=24`.
+
+Verification:
+
+- P3.1 targeted interaction/surface/profile/bundle/local tests:
+  `68 passed`, `1 warning`
+- Targeted Ruff:
+  `All checks passed`
+- Full pytest:
+  `419 passed`, `1 warning`
+- Full Ruff:
+  `All checks passed`
+- MCPB manifest contract:
+  `6 passed`
+- Runtime surface count smoke:
+  `sample=18`, `standard=22`, `developer=24`, `server=24`
+- Diff whitespace check:
+  `git diff --check`
+
+### P3.0 sample/local note intake surface
+
+Implemented:
+
+- Exposed `add_meeting` on the `sample` MCP surface so local/sample users can
+  add notes to user-created local personal deals when the configured LLM
+  provider is ready.
+- Kept bundled fictional fixture deals immutable; `add_meeting` cannot promote
+  fixture records into local personal storage.
+- Skipped embedding provider initialization for `add_meeting` when the storage
+  backend is `local_sample`.
+- Preserved local privacy behavior: local personal persistence strips raw
+  notes, contacts, and embeddings while keeping extracted summaries,
+  MEDDPICC signals, and customer themes.
+- Updated profile/docs language so sample mode is described as mostly
+  LLM-free with optional LLM-backed note intake, not as strictly LLM-free.
+- Updated current runtime surface count:
+  `sample=17`, `standard=21`, `developer=23`.
+
+Verification:
+
+- P3.0 targeted regression:
+  `66 passed`, `1 warning`
+- Full pytest:
+  `410 passed`, `1 warning`
+- Ruff:
+  `All checks passed`
+- Runtime surface count smoke:
+  `sample=17`, `standard=21`, `developer=23`
+- Diff whitespace check:
+  `git diff --check`
+
 ### Deal review v2 rendering alignment
 
 Implemented:
@@ -121,7 +238,8 @@ Added to [backlog.md](backlog.md):
 Observed:
 
 - Claude Desktop loaded the MCPB extension successfully in `sample` profile
-  with `local_sample` storage and 16 sample-surface tools.
+  with `local_sample` storage and the then-current 16 sample-surface tools.
+  Current sample surface count is 17 after P3.0.
 - `config_doctor`, `list_deals`, `get_metrics`, `get_deal_review`,
   customer-theme analysis, report export, delete dry-run safety, and
   update-stage guidance all worked against bundled sample data.
@@ -304,7 +422,7 @@ Implemented:
 - Local delete audit logs stay local and are reported as a warning; they are
   not migrated.
 - Updated MCP tool counts:
-  `sample=16`, `standard=21`, `developer=23`.
+  `sample=17`, `standard=21`, `developer=23`.
 
 Verification:
 
@@ -319,7 +437,7 @@ Verification:
 - Diff whitespace check:
   `git diff --check`
 - Manifest/surface count smoke:
-  `manifest=23`, `sample=16`, `standard=21`, `developer=23`
+  `manifest=23`, `sample=17`, `standard=21`, `developer=23`
 
 ### Config profiles Z5.8-Z5.10 tool surface runtime filtering
 
@@ -331,8 +449,9 @@ Implemented:
   `sample`, `standard`, and `developer`.
 - Mapped `sample` profile to the `sample` surface, and `full`/`pro`/`custom`
   to the `standard` surface.
-- Kept `sample` LLM-free and semantic-search-free while allowing safe local
-  personal create/update/stage/lifecycle writes.
+- Kept `sample` semantic-search-free and mostly LLM-free while allowing safe
+  local personal create/update/stage/lifecycle writes. P3.0 later added
+  optional LLM-backed `add_meeting` for user-created local personal deals.
 - Kept real operator admin tools such as `delete_deal` in `standard`, relying
   on their existing dry-run, confirmation, exact-company, archive-gate safety
   contracts.
@@ -385,7 +504,7 @@ Implemented:
 - Runtime `auto` resolves from the effective profile:
   `sample -> sample`, `full/pro/custom -> standard`.
 - `sample` now exposes safe local personal write/admin tools alongside
-  LLM-free read/reporting tools.
+  mostly LLM-free read/reporting tools.
 - MCP `list_tools()` is filtered by surface and hidden `call_tool()` requests
   are blocked.
 - Invalid `tools.surface` config exposes only `config_doctor` so the setup
@@ -418,7 +537,7 @@ Verification:
 - Expanded MCP surface regression:
   `109 passed`, `1 warning`
 - Runtime surface count smoke:
-  `sample=16`, `standard=21`, `developer=23`
+  `sample=17`, `standard=21`, `developer=23`
 - Config CLI smoke:
   `config init --profile sample --dry-run` shows
   `storage.local_data_dir: ~/.deal-intel/local-data`

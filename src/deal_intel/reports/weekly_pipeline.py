@@ -9,6 +9,7 @@ from deal_intel.schema.gap_actionability import (
     CTA_POLICY_ALLOWED,
     annotate_gap_actionability,
 )
+from deal_intel.schema.interactions import iter_interactions
 from deal_intel.schema.metrics import (
     OPEN_STAGES,
     VALID_STAGES,
@@ -282,9 +283,8 @@ def _last_meeting_date(deal: dict) -> str | None:
     dates = [
         parsed
         for parsed in (
-            _parse_iso_date(meeting.get("date"))
-            for meeting in deal.get("meetings", [])
-            if isinstance(meeting, dict)
+            _parse_iso_date(interaction.get("date"))
+            for interaction in iter_interactions(deal)
         )
         if parsed is not None
     ]
@@ -297,20 +297,21 @@ def _theme_candidates(deal: dict) -> list[dict]:
         return [theme for theme in deal_themes if isinstance(theme, dict)]
 
     themes = []
-    for meeting in deal.get("meetings", []):
-        if not isinstance(meeting, dict):
+    for interaction in iter_interactions(deal):
+        interaction_themes = interaction.get("customer_themes")
+        if not isinstance(interaction_themes, list):
             continue
-        meeting_themes = meeting.get("customer_themes")
-        if not isinstance(meeting_themes, list):
-            continue
-        for theme in meeting_themes:
+        for theme in interaction_themes:
             if not isinstance(theme, dict):
                 continue
             themes.append(
                 {
                     **theme,
-                    "meeting_id": meeting.get("meeting_id"),
-                    "meeting_date": meeting.get("date"),
+                    "interaction_id": interaction.get("interaction_id"),
+                    "interaction_date": interaction.get("date"),
+                    "interaction_type": interaction.get("interaction_type"),
+                    "meeting_id": interaction.get("meeting_id"),
+                    "meeting_date": interaction.get("date"),
                 }
             )
     return themes
@@ -339,6 +340,9 @@ def _select_primary_theme(themes: list[dict], dimension: str) -> dict | None:
         "label": selected.get("label"),
         "evidence": selected.get("evidence"),
         "importance": _importance(selected),
+        "interaction_id": selected.get("interaction_id"),
+        "interaction_date": selected.get("interaction_date"),
+        "interaction_type": selected.get("interaction_type"),
         "meeting_id": selected.get("meeting_id"),
         "meeting_date": selected.get("meeting_date"),
     }

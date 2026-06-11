@@ -899,6 +899,11 @@ def _deal_value_quality_status(deal: dict) -> DataQualityStatus:
 def _meeting_quality_status(deal: dict) -> DataQualityStatus:
     if deal.get("deal_stage") not in QUALIFIED_OR_LATER_STAGES:
         return DataQualityStatus.NOT_APPLICABLE
+    from deal_intel.schema.interactions import iter_interactions
+
+    interactions = iter_interactions(deal)
+    if interactions:
+        return DataQualityStatus.VALID
     meetings = deal.get("meetings")
     if meetings is None or meetings == []:
         return DataQualityStatus.MISSING

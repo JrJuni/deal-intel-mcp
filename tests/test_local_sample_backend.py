@@ -19,6 +19,7 @@ from deal_intel.storage.local_personal import (
 from deal_intel.storage.local_sample import LocalSampleClient
 from deal_intel.storage.local_sample_fixture import SENSITIVE_FIELD_NAMES
 from deal_intel.tools import (
+    add_meeting,
     archive_deal,
     create_deal,
     delete_deal,
@@ -341,6 +342,91 @@ def test_local_personal_safe_write_tools_persist_across_clients(tmp_path) -> Non
     assert deal["deal_value_history"][-1]["source"] == "update_deal"
 
 
+def test_local_personal_add_meeting_persists_canonical_raw_content(
+    tmp_path,
+) -> None:
+    from types import SimpleNamespace
+
+    class FakeLLM:
+        def __init__(self) -> None:
+            self.responses = iter([
+                json.dumps(
+                    {
+                        "meddpicc": {
+                            "identify_pain": {
+                                "score": 4,
+                                "evidence": "manual reporting takes too long",
+                            }
+                        },
+                        "customer_themes": [
+                            {
+                                "theme_key": "operational_efficiency",
+                                "dimension": "identify_pain",
+                                "evidence": "manual reporting takes too long",
+                                "importance": 4,
+                            }
+                        ],
+                    }
+                ),
+                "The customer said manual reporting takes too long.",
+            ])
+
+        def chat_once(self, **_kwargs):
+            return SimpleNamespace(
+                text=next(self.responses),
+                usage={"input_tokens": 10, "output_tokens": 5},
+            )
+
+    cfg = _local_cfg(tmp_path)
+    client = LocalSampleClient(local_data_dir=tmp_path)
+    created = create_deal.handle(
+        mongo=client,
+        cfg=cfg,
+        company="Local Intake Co",
+        industry="Trial",
+        deal_size_krw=None,
+        deal_size_status="unknown",
+    )
+
+    result = add_meeting.handle(
+        mongo=LocalSampleClient(local_data_dir=tmp_path),
+        llm=FakeLLM(),
+        cfg=cfg,
+        embedding_provider=None,
+        deal_id=created["deal_id"],
+        date="2026-06-11",
+        raw_notes="private raw note sentinel: manual reporting takes too long",
+    )
+
+    after_meeting = LocalSampleClient(local_data_dir=tmp_path)
+    deal = after_meeting.get_deal(created["deal_id"])
+    serialized = json.dumps(
+        {
+            "deal": deal,
+            "raw_file": (tmp_path / LOCAL_PERSONAL_DEALS_FILE).read_text(
+                encoding="utf-8"
+            ),
+        },
+        ensure_ascii=False,
+    )
+
+    assert result["ok"] is True
+    assert result["embedding_stored"] is False
+    assert deal["meetings"] == []
+    assert deal["interactions"][0]["summary"] == (
+        "The customer said manual reporting takes too long."
+    )
+    assert deal["interactions"][0]["raw_content"].startswith("private raw note sentinel")
+    assert deal["meddpicc_latest"]["filled_count"] == 1
+    assert deal["customer_themes"][0]["theme_key"] == "operational_efficiency"
+    assert "private raw note sentinel" in serialized
+    assert "raw_notes" not in serialized
+    assert "raw_content" not in json.dumps(
+        after_meeting.list_deals_for_metrics(),
+        ensure_ascii=False,
+    )
+
+
 def test_local_personal_archive_and_restore_persist_across_clients(tmp_path) -> None:
     client = LocalSampleClient(local_data_dir=tmp_path)
     client.upsert_deal(_local_deal())
@@ -460,6 +546,34 @@ def test_local_tools_cannot_persist_bundled_fixture_deals(tmp_path) -> None:
             cfg=_local_cfg(tmp_path),
             deal_id="sample-pavebridge",
             new_stage="proposal",
+        )
+
+    assert exc_info.value.error_code == ErrorCode.STORAGE_ERROR
+    assert "fixture deals are read-only" in exc_info.value.message
+    assert not (tmp_path / LOCAL_PERSONAL_DEALS_FILE).exists()
+
+
+def test_local_add_meeting_cannot_persist_bundled_fixture_deals(tmp_path) -> None:
+    from types import SimpleNamespace
+
+    class FakeLLM:
+        def chat_once(self, **_kwargs):
+            return SimpleNamespace(
+                text=json.dumps({"meddpicc": {}, "customer_themes": []}),
+                usage={},
+            )
+
+    client = LocalSampleClient(local_data_dir=tmp_path)
+
+    with pytest.raises(MCPError) as exc_info:
+        add_meeting.handle(
+            mongo=client,
+            llm=FakeLLM(),
+            cfg=_local_cfg(tmp_path),
+            embedding_provider=None,
+            deal_id="sample-pavebridge",
+            date="2026-06-11",
+            raw_notes="should not be persisted on bundled fixture data",
         )
 
     assert exc_info.value.error_code == ErrorCode.STORAGE_ERROR

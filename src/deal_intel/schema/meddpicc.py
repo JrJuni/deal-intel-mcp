@@ -158,6 +158,7 @@ class Deal(BaseModel):
     deal_size_note: str | None = None
     deal_value_history: list[dict] = Field(default_factory=list)
     contacts: list[dict] = Field(default_factory=list)   # Contact dicts
+    interactions: list[dict] = Field(default_factory=list)
     meetings: list[dict] = Field(default_factory=list)
     customer_themes: list[dict] = Field(default_factory=list)
     meddpicc_latest: dict = Field(default_factory=dict)  # compute_meddpicc_latest output

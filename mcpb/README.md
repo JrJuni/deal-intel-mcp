@@ -26,8 +26,8 @@ key.
 ```bash
 cd mcpb
 mcpb validate manifest.json
-mcpb pack . deal-intel-mcp-0.1.11.mcpb   # output goes into mcpb/ folder
-mcpb info deal-intel-mcp-0.1.11.mcpb
+mcpb pack . deal-intel-mcp-0.1.12.mcpb   # output goes into mcpb/ folder
+mcpb info deal-intel-mcp-0.1.12.mcpb
 ```
 
 `mcpb` CLI: `npm install -g @anthropic-ai/mcpb` (Node.js 18+).

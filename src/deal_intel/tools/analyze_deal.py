@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 
 from deal_intel.errors import ErrorCode, MCPError, Stage
 from deal_intel.providers.llm import LLMProvider
+from deal_intel.schema.interactions import scoring_interactions
 from deal_intel.storage.mongodb import MongoDBClient
 
 _SYSTEM = "You are a senior B2B sales strategist. Be direct, specific, and actionable."
@@ -12,9 +13,9 @@ _SYSTEM = "You are a senior B2B sales strategist. Be direct, specific, and actio
 _PROMPT = """\
 Analyze this deal's MEDDPICC qualification status and provide a concrete BD strategy.
 
-Deal: {company} | Stage: {stage} | Meetings: {meeting_count}
+Deal: {company} | Stage: {stage} | Interactions: {interaction_count}
 {size_line}
-MEDDPICC scores (avg across all meetings, 0=no data / 5=confirmed):
+MEDDPICC scores (avg across scoring-eligible interactions, 0=no data / 5=confirmed):
 {meddpicc_summary}
 
 Provide:
@@ -38,10 +39,10 @@ _DIMS = [
 ]
 
 
-def _meddpicc_summary(meetings: list[dict]) -> str:
+def _meddpicc_summary(interactions: list[dict]) -> str:
     scores: dict[str, list[int]] = defaultdict(list)
-    for m in meetings:
-        for k, v in (m.get("meddpicc") or {}).items():
+    for interaction in interactions:
+        for k, v in (interaction.get("meddpicc") or {}).items():
             if isinstance(v, dict) and isinstance(v.get("score"), int):
                 scores[k].append(v["score"])
     lines = []
@@ -65,16 +66,16 @@ def handle(mongo: MongoDBClient, llm: LLMProvider, *, deal_id: str) -> dict:
             retryable=False,
         )
 
-    meetings = deal.get("meetings", [])
+    interactions = scoring_interactions(deal)
     size_line = (
         f"Deal size: {deal['deal_size_krw']:,} KRW\n" if deal.get("deal_size_krw") else ""
     )
     prompt = _PROMPT.format(
         company=deal["company"],
         stage=deal.get("deal_stage", "unknown"),
-        meeting_count=len(meetings),
+        interaction_count=len(interactions),
         size_line=size_line,
-        meddpicc_summary=_meddpicc_summary(meetings),
+        meddpicc_summary=_meddpicc_summary(interactions),
     )
 
     try:

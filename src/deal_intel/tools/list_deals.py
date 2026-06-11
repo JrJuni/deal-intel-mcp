@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from deal_intel.errors import ErrorCode, MCPError, Stage
+from deal_intel.schema.interactions import iter_interactions
 from deal_intel.schema.meddpicc import VALID_STAGES
 from deal_intel.schema.metrics import (
     HealthBandThresholds,
@@ -60,6 +61,7 @@ def handle(
 
     summaries = []
     for d in deals:
+        interactions = iter_interactions(d)
         current_stage = d.get("deal_stage", "")
         meddpicc_latest = d.get("meddpicc_latest") or {}
         timing = assess_pipeline_timing(
@@ -89,7 +91,8 @@ def handle(
             "health_band": health_band,
             "filled_count": meddpicc_latest.get("filled_count"),
             "gaps": meddpicc_latest.get("gaps", []),
-            "meeting_count": len(d.get("meetings", [])),
+            "meeting_count": len(interactions),
+            "interaction_count": len(interactions),
             "days_in_stage": timing.days_in_stage,
             "stuck_threshold_days": timing.stuck_threshold_days,
             "stuck_status": timing.stuck_status,

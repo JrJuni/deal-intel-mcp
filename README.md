@@ -74,9 +74,9 @@ only when paid infrastructure is intentional.
 
 MCP tools are profile-filtered by default:
 
-- `sample`: 16 zero-config/local personal tools
-- `standard`: 21 normal real-data tools
-- `developer`: all 23 tools, including demo seed/cleanup helpers
+- `sample`: 18 zero-config/local personal tools
+- `standard`: 22 normal real-data tools
+- `developer`: all 24 tools, including demo seed/cleanup helpers
 
 Use `tools.surface: developer` or `DEAL_INTEL_TOOLS_SURFACE=developer` only
 when you intentionally want the full maintainer/debug surface.
@@ -170,12 +170,12 @@ deal-intel login-chatgpt
 
 Then restart Claude Desktop.
 
-You're done when the MCP tool list loads. The current server exposes 23 tools;
+You're done when the MCP tool list loads. The current server exposes 24 tools;
 `src/deal_intel/mcp_server.py` and `docs/baseline.md` are the source of truth.
 
 ```
 config_doctor
-create_deal / add_meeting / get_deal / update_stage / update_deal
+create_deal / add_meeting / add_interaction / get_deal / update_stage / update_deal
 archive_deal / restore_deal / delete_deal / migrate_local_data
 create_sample_data / delete_sample_data
 list_deals / get_insights / get_metrics / get_deal_gaps / get_deal_review
@@ -208,9 +208,11 @@ deal-intel config init --profile sample
 
 Sample mode is intentionally limited, but it is no longer purely read-only.
 Core dashboard, reporting, customer-theme, deal-review, create/update/stage,
-and lifecycle flows can run against local personal data. LLM meeting ingestion,
-semantic `search_deals`, Atlas Charts, and shared team operation still belong
-to MongoDB-backed `full` or `pro` mode.
+meeting-ingestion, and lifecycle flows can run against local personal data.
+`add_meeting` requires a ready LLM provider and works on user-created local
+deals; local sample mode skips embedding storage and does not persist raw
+notes. Semantic `search_deals`, Atlas Charts, and shared team operation still
+belong to MongoDB-backed `full` or `pro` mode.
 
 Local personal data defaults to `~/.deal-intel/local-data` and can be changed
 with `storage.local_data_dir`.
@@ -302,6 +304,9 @@ Industry overrides apply on a case-insensitive exact match against the free-form
 
 **When to use**: Right after a customer meeting. Paste the note as-is and the LLM extracts MEDDPICC automatically.
 
+Internally this writes a canonical `interaction_type: meeting` record under
+`interactions`. Older `meetings` records are still read as legacy fallback.
+
 **Example**:
 ```
 Add today's (2026-06-08) meeting note to Hyundai Precision, deal_id: a3f9...
@@ -334,14 +339,15 @@ end of June.
 
 ### 3. `get_deal` - view deal details
 
-**When to use**: To check a specific deal's full history, MEDDPICC scores, and meeting records.
+**When to use**: To check a specific deal's full history, MEDDPICC scores, and interaction records.
 
 **Example**:
 ```
 Show me the full Hyundai Precision deal. deal_id is a3f9...
 ```
 
-You get the raw notes, the per-meeting MEDDPICC extraction, and the cumulative health_pct.
+You get stored interactions, any legacy meeting records, per-interaction
+MEDDPICC extraction, and the cumulative health_pct.
 
 ---
 
@@ -477,7 +483,7 @@ Show stuck/overdue status for IT-industry deals
 
 **When to use**: When you want to know what you still need to confirm before pursuing, forecasting, or reviewing a deal.
 
-This is not a table-completeness checker. It prioritizes missing or weak information by practical sales impact and forecast trust. It is read-only, uses no LLM, uses no embedding, and excludes raw notes, contacts, and vectors.
+This is not a table-completeness checker. It prioritizes missing or weak information by practical sales impact and forecast trust. It is read-only, uses no LLM, uses no embedding, and excludes raw notes, raw interaction content, contacts, and vectors.
 
 **Parameters**:
 | Parameter | Required | Description |
@@ -674,7 +680,7 @@ The Atlas Charts aggregation is in `scripts/atlas_charts_customer_themes.json`.
 Current source of truth:
 
 - MCP server: `src/deal_intel/mcp_server.py`
-- Current tool count: 23
+- Current tool count: 24
 - Detailed contract: [`docs/baseline.md`](docs/baseline.md)
 - Documentation map: [`docs/README.md`](docs/README.md)
 
@@ -682,7 +688,7 @@ Current source of truth:
 [Claude Desktop / Codex - natural-language input]
          | stdio JSON-RPC
          v
-[deal-intel-mcp  FastMCP server  23 tools]
+[deal-intel-mcp  FastMCP server  24 tools]
          |
          |-- LLM Provider
          |     |-- ChatGPT OAuth (default, Plus/Pro subscription)
@@ -719,11 +725,15 @@ search_deals
     {"stage": "qualification", "entered_at": "2026-05-15T..."},
     {"stage": "proposal",      "entered_at": "2026-06-01T..."}
   ],
-  "meetings": [
+  "interactions": [
     {
+      "interaction_id": "uuid",
       "meeting_id": "uuid",
       "date": "2026-06-08",
-      "raw_notes": "Met Director Kim. Defect rate 3.2% -> target 1.5%...",
+      "interaction_type": "meeting",
+      "direction": "inbound",
+      "source_confidence": "customer_stated",
+      "raw_content": "Met Director Kim. Defect rate 3.2% -> target 1.5%...",
       "summary": "2-3 sentence LLM-generated summary",
       "meddpicc": {
         "metrics":      {"score": 4, "evidence": "~1.5B KRW/yr loss"},

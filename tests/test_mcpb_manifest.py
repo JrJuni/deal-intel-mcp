@@ -36,14 +36,14 @@ def test_mcpb_manifest_tools_match_registered_surface_contracts() -> None:
     contract_tool_names = [contract.name for contract in list_tool_surface_contracts()]
 
     assert manifest_tool_names == contract_tool_names
-    assert len(manifest_tool_names) == 23
+    assert len(manifest_tool_names) == 24
 
 
 def test_mcpb_manifest_user_config_is_sample_first_and_secret_safe() -> None:
     manifest = _manifest()
     user_config = manifest["user_config"]
 
-    assert manifest["version"] == "0.1.11"
+    assert manifest["version"] == "0.1.12"
     assert user_config["python_path"]["required"] is True
     assert user_config["storage_backend"]["default"] == "local_sample"
     assert user_config["storage_backend"]["required"] is False

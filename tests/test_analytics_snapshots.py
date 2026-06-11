@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from types import SimpleNamespace
 
 from deal_intel.storage.mongodb import MongoDBClient
-from deal_intel.tools import add_meeting, create_deal, update_stage
+from deal_intel.tools import add_interaction, add_meeting, create_deal, update_stage
 from deal_intel.tools.analytics_snapshot import (
     build_analytics_snapshot,
     record_analytics_snapshot,
@@ -274,6 +274,39 @@ def test_add_meeting_records_analytics_snapshot_for_meeting_event() -> None:
     assert result["analytics_snapshot"]["ok"] is True
     assert result["analytics_snapshot"]["event_type"] == "add_meeting"
     assert result["meeting_id"] in result["analytics_snapshot"]["event_id"]
+    assert len(mongo.snapshots) == 1
+
+
+def test_add_interaction_records_analytics_snapshot_for_interaction_event() -> None:
+    mongo = FakeSnapshotMongo(_deal(deal_stage="discovery", meetings=[]))
+    analysis = json.dumps(
+        {
+            "meddpicc": {
+                "identify_pain": {
+                    "score": 4,
+                    "evidence": "Manual reporting takes too long",
+                }
+            },
+            "customer_themes": [],
+        }
+    )
+    llm = FakeLLM([analysis, "Customer wants faster reporting."])
+
+    result = add_interaction.handle(
+        mongo=mongo,
+        llm=llm,
+        cfg={"meddpicc": {"weights": {}}},
+        deal_id="deal-1",
+        date="2026-06-09",
+        interaction_type="email_thread",
+        direction="inbound",
+        content="Customer reply: manual reporting takes too long.",
+    )
+
+    assert result["ok"] is True
+    assert result["analytics_snapshot"]["ok"] is True
+    assert result["analytics_snapshot"]["event_type"] == "add_interaction"
+    assert result["interaction_id"] in result["analytics_snapshot"]["event_id"]
     assert len(mongo.snapshots) == 1
 
 

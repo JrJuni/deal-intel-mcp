@@ -15,7 +15,7 @@ app.add_typer(config_app, name="config")
 local_data_app = typer.Typer(help="Inspect, export, and reset local personal data.")
 app.add_typer(local_data_app, name="local-data")
 
-SENSITIVE_RESULT_KEYS = {"raw_notes", "contacts", "summary_embedding"}
+SENSITIVE_RESULT_KEYS = {"raw_notes", "raw_content", "contacts", "summary_embedding"}
 ALERT_RANK = {"alert": 3, "watch": 2, "info": 1, "none": 0}
 UNCERTAINTY_RANK = {"high": 2, "medium": 1, "low": 0}
 ISSUE_SEVERITY_RANK = {"high": 3, "medium": 2, "low": 1}

@@ -69,11 +69,27 @@ MCP_TOOL_SURFACE_CONTRACTS: tuple[MCPToolSurfaceContract, ...] = (
     MCPToolSurfaceContract(
         name="add_meeting",
         category="core_write",
-        surfaces=_STANDARD,
+        surfaces=_SAMPLE,
         user_facing=True,
         db_writes=True,
         llm_calls=True,
-        notes="Adds notes and extracted signals but never auto-updates stage.",
+        notes=(
+            "Adds notes and extracted signals but never auto-updates stage. "
+            "In sample mode this works for user-created local personal deals "
+            "when the configured LLM provider is ready."
+        ),
+    ),
+    MCPToolSurfaceContract(
+        name="add_interaction",
+        category="core_write",
+        surfaces=_SAMPLE,
+        user_facing=True,
+        db_writes=True,
+        llm_calls=True,
+        notes=(
+            "Adds email/interview/call/internal interaction content with source "
+            "metadata through canonical interaction storage."
+        ),
     ),
     MCPToolSurfaceContract(
         name="update_stage",

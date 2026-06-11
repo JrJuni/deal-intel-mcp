@@ -208,15 +208,16 @@ After creating the dashboard:
 - `stage_breakdown` stage order is:
   `discovery`, `qualification`, `proposal`, `negotiation`, `stalled`, `won`,
   `lost`.
-- `attention_deals` contains no `meetings.raw_notes`, `contacts`, or
-  `summary_embedding`.
+- `attention_deals` contains no `meetings.raw_notes`,
+  `interactions.raw_content`, `contacts`, or `summary_embedding`.
 - `Pipeline Trend Review` uses `analytics_snapshots`, not `deals`.
 - `trend_kpis` and `trend_delta_bars` contain no raw notes, contacts, or
   embeddings.
 - `Customer Themes Review` uses `deal_intel.deals` and only selected
-  `customer_themes.evidence`, not raw meeting notes.
-- `theme_evidence_drilldown` contains no contacts, embeddings, or raw meeting
-  notes.
+  `customer_themes.evidence`, not raw meeting notes or raw interaction
+  content.
+- `theme_evidence_drilldown` contains no contacts, embeddings, raw meeting
+  notes, or raw interaction content.
 
 Milestone 3.3 is the formal cross-check between:
 

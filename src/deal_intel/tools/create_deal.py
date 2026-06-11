@@ -77,6 +77,7 @@ def handle(
         "industry": industry,
         **deal_value,
         "contacts": [],
+        "interactions": [],
         "meetings": [],
         "meddpicc_latest": {},
         "stage_history": [{"stage": "discovery", "entered_at": now}],

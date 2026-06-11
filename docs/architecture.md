@@ -87,6 +87,7 @@ Mongo mode uses `MongoDBClient` over Atlas collections. Local sample mode uses
 The read-only BI/reporting path should use restricted projections that exclude:
 
 - `meetings.raw_notes`
+- `interactions.raw_content`
 - `contacts`
 - `summary_embedding`
 
@@ -103,6 +104,7 @@ Provider construction must go through `make_llm_provider(config)`.
 LLMs are allowed in:
 
 - `add_meeting`
+- `add_interaction`
 - `analyze_deal`
 - customer-theme extraction/backfill paths
 
@@ -115,7 +117,8 @@ The local embedding provider uses `sentence-transformers` when the optional
 
 Embedding work is used for:
 
-- storing deal-level summary embeddings after meetings
+- storing deal-level summary embeddings after meetings/interactions in
+  MongoDB-backed mode
 - semantic `search_deals`
 
 Embedding work is not used in BI/reporting paths.
@@ -128,6 +131,7 @@ Local sample mode does not support semantic search in the first MVP.
 
 - `create_deal`
 - `add_meeting`
+- `add_interaction`
 - `update_stage`
 - `update_deal`
 - `archive_deal`
@@ -138,8 +142,18 @@ Write tools are conservative by default. Destructive or corrective operations
 require explicit confirmation, reasons, and safe audit behavior where
 applicable.
 
-`add_meeting` never changes `deal_stage`. It may return `stage_suggestion`, but
-stage mutation happens only through `update_stage` after user confirmation.
+`add_meeting` and `add_interaction` never change `deal_stage`. They may return
+`stage_suggestion`, but stage mutation happens only through `update_stage`
+after user confirmation.
+
+`deal.interactions` is the canonical intake store for new customer evidence.
+`add_meeting` is a compatibility wrapper that writes `interaction_type:
+meeting`; legacy `deal.meetings` remains a read fallback for existing data.
+`add_interaction` stores source metadata for `meeting`, `email_thread`,
+`user_interview`, `call_summary`, `internal_note`, and config-registered
+custom types. Outbound-only and internal-only content is stored as
+unconfirmed interaction evidence and does not update MEDDPICC health by
+default.
 
 ### Demo Data
 
@@ -156,8 +170,9 @@ confirmation for actual writes or deletes.
 - `get_deal_gaps`
 - `get_deal_review`
 
-`get_deal` can expose full meeting details. The BI/review tools use restricted
-read paths and should not expose raw notes, contacts, or embeddings.
+`get_deal` can expose full deal details. The BI/review tools use restricted
+read paths and should not expose raw notes, raw interaction content, contacts,
+or embeddings.
 
 ### BI and Reporting
 

@@ -140,6 +140,7 @@ STORAGE_METHOD_CONTRACTS: tuple[StorageMethodContract, ...] = (
         consumers=(
             "create_deal",
             "add_meeting",
+            "add_interaction",
             "update_stage",
             "update_deal",
             "archive_deal",
@@ -153,7 +154,7 @@ STORAGE_METHOD_CONTRACTS: tuple[StorageMethodContract, ...] = (
         name="upsert_analytics_snapshot",
         mode="write",
         local_sample_mvp=False,
-        consumers=("create_deal", "add_meeting", "update_stage"),
+        consumers=("create_deal", "add_meeting", "add_interaction", "update_stage"),
         notes="Trend snapshot write path is deferred for local sample mode.",
     ),
     StorageMethodContract(

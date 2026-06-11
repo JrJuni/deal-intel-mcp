@@ -26,7 +26,8 @@ Next candidate units:
 
 1. Optional live Atlas smoke for local personal -> MongoDB migration when a
    disposable target database is available.
-2. Reinstall smoke with `deal-intel-mcp-0.1.11.mcpb` after the UTF-8 bundle
+2. Reinstall smoke with `deal-intel-mcp-0.1.12.mcpb` after the interaction
+   intake manifest update and UTF-8 bundle hardening patch.
    hardening patch.
 3. Decide whether release bundles need signing before external distribution.
 
@@ -93,9 +94,9 @@ Candidate implementation units:
    - Store source metadata so later scoring can distinguish customer-stated
      evidence from AE/internal notes or outbound claims.
 2. Storage compatibility.
-   - Keep `add_meeting` as a backward-compatible wrapper.
-   - Decide whether new records live under `interactions` while old
-     `meetings` remain supported, or whether `meetings` is migrated later.
+   - Keep `add_meeting` as a short-lived backward-compatible wrapper.
+   - P3.2 decision: new records live under canonical `interactions`; old
+     `meetings` remain supported as a legacy read fallback.
    - BI/report/search paths must continue to exclude raw content unless the
      user asks for single-deal detail.
 3. Extraction prompt update.
@@ -117,10 +118,41 @@ Open decision points:
 
 - Whether to expose a new MCP tool only (`add_interaction`) or also add CLI
   import helpers for pasted email/interview files.
-- Whether raw email bodies should be retained by default in local mode, or
-  summarized and optionally redacted for privacy.
+- Whether to add redaction/encryption policy for retained `raw_content` in
+  local/full/pro storage.
 - Whether outbound emails should update MEDDPICC scores immediately or only
   create weak/unconfirmed evidence.
+
+Current implementation note:
+
+- P3.0 exposed `add_meeting` in sample/local mode for user-created local
+  personal deals.
+- P3.1 added `add_interaction` as a meeting-compatible intake path for
+  `meeting`, `email_thread`, `user_interview`, `call_summary`, and
+  `internal_note`.
+- P3.2 switched new writes to canonical `deal.interactions` only. `meetings`
+  is now legacy read fallback, and helpers merge/dedupe both sources for
+  existing data.
+- P3.2 stores `interactions.raw_content` in local/full/pro storage for future
+  redaction/security modules, but excludes it from BI/list/report/delete-audit
+  paths.
+- Custom interaction types must be registered under
+  `interactions.custom_types`; arbitrary types are rejected.
+- `outbound_unconfirmed` and `internal` inputs are stored with source metadata
+  but do not update MEDDPICC health or customer-theme counts unless the caller
+  explicitly marks the source as stronger evidence.
+
+Planned P3.3 cleanup:
+
+- Make `add_interaction` the single public intake concept in docs, examples,
+  and onboarding.
+- Mark `add_meeting` as a deprecated compatibility alias first, then remove it
+  from default user-facing tool surfaces once sample/full workflows are updated.
+- Keep legacy `deal.meetings` read fallback for existing data, but stop adding
+  new feature logic to the `add_meeting` wrapper.
+- Acceptance criteria: no docs/tutorial flow requires `add_meeting`; tests
+  cover `interaction_type: meeting` through `add_interaction`; MCP/tool-surface
+  counts and migration notes are updated in one deliberate cleanup commit.
 
 ### Account People Graph
 
@@ -209,7 +241,7 @@ Backlog items:
   manifest fields, tool list alignment, environment mapping, and launcher
   behavior.
 - Rebuild and attach a fresh `.mcpb` artifact after bundle manifest changes.
-  Current local artifact target: `deal-intel-mcp-0.1.11.mcpb`; unsigned.
+  Current local artifact target: `deal-intel-mcp-0.1.12.mcpb`; unsigned.
 
 ### Cost And Query Optimization
 

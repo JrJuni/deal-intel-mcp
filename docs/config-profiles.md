@@ -210,8 +210,9 @@ Implemented:
 - `src/deal_intel/tool_surfaces.py` is the source contract.
 - Tool surfaces are optimized for non-developer first-run clarity:
   `sample`, `standard`, and `developer`.
-- `sample` exposes LLM-free tools that work against bundled sample data or
-  local personal `deals.json`.
+- `sample` exposes mostly LLM-free tools that work against bundled sample data
+  or local personal `deals.json`, plus `add_meeting` and `add_interaction` for
+  user-created local deals when the configured LLM provider is ready.
 - `sample` now includes safe non-LLM write/admin tools:
   `create_deal`, `update_stage`, `update_deal`, `archive_deal`,
   `restore_deal`, and `delete_deal`.
@@ -239,7 +240,7 @@ Default mapping:
 Result:
 
 - `build_tool_surface_matrix()` returns a serializable surface matrix.
-- Targeted tests verify that all 23 registered MCP tools are classified.
+- Targeted tests verify that all 24 registered MCP tools are classified.
 - Targeted tests verify that `sample` includes safe local personal write/admin
   tools while excluding LLM-heavy, semantic-search, legacy Mongo aggregation,
   and Mongo demo-database maintenance tools.
@@ -262,8 +263,8 @@ Implemented foundation:
   diagnostic metadata.
 - Continued stripping `raw_notes`, `contacts`, and `summary_embedding` from
   local sample read and write payloads.
-- Supported local persistence for `create_deal`, `update_stage`, and
-  `update_deal`.
+- Supported local persistence for `create_deal`, `add_meeting`,
+  `add_interaction`, `update_stage`, and `update_deal`.
 - Supported local persistence for `archive_deal`, `restore_deal`, and
   `delete_deal` with existing confirmation, company-match, dry-run, archived-
   before-delete, and audit-snapshot gates.
@@ -282,8 +283,10 @@ Behavior:
 
 - `status` reports the configured local personal data directory, deal count,
   and delete-audit-log count.
-- `export` writes a secret-safe JSON snapshot of local personal deals and
-  delete audit logs. It strips raw notes, contacts, and embeddings.
+- `export` writes a local personal snapshot of deals and delete audit logs. It
+  strips legacy raw notes, contacts, and embeddings; canonical
+  `interactions.raw_content` may be present in deal details until a later
+  redaction/encryption layer is added.
 - `reset` is dry-run by default.
 - `reset --force` clears only local personal deals in `deals.json`.
 - Delete audit logs are preserved across reset.
@@ -300,7 +303,7 @@ Remaining planned scope:
 
 Non-goals for Z5.9:
 
-- No LLM meeting ingestion in local personal mode yet.
+- `analyze_deal` remains unavailable in local personal sample mode.
 - No semantic `search_deals` in local personal mode yet.
 - No Mongo aggregation compatibility.
 - No Atlas demo-database seed/cleanup behavior.

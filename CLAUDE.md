@@ -12,7 +12,7 @@ that Claude, Codex, ChatGPT, CSV exports, and Atlas Charts can use.
 
 The product direction is one repository / one package with three profiles:
 
-- `sample`: zero-config, MongoDB-free, read-only demo over bundled data.
+- `sample`: zero-config, MongoDB-free sample/local personal mode.
 - `full`: Atlas-backed operating mode for real team data.
 - `pro`: paid-infrastructure path with API-key LLM providers and Atlas Vector
   Search.
@@ -90,11 +90,12 @@ Juni's preferred loop:
 
 Source of truth: `src/deal_intel/mcp_server.py`.
 
-Current tool count: 23.
+Current tool count: 24.
 
 - Config/readiness: `config_doctor`
-- Write/lifecycle: `create_deal`, `add_meeting`, `update_stage`,
-  `update_deal`, `archive_deal`, `restore_deal`, `delete_deal`
+- Write/lifecycle: `create_deal`, `add_meeting`, `add_interaction`,
+  `update_stage`, `update_deal`, `archive_deal`, `restore_deal`,
+  `delete_deal`
 - Demo data: `create_sample_data`, `delete_sample_data`
 - Migration: `migrate_local_data`
 - Read/review: `get_deal`, `list_deals`, `get_deal_gaps`,
@@ -112,10 +113,14 @@ Current tool count: 23.
 - Keep `pymongo` imports inside `storage/mongodb.py`, except for the explicit
   `preload_driver()` startup path.
 - BI/reporting paths must not call LLMs or embeddings.
-- Restricted metric/report read paths must exclude raw meeting notes, contacts,
-  and embeddings unless the tool contract explicitly says otherwise.
-- `add_meeting` never changes `deal_stage`. It may return `stage_suggestion`;
-  apply the change only after user confirmation through `update_stage`.
+- `deal.interactions` is the canonical new evidence store. `deal.meetings`
+  remains legacy read fallback only.
+- Restricted metric/report read paths must exclude raw meeting notes,
+  interaction raw content, contacts, and embeddings unless the tool contract
+  explicitly says otherwise.
+- `add_meeting` and `add_interaction` never change `deal_stage`. They may
+  return `stage_suggestion`; apply the change only after user confirmation
+  through `update_stage`.
 - Destructive tools stay conservative: dry-run first, explicit confirmation,
   exact company matching where applicable, and audit-safe snapshots.
 - Do not use realistic secret-looking placeholders in tests or docs. Use

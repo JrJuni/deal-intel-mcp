@@ -21,7 +21,7 @@ to try their own data before MongoDB.
 |---|---|---|---|
 | `mongo_full` | Production and real demos backed by Atlas | MongoDB Atlas | Full read/write/admin surface |
 | `local_sample_mvp` | Zero-config sample experience | Bundled/local fixture data | Read-first BI/review/report surface |
-| `local_personal` | Personal trial mode | Local resettable user data file | Safe non-LLM create/update/stage/lifecycle surface |
+| `local_personal` | Personal trial mode | Local resettable user data file | Safe create/update/stage/lifecycle surface plus LLM-backed note intake when configured |
 
 Runtime config uses:
 
@@ -54,7 +54,7 @@ The code contract lives in `src/deal_intel/storage/backend.py`.
 | `ping()` | startup diagnostics, zero-config smoke | Should not require network access |
 | `get_deal(deal_id)` | `get_deal` | Returns one safe sample deal |
 | `list_deals(stage=None, limit=50)` | `list_deals` | Supports stage filter and limit |
-| `list_deals_for_metrics()` | `get_metrics`, `get_deal_gaps`, `get_deal_review`, customer theme tools, weekly report, natural question smoke | Primary LLM-free BI/read path; excludes raw notes, contacts, vectors |
+| `list_deals_for_metrics()` | `get_metrics`, `get_deal_gaps`, `get_deal_review`, customer theme tools, weekly report, natural question smoke | Primary LLM-free BI/read path; excludes legacy raw notes, canonical raw content, contacts, and vectors |
 | `list_analytics_snapshots(start_date, end_date, stage=None, industry=None)` | `pipeline_trend`, trend report | Returns bundled fixture snapshots for sample mode |
 
 This contract supports the first zero-config read stack:
@@ -81,19 +81,24 @@ small dataset without MongoDB. Implemented methods:
   `delete_audit_logs.json`)
 - `hard_delete_deal` (implemented for local personal `deals.json`)
 
-Supported safe non-LLM mutation tools:
+Supported safe mutation tools:
 
 - `create_deal` (supported by local personal `upsert_deal`)
+- `add_meeting` (supported by local personal `upsert_deal`; requires a ready
+  LLM provider, skips embeddings in local sample mode, and persists a
+  canonical meeting interaction)
+- `add_interaction` (supported by local personal `upsert_deal`; requires a
+  ready LLM provider, stores source metadata, skips embeddings in local sample
+  mode, and persists canonical raw interaction content)
 - `update_stage` (supported by local personal `upsert_deal`)
 - `update_deal` (supported by local personal `upsert_deal`)
 - `archive_deal` (supported by local personal `upsert_deal`)
 - `restore_deal` (supported by local personal `upsert_deal`)
 - `delete_deal` (supported by local personal audit + hard delete)
 
-This target should still defer LLM-heavy and semantic-search paths until their
+This target still defers heavier analysis and semantic-search paths until their
 runtime requirements are clear:
 
-- `add_meeting`
 - `analyze_deal`
 - `search_deals`
 
@@ -124,10 +129,19 @@ Implemented write policy:
 
 - `LocalPersonalStore` writes `deals.json` with schema version and dataset
   metadata.
-- Writes strip `raw_notes`, `contacts`, and `summary_embedding` before
-  persistence.
+- Writes strip legacy `raw_notes`, `contacts`, and `summary_embedding` before
+  persistence. Canonical `interactions.raw_content` is retained in local
+  personal storage so future redaction/security modules can process it.
 - `create_deal`, `update_stage`, and `update_deal` can persist through
   `LocalSampleClient.upsert_deal`.
+- `add_meeting` persists a canonical `interaction_type: meeting` record for
+  user-created local deals. It does not initialize or store embeddings in
+  local sample mode.
+- `add_interaction` persists canonical interactions with summaries, source
+  metadata, raw content, MEDDPICC signals, and customer themes for
+  user-created local deals. Outbound and internal-only content is stored as
+  unconfirmed interaction evidence and does not update the scoring snapshot by
+  default.
 - `archive_deal` and `restore_deal` can persist through
   `LocalSampleClient.upsert_deal`.
 - `delete_deal` writes an audit entry to `delete_audit_logs.json` before
@@ -139,9 +153,13 @@ Implemented write policy:
   bundled fixture archived instead of re-mixing fictional data into active
   reads.
 - `local-data export` includes local personal deals and delete audit logs, but
-  not raw notes, contacts, or embeddings.
+  not legacy raw notes, contacts, or embeddings. Canonical raw content may be
+  present in local deal details.
 - Bundled fixture deal ids are read-only and cannot be promoted into local
   personal storage through lifecycle writes.
+- Bundled fixture deal ids are also read-only for `add_meeting` and
+  `add_interaction`; users should create their own local deal before adding
+  notes or interactions.
 - Analytics snapshot writes are still deferred, so these local writes do not
   yet create local trend snapshots.
 
@@ -197,6 +215,7 @@ The local sample backend should preserve the same safe read posture as
 `MongoDBClient.list_deals_for_metrics()`:
 
 - no `meetings.raw_notes`
+- no `interactions.raw_content`
 - no `contacts`
 - no `summary_embedding`
 
@@ -230,7 +249,8 @@ Fixture contract:
   `strategic_zero`
 - curated meeting summaries and customer-theme evidence included
 - trend snapshots included for a 7-day pipeline movement smoke
-- no `meetings.raw_notes`, `contacts`, or `summary_embedding`
+- no `meetings.raw_notes`, `interactions.raw_content`, `contacts`, or
+  `summary_embedding`
 
 The fixture remains immutable. Future local personal data should be stored as a
 separate resettable overlay rather than mutating the bundled fixture.

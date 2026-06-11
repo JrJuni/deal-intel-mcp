@@ -53,6 +53,14 @@ def _deal(**overrides) -> dict:
                 "summary": "safe summary",
             }
         ],
+        "interactions": [
+            {
+                "interaction_id": "interaction-1",
+                "date": "2026-06-02",
+                "raw_content": "secret raw interaction",
+                "summary": "safe interaction summary",
+            }
+        ],
         "contacts": [{"name": "private contact"}],
         "summary_embedding": [0.1, 0.2],
         "updated_at": "2026-06-01T00:00:00+00:00",
@@ -229,9 +237,14 @@ def test_delete_deal_writes_safe_audit_snapshot_before_delete() -> None:
     snapshot = mongo.audit_logs[0]["deal_snapshot"]
     serialized_snapshot = json.dumps(snapshot, ensure_ascii=False)
     assert "secret raw notes" not in serialized_snapshot
+    assert "secret raw interaction" not in serialized_snapshot
     assert "private contact" not in serialized_snapshot
     assert "summary_embedding" not in serialized_snapshot
     assert mongo.audit_logs[0]["deal_snapshot"]["meetings"][0]["summary"] == "safe summary"
+    assert (
+        mongo.audit_logs[0]["deal_snapshot"]["interactions"][0]["summary"]
+        == "safe interaction summary"
+    )
 
 
 def test_get_deal_warns_when_archived(monkeypatch) -> None:

@@ -132,14 +132,69 @@ def add_meeting(deal_id: str, date: str, raw_notes: str) -> dict:
         from deal_intel import _context
         from deal_intel.tools import add_meeting as _t
 
+        embedding_provider = (
+            _context.embedding_provider()
+            if _context.storage_backend_name() == "mongo"
+            else None
+        )
         return _t.handle(
             mongo=_context.mongo(),
             llm=_context.llm_provider(),
             cfg=_context.config(),
-            embedding_provider=_context.embedding_provider(),
+            embedding_provider=embedding_provider,
             deal_id=deal_id,
             date=date,
             raw_notes=raw_notes,
+        )
+    except Exception as exc:
+        return envelope_from_exception(exc, stage=Stage.LLM)
+
+
+@app.tool()
+def add_interaction(
+    deal_id: str,
+    date: str,
+    interaction_type: str,
+    direction: str,
+    content: str,
+    participants: str = "",
+    subject: str = "",
+    source_confidence: str = "",
+    custom_fields_json: str = "",
+) -> dict:
+    """Add a customer interaction and extract MEDDPICC signals.
+
+    interaction_type: meeting, email_thread, user_interview, call_summary,
+    internal_note, or a configured custom interaction type. direction:
+    inbound, outbound, mixed, or internal.
+
+    New records are stored as canonical interactions. Legacy meeting-based
+    read paths are still supported as fallback. Stage changes are suggestions
+    only and still require update_stage after user confirmation.
+    """
+    try:
+        from deal_intel import _context
+        from deal_intel.tools import add_interaction as _t
+
+        embedding_provider = (
+            _context.embedding_provider()
+            if _context.storage_backend_name() == "mongo"
+            else None
+        )
+        return _t.handle(
+            mongo=_context.mongo(),
+            llm=_context.llm_provider(),
+            cfg=_context.config(),
+            embedding_provider=embedding_provider,
+            deal_id=deal_id,
+            date=date,
+            interaction_type=interaction_type,
+            direction=direction,
+            content=content,
+            participants=participants or None,
+            subject=subject or None,
+            source_confidence=source_confidence or None,
+            custom_fields_json=custom_fields_json or None,
         )
     except Exception as exc:
         return envelope_from_exception(exc, stage=Stage.LLM)

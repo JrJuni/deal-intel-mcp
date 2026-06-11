@@ -71,6 +71,7 @@ def handle(
             "contacts",
             "summary_embedding",
             "meetings.raw_notes",
+            "interactions.raw_content",
         ],
         "deal_snapshot": safe_deal_snapshot(deal),
     }

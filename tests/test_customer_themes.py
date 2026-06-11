@@ -184,7 +184,9 @@ def test_add_meeting_persists_customer_themes_without_extra_llm_call() -> None:
 
     assert result["customer_themes"][0]["theme_key"] == "operational_efficiency"
     assert mongo.saved[0]["customer_themes"][0]["meeting_id"] == result["meeting_id"]
-    assert mongo.saved[0]["meetings"][0]["summary"] == "회의 요약"
+    assert mongo.saved[0]["customer_themes"][0]["interaction_id"] == result["meeting_id"]
+    assert mongo.saved[0]["meetings"] == []
+    assert mongo.saved[0]["interactions"][0]["summary"] == "회의 요약"
     # No closing language in the notes → no stage suggestion.
     assert result["stage_suggestion"] is None
 

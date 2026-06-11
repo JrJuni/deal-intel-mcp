@@ -77,6 +77,7 @@ def test_storage_read_paths_apply_legacy_safe_archived_filter() -> None:
     assert list_projection == {
         "_id": 0,
         "meetings.raw_notes": 0,
+        "interactions.raw_content": 0,
         "contacts": 0,
         "summary_embedding": 0,
     }

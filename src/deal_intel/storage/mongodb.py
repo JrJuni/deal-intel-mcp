@@ -159,6 +159,7 @@ class MongoDBClient:
         projection = {
             "_id": 0,
             "meetings.raw_notes": 0,
+            "interactions.raw_content": 0,
             "contacts": 0,
             "summary_embedding": 0,
         }
@@ -170,6 +171,7 @@ class MongoDBClient:
         projection = {
             "_id": 0,
             "meetings.raw_notes": 0,
+            "interactions.raw_content": 0,
             "contacts": 0,
             "summary_embedding": 0,
         }

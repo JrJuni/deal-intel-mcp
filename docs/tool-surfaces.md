@@ -13,7 +13,8 @@ The source contract lives in `src/deal_intel/tool_surfaces.py`.
 ## Mental Model
 
 - `sample`: a zero-config, bundled, limited feature-test surface with safe
-  local personal write/admin tools.
+  local personal write/admin tools and optional LLM-backed note intake for
+  user-created local deals.
 - `standard`: the normal operator surface for real team data.
 - `developer`: everything, including demo seeding and internal QA helpers.
 
@@ -27,17 +28,19 @@ and future local personal path.
 
 | Surface | Default Profiles | Purpose | Tool Policy |
 |---|---|---|---|
-| `sample` | `sample` | Let a new user or AI agent test useful questions and small local personal datasets with no setup | LLM-free tools that work against bundled sample data or local personal `deals.json` |
+| `sample` | `sample` | Let a new user or AI agent test useful questions and small local personal datasets with no setup | Mostly LLM-free tools that work against bundled sample data or local personal `deals.json`, plus `add_meeting`/`add_interaction` when the configured LLM provider is ready |
 | `standard` | `full`, `pro`, `custom` | Real operating mode for teams using MongoDB-backed data | User-facing core, admin, analysis, semantic search, and reporting tools |
 | `developer` | none by default | Maintainer/debug mode | Every MCP tool, including sample-data seeding helpers |
 
 ## Sample Surface
 
 `sample` intentionally contains only tools that should work in local sample mode
-without MongoDB or API keys today. It is not the full operating surface:
+without MongoDB today. It is not the full operating surface:
 
 - `config_doctor`
 - `create_deal`
+- `add_meeting`
+- `add_interaction`
 - `update_stage`
 - `update_deal`
 - `archive_deal`
@@ -58,11 +61,17 @@ Why this matters:
 - `create_deal`, `update_stage`, `update_deal`, `archive_deal`,
   `restore_deal`, and `delete_deal` now persist through local personal storage
   and keep their existing confirmation/dry-run safety gates.
+- `add_meeting` is available for user-created local personal deals when the
+  configured LLM provider is ready. Local sample mode skips embedding storage,
+  stores canonical interaction content, and keeps list/BI/report paths free of
+  raw content, contacts, and vectors.
+- `add_interaction` is the source-aware intake path for email threads, user
+  interviews, call summaries, internal notes, and config-registered custom
+  types. It writes canonical `deal.interactions` records and keeps
+  outbound/internal-only content out of MEDDPICC scoring by default.
 - `migrate_local_data` is visible in `sample` so a user can graduate local
   personal deals to MongoDB after connecting a URI. It is dry-run-first and
   never migrates bundled fixture records.
-- `add_meeting` remains separate from the first local-personal target because
-  it needs LLM readiness.
 - `search_deals` currently needs Mongo-backed embeddings or Atlas Vector Search.
 - `analyze_deal` calls an LLM and may persist strategy output.
 - `create_sample_data` and `delete_sample_data` manage an Atlas demo database,
@@ -117,9 +126,9 @@ Behavior:
 
 Current exposed counts:
 
-- `sample`: 16 tools
-- `standard`: 21 tools
-- `developer`: 23 tools
+- `sample`: 18 tools
+- `standard`: 22 tools
+- `developer`: 24 tools
 
 Implementation notes:
 

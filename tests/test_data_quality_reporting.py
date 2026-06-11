@@ -104,6 +104,22 @@ def test_qualified_deal_requires_meeting_and_health_assessment() -> None:
     assert result.is_complete is False
 
 
+def test_qualified_deal_accepts_canonical_interaction_as_meeting_evidence() -> None:
+    deal = _deal(stage="qualification")
+    deal["interactions"] = [
+        {
+            "interaction_id": "i1",
+            "date": "2026-06-10",
+            "interaction_type": "user_interview",
+            "source_confidence": "customer_stated",
+        }
+    ]
+
+    result = assess_deal_data_quality(deal)
+
+    assert result.field_statuses["meetings"] == DataQualityStatus.VALID
+
+
 def test_terminal_quality_requires_actual_close_and_lost_reason() -> None:
     won = assess_deal_data_quality(_deal(stage="won"))
     lost = assess_deal_data_quality(_deal(stage="lost"))
@@ -253,6 +269,7 @@ def test_metrics_read_path_excludes_raw_notes_contacts_and_vectors() -> None:
     assert db.deals.projection == {
         "_id": 0,
         "meetings.raw_notes": 0,
+        "interactions.raw_content": 0,
         "contacts": 0,
         "summary_embedding": 0,
     }

@@ -57,13 +57,13 @@ available.
 
 ### MCP Tool Contracts
 
-The Python server keeps all 23 handler functions available internally, but MCP
+The Python server keeps all 24 handler functions available internally, but MCP
 clients see a config-filtered tool surface:
 
 - `tools.surface: auto` resolves from the effective profile.
-- `sample` exposes 16 tools for bundled/local personal sample mode.
-- `standard` exposes 21 tools for normal MongoDB-backed operation.
-- `developer` exposes all 23 tools, including demo database seed/cleanup.
+- `sample` exposes 18 tools for bundled/local personal sample mode.
+- `standard` exposes 22 tools for normal MongoDB-backed operation.
+- `developer` exposes all 24 tools, including demo database seed/cleanup.
 - Invalid `tools.surface` config exposes only `config_doctor` so setup can be
   diagnosed.
 
@@ -71,7 +71,8 @@ clients see a config-filtered tool surface:
 |---|---|---|---|---|
 | `config_doctor` | None | `offline` | `ok`, `profile`, `generated_at`, `summary`, `checks`, `next_actions` | Read only; checks config, storage readiness, vector-search mode, and LLM provider readiness without LLM calls, embeddings, or writes. The default path may perform a bounded storage ping; `offline=true` skips it |
 | `create_deal` | `company` | `industry`, `deal_size_krw`, `deal_size_status`, `deal_size_low_krw`, `deal_size_high_krw`, `deal_size_note`, `expected_close_date` | `ok`, `deal_id`, `company`, deal value fields, `expected_close_date`, `expected_close_date_source`, optional `analytics_snapshot` | Validates the initial deal-value classification, applies the configured close-date default when omitted, upserts one deal, initializes `discovery` stage history, and attempts a non-blocking analytics snapshot |
-| `add_meeting` | `deal_id`, `date`, `raw_notes` | None | `ok`, `meeting_id`, `summary`, `meddpicc`, `meddpicc_latest`, `customer_themes`, `stage_suggestion`, `embedding_stored`, `usage`, optional `analytics_snapshot` | Calls LLM, appends a meeting, recalculates deal signals, optionally stores an embedding, upserts the deal, and attempts a non-blocking analytics snapshot |
+| `add_meeting` | `deal_id`, `date`, `raw_notes` | None | `ok`, `interaction_id`, `meeting_id`, `summary`, `meddpicc`, `meddpicc_latest`, `customer_themes`, `stage_suggestion`, `embedding_stored`, `usage`, optional `analytics_snapshot` | Backward-compatible wrapper over canonical interaction intake. Calls LLM, writes an `interaction_type: meeting` record under `deal.interactions`, recalculates deal signals, optionally stores an embedding for MongoDB-backed data, upserts the deal, and attempts a non-blocking analytics snapshot. In local sample mode it works only for user-created local personal deals and skips embeddings |
+| `add_interaction` | `deal_id`, `date`, `interaction_type`, `direction`, `content` | `participants`, `subject`, `source_confidence`, `custom_fields_json` | `ok`, `interaction_id`, `meeting_id`, `interaction_type`, `direction`, `source_confidence`, `participants`, `subject`, `summary`, `meddpicc`, `unconfirmed_meddpicc`, `meddpicc_latest`, `customer_themes`, `unconfirmed_customer_themes`, `scoring_applied`, `stage_suggestion`, `embedding_stored`, `usage`, optional `analytics_snapshot` | Calls LLM, appends a canonical `deal.interactions` record, stores source metadata and `raw_content`, recalculates deal signals only when the source is scoring-eligible, optionally stores an embedding for MongoDB-backed data, upserts the deal, and attempts a non-blocking analytics snapshot. `outbound_unconfirmed` and `internal` evidence is stored but does not update MEDDPICC health or customer-theme counts by default. Custom interaction types must be registered in config |
 | `update_stage` | `deal_id`, `new_stage` | `actual_close_date` | `ok`, `deal_id`, `old_stage`, `new_stage`, `actual_close_date`, `days_in_previous_stage`, `stuck_threshold_days`, optional `analytics_snapshot` | Appends stage history, records the actual terminal date, recalculates stage-aware MEDDPICC gaps, upserts the deal, and attempts a non-blocking analytics snapshot |
 | `update_deal` | `deal_id` | `confirmed_by_user`, value fields, `company`, `industry`, `expected_close_date`, `actual_close_date`, `close_reason`, `update_note` | `ok`, `deal_id`, `company`, old/new value snapshots, old/new metadata snapshots, `changed_fields`, `changed_value_fields`, `changed_metadata_fields`, `storage_written` | Requires explicit user confirmation, updates confirmed value/metadata fields only, appends value/metadata history entries, and upserts the deal |
 | `archive_deal` | `deal_id`, `expected_company`, `archive_reason` | `confirmed_by_user` | `ok`, `deal_id`, `company`, `already_archived`, `old_deal`, `new_deal`, `storage_written` | Requires explicit confirmation and exact company match, marks the deal archived, appends archive history, and hides it from default BI/read paths |
@@ -80,16 +81,16 @@ clients see a config-filtered tool surface:
 | `migrate_local_data` | None | `target_database`, `confirmed_by_user`, `dry_run`, `overwrite` | `ok`, `migration_type`, `dry_run`, `storage_written`, `source`, `target`, `options`, `counts`, `deals`, `warnings` | Migrates only user-created local personal deals from `storage.local_data_dir` to MongoDB. Defaults to dry-run, requires confirmation for writes, skips existing target deal ids unless `overwrite=true`, and never migrates bundled fixture records or local delete audit logs |
 | `create_sample_data` | None | `dataset`, `demo_database`, `confirmed_by_user`, `dry_run`, `overwrite` | `ok`, `dataset`, `sample_batch_id`, `primary_database`, `demo_database`, `dry_run`, `existing_count`, `deal_count`, `preview`, `storage_written` | Defaults to dry-run. Actual writes require confirmation and write only to a demo database different from the primary database |
 | `delete_sample_data` | None | `dataset`, `demo_database`, `confirmed_by_user`, `dry_run` | `ok`, `dataset`, `sample_batch_id`, `primary_database`, `demo_database`, `dry_run`, `existing_count`, `sample_deals`, `storage_written` | Defaults to dry-run. Actual deletes require confirmation and delete only records with the known sample batch marker in the demo database |
-| `get_deal` | `deal_id` | None | `ok`, `deal` | Read only; includes full meeting history and raw notes |
-| `list_deals` | None | `stage`, `limit`, `as_of` | `ok`, `as_of`, `timezone`, `generated_at`, `deals`, `count`, `data_quality` | Read only; returns health, timing, attention, and field-quality results while excluding meeting raw notes |
+| `get_deal` | `deal_id` | None | `ok`, `deal` | Read only; includes full deal detail, including stored interactions and any legacy meeting history |
+| `list_deals` | None | `stage`, `limit`, `as_of` | `ok`, `as_of`, `timezone`, `generated_at`, `deals`, `count`, `data_quality` | Read only; returns health, timing, attention, and field-quality results while excluding meeting raw notes and interaction raw content |
 | `get_metrics` | None | `metric_type`, `stage`, `industry`, `as_of`, `lookback_days` | `ok`, `metric_type`, `as_of`, `timezone`, `generated_at`, `filters`, metric-specific summary fields, `warnings` | Read only; `pipeline_health` uses the shared deal metric calculator and restricted deal projection; `pipeline_trend` uses `analytics_snapshots` and a restricted snapshot projection |
-| `get_deal_gaps` | None | `as_of`, `stage`, `industry`, `deal_id`, `min_priority`, `limit` | `ok`, `as_of`, `timezone`, `generated_at`, `filters`, `summary`, `deals`, `warnings` | Read only; uses the restricted metric projection, prioritizes sales follow-up gaps, annotates gaps with `actionability`/`cta_policy`, exposes `actionable_gaps` and `gap_observations`, and excludes raw notes, contacts, and embeddings |
-| `get_deal_review` | `deal_id` | `as_of` | `ok`, `as_of`, `timezone`, `generated_at`, `review` | Read only; uses the restricted metric projection, separates health quality from evidence coverage, returns v2 `assessment`, `actionable_gaps`, and `gap_observations`, suppresses uncalibrated win probability numbers, and excludes raw notes, contacts, and embeddings |
+| `get_deal_gaps` | None | `as_of`, `stage`, `industry`, `deal_id`, `min_priority`, `limit` | `ok`, `as_of`, `timezone`, `generated_at`, `filters`, `summary`, `deals`, `warnings` | Read only; uses the restricted metric projection, prioritizes sales follow-up gaps, annotates gaps with `actionability`/`cta_policy`, exposes `actionable_gaps` and `gap_observations`, and excludes raw notes, raw interaction content, contacts, and embeddings |
+| `get_deal_review` | `deal_id` | `as_of` | `ok`, `as_of`, `timezone`, `generated_at`, `review` | Read only; uses the restricted metric projection, separates health quality from evidence coverage, returns v2 `assessment`, `actionable_gaps`, and `gap_observations`, suppresses uncalibrated win probability numbers, and excludes raw notes, raw interaction content, contacts, and embeddings |
 | `export_report` | None | `report_type`, `output_dir`, `stage`, `industry`, `as_of`, `lookback_days` | `ok`, `report_type`, `as_of`, `timezone`, `generated_at`, `filters`, `row_count`, `warnings`, `metrics`, `output_dir`, `artifacts`, `csv_path`, `markdown_path` | Reads through the report-specific restricted projection and writes local CSV/Markdown report artifacts |
 | `get_insights` | `query_type` | `as_of` | `ok`, `query_type`, `as_of`, `timezone`, `generated_at`, query-specific aggregate fields | Read only over the current collection snapshot |
 | `get_customer_themes` | None | `dimension`, `stage`, `industry`, `top_k` | `ok`, `filters`, `coverage`, `themes` | Read-only MongoDB counts and aggregation |
 | `get_customer_theme_breakdown` | None | `dimension`, `stage`, `industry`, `group_by`, `top_k` | `ok`, `filters`, `summary`, `groups`, `warnings` | Read only; compares curated customer themes by stage, industry, or dimension using the restricted metric projection |
-| `get_customer_theme_evidence` | `theme_key` | `dimension`, `stage`, `industry`, `limit`, `min_importance` | `ok`, `filters`, `summary`, `evidence`, `warnings` | Read only; returns curated customer-theme evidence snippets and excludes raw notes, contacts, and embeddings |
+| `get_customer_theme_evidence` | `theme_key` | `dimension`, `stage`, `industry`, `limit`, `min_importance` | `ok`, `filters`, `summary`, `evidence`, `warnings` | Read only; returns curated customer-theme evidence snippets and excludes raw notes, raw interaction content, contacts, and embeddings |
 | `search_deals` | `query` | `limit` | `ok`, `query`, `result_count`, `results` | Generates a local query embedding and reads deal embeddings; may return a structured warmup response before search |
 | `analyze_deal` | `deal_id` | None | `ok`, `deal_id`, `analysis`, `usage` | Calls LLM and attempts to persist `bd_strategy`; analysis still returns if that save fails |
 
@@ -115,14 +116,16 @@ non-empty `deal_size_note`; metadata updates require `update_note` or a
 fallback `deal_size_note`. `expected_close_date` is allowed only on open deals
 and sets `expected_close_date_source: user_provided`; `actual_close_date` is
 allowed only on won/lost deals; `close_reason` is allowed only on lost deals.
-It does not update `deal_stage`, meetings, contacts, or notes.
+It does not update `deal_stage`, interactions, legacy meetings, contacts, or
+notes.
 
 `archive_deal`, `restore_deal`, and `delete_deal` form the M4.3 lifecycle
 safety layer. All three require exact `expected_company` matching after
 trimming whitespace. `delete_deal` defaults to `dry_run: true`; actual hard
 delete is allowed only after `archive_deal` has marked the deal archived and
 `confirmed_by_user: true` is provided. The delete audit snapshot excludes
-`_id`, `contacts`, `summary_embedding`, and `meetings.raw_notes`.
+`_id`, `contacts`, `summary_embedding`, `meetings.raw_notes`, and
+`interactions.raw_content`.
 
 Default BI/read paths exclude archived deals with:
 
@@ -142,8 +145,9 @@ documents matching both `is_sample: true` and the known `sample_batch_id`.
 The first supported dataset is `weekly_pipeline_demo`.
 
 `analytics_snapshots` form the M5.1-M5.5 trend foundation. `create_deal`,
-`add_meeting`, and `update_stage` attempt to write one lightweight snapshot
-after the source deal mutation succeeds. Snapshot writes are idempotent by
+`add_meeting`, `add_interaction`, and `update_stage` attempt to write one
+lightweight snapshot after the source deal mutation succeeds. Snapshot writes
+are idempotent by
 `event_id`; a duplicate event returns `inserted: false` and `duplicate: true`
 instead of creating a second document. Snapshot failures do not fail the
 original tool call; the response includes `analytics_snapshot.ok: false` with
@@ -208,7 +212,8 @@ shared summary surface:
 Compatibility aliases remain: `stages`, `total_deals`, and `total_size_krw`.
 `total_size_krw` is now the Open pipeline value from the shared Part B
 contract. The metrics read path uses a restricted projection that excludes
-`_id`, `meetings.raw_notes`, `contacts`, and `summary_embedding`.
+`_id`, `meetings.raw_notes`, `interactions.raw_content`, `contacts`, and
+`summary_embedding`.
 
 `get_customer_theme_breakdown` and `get_customer_theme_evidence` are read-only
 M6 customer-theme surfaces. They use the restricted metric projection and only
@@ -267,8 +272,8 @@ Before Milestone 1 started, all 28 findings were resolved. The current gate is:
 pytest -> 128 passed
 ruff check . -> All checks passed
 wheel build -> passed
-FastMCP runtime surface exposure -> sample 16 tools, standard 21 tools,
-developer 23 tools
+FastMCP runtime surface exposure -> sample 18 tools, standard 22 tools,
+developer 24 tools
 MongoDB Atlas read smoke -> passed
 ```
 

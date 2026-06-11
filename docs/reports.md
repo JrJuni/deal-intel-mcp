@@ -95,11 +95,12 @@ Rows are sorted for weekly review attention:
 Weekly pipeline rows must not include:
 
 - `meetings.raw_notes`
+- `interactions.raw_content`
 - `contacts`
 - `summary_embedding`
 
 Evidence snippets in `customer_themes` may be included because they are already
-curated report evidence, not raw meeting notes.
+curated report evidence, not raw meeting notes or raw interaction content.
 
 ### Warnings
 

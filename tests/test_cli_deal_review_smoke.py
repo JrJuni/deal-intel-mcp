@@ -364,6 +364,9 @@ def test_smoke_natural_questions_writes_pack(monkeypatch, tmp_path) -> None:
     assert "OK: True" in result.output
     assert "Sensitive failures: none" in result.output
     assert (output_dir / "summary.md").exists()
+    summary_markdown = (output_dir / "summary.md").read_text(encoding="utf-8")
+    assert "## Source Evidence" in summary_markdown
+    assert "Meeting" in summary_markdown
     summary = json.loads((output_dir / "summary.json").read_text(encoding="utf-8"))
     assert summary["ok"] is True
     assert summary["question_count"] == 9

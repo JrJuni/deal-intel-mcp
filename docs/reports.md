@@ -72,6 +72,21 @@ Terminal deals, `won` and `lost`, are excluded from weekly pipeline rows.
 `dimension == "decision_criteria"`. Selection order is highest `importance`,
 then latest `meeting_date`.
 
+Primary theme objects include safe source metadata when available:
+
+- `interaction_id`
+- `interaction_date`
+- `interaction_type`
+- `source_confidence`
+- `source_label`
+- `subject`
+- legacy `meeting_id` / `meeting_date`
+
+`source_label` is a human-readable label such as
+`Email thread (customer-stated)` or `User interview (customer-stated)`. It is
+derived from structured source metadata and does not require exposing raw
+interaction content.
+
 `objective_action_items` contains only CTA-safe gaps such as overdue close
 dates, stuck stages, and explicitly stalled deals. `gap_observations` contains
 judgment-sensitive gaps such as MEDDPICC competition, champion, economic buyer,
@@ -280,14 +295,20 @@ The generated body includes:
 2. Risk deals table, based on `attention_reasons`
 3. Objective Action Items table, based only on `objective_action_items`
 4. Gap Observations table, based on `gap_observations`
-5. Data quality table
-6. Warning code list
+5. Customer Evidence table, based on primary curated pain / decision criteria
+   snippets and their `source_label`
+6. Data quality table
+7. Warning code list
 
 Risk deal tables escape Markdown table separators and newlines in cell values.
 The Objective Action Items section is for objective CTA triggers. The Gap
 Observations section is for judgment-sensitive gaps and includes
 `actionability` so readers can decide the next move without the report
 over-prescribing qualitative BD judgment.
+
+The Customer Evidence section renders only curated `customer_themes` snippets
+plus safe source labels. It must not render `meetings.raw_notes`,
+`interactions.raw_content`, contacts, or embeddings.
 
 ### Non-Goals
 

@@ -12,6 +12,32 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-11
 
+### P3.6 source-aware evidence rendering
+
+Implemented:
+
+- Added shared source-label formatting for curated customer evidence.
+- Added `source_label` to `get_customer_theme_evidence` rows.
+- Preserved source metadata on weekly pipeline primary pain and decision
+  criteria rows.
+- Added a Customer Evidence section to weekly pipeline Markdown summaries.
+- Added a Source Evidence section to natural-question smoke `summary.md`.
+- Updated the Customer Themes Atlas evidence drill-down spec to project
+  `interaction_type`, `source_confidence`, `source_label`, `subject`, and
+  `interaction_date`.
+
+Verification:
+
+- Targeted reporting/theme/smoke/Atlas regression:
+  `48 passed`, `1 warning`
+- Local sample natural-question smoke:
+  `questions=9`, `source_evidence=2 (email_thread=1, user_interview=1)`,
+  Source Evidence section rendered with meeting/email/interview labels
+- Full pytest:
+  `427 passed`, `1 warning`
+- Ruff:
+  `All checks passed`
+
 ### P3.5 source-aware theme evidence filters
 
 Implemented:

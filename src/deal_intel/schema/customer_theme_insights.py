@@ -6,6 +6,7 @@ from datetime import date
 from typing import Any
 
 from deal_intel.schema.customer_themes import THEME_DIMENSIONS, THEME_TAXONOMY
+from deal_intel.schema.evidence_sources import evidence_source_label
 from deal_intel.schema.interactions import (
     DEFAULT_INTERACTION_TYPES,
     VALID_SOURCE_CONFIDENCE,
@@ -240,6 +241,7 @@ def build_customer_theme_evidence(
                     "interaction_date": record.get("interaction_date"),
                     "interaction_type": record.get("interaction_type"),
                     "source_confidence": record.get("source_confidence"),
+                    "source_label": evidence_source_label(record),
                     "subject": record.get("subject"),
                 }
             )

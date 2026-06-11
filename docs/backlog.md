@@ -153,6 +153,12 @@ Current implementation note:
   `interaction_type` and `source_confidence`. This lets agents answer
   questions like "show only email-backed evidence" without reading raw
   interaction content.
+- P3.6 added source-aware rendering:
+  - customer-theme evidence rows include a human-readable `source_label`,
+  - weekly pipeline rows and Markdown reports show primary pain / decision
+    criteria source labels,
+  - the natural-question smoke summary includes a Source Evidence section so
+    source-aware answers can be checked without reopening an MCP client.
 
 #### P3.3 cleanup: single public intake surface
 

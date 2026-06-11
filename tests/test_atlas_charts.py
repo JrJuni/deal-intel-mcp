@@ -183,6 +183,23 @@ def test_chart_pipeline_rendering_supports_customer_themes_dashboard() -> None:
     assert pipeline[-1]["$project"]["theme_key"] == "$_id"
 
 
+def test_customer_theme_evidence_chart_projects_source_labels() -> None:
+    pipeline = render_chart_pipeline(
+        "theme_evidence_drilldown",
+        {},
+        dashboard="customer_themes",
+        as_of="2026-06-10",
+    )
+
+    payload = json.dumps(pipeline, ensure_ascii=False)
+    assert "_theme_source_label" in payload
+    assert "Email thread" in payload
+    assert "User interview" in payload
+    project_stage = next(stage["$project"] for stage in pipeline if "$project" in stage)
+    assert project_stage["source_label"] == "$_theme_source_label"
+    assert project_stage["interaction_type"] == "$_theme_interaction_type"
+
+
 def test_weekly_pipeline_chart_pipelines_exclude_archived_deals_first() -> None:
     rendered = render_weekly_pipeline_dashboard_spec({}, as_of="2026-06-09")
 

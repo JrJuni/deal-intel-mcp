@@ -62,8 +62,11 @@ def _theme(
     importance: int,
     meeting_date: str = "2026-06-01",
     theme_key: str = "operational_efficiency",
+    interaction_type: str | None = None,
+    source_confidence: str | None = None,
+    subject: str | None = None,
 ) -> dict:
-    return {
+    theme = {
         "theme_key": theme_key,
         "label": "Theme",
         "dimension": dimension,
@@ -72,6 +75,15 @@ def _theme(
         "meeting_id": f"meeting-{importance}",
         "meeting_date": meeting_date,
     }
+    if interaction_type:
+        theme["interaction_id"] = f"interaction-{importance}"
+        theme["interaction_date"] = meeting_date
+        theme["interaction_type"] = interaction_type
+    if source_confidence:
+        theme["source_confidence"] = source_confidence
+    if subject:
+        theme["subject"] = subject
+    return theme
 
 
 def test_weekly_pipeline_rows_include_open_deals_only_and_safe_fields() -> None:
@@ -262,6 +274,43 @@ def test_primary_pain_and_decision_criteria_choose_importance_then_latest() -> N
     assert row["primary_pain"]["evidence"] == "critical current pain"
     assert row["primary_decision_criteria"]["evidence"] == (
         "latest same-priority criterion"
+    )
+
+
+def test_primary_theme_preserves_safe_source_label_metadata() -> None:
+    result = build_weekly_pipeline_rows(
+        [
+            _deal(
+                "source-theme",
+                customer_themes=[
+                    _theme(
+                        "identify_pain",
+                        evidence="email says manual follow-up is too slow",
+                        importance=5,
+                        interaction_type="email_thread",
+                        source_confidence="customer_stated",
+                        subject="Re: follow-up process",
+                    ),
+                    _theme(
+                        "decision_criteria",
+                        evidence="interview confirms audit export is mandatory",
+                        importance=5,
+                        interaction_type="user_interview",
+                        source_confidence="customer_stated",
+                        subject="Buyer interview",
+                    ),
+                ],
+            )
+        ],
+        as_of=AS_OF,
+    )
+
+    row = result["rows"][0]
+    assert row["primary_pain"]["source_label"] == "Email thread (customer-stated)"
+    assert row["primary_pain"]["source_confidence"] == "customer_stated"
+    assert row["primary_pain"]["subject"] == "Re: follow-up process"
+    assert row["primary_decision_criteria"]["source_label"] == (
+        "User interview (customer-stated)"
     )
 
 

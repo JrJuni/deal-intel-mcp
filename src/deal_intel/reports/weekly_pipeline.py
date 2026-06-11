@@ -5,6 +5,7 @@ from datetime import date, datetime
 from typing import Any
 
 from deal_intel.schema.deal_gaps import MEDDPICC_FIELD_LABELS
+from deal_intel.schema.evidence_sources import evidence_source_label
 from deal_intel.schema.gap_actionability import (
     CTA_POLICY_ALLOWED,
     annotate_gap_actionability,
@@ -310,6 +311,8 @@ def _theme_candidates(deal: dict) -> list[dict]:
                     "interaction_id": interaction.get("interaction_id"),
                     "interaction_date": interaction.get("date"),
                     "interaction_type": interaction.get("interaction_type"),
+                    "source_confidence": interaction.get("source_confidence"),
+                    "subject": interaction.get("subject"),
                     "meeting_id": interaction.get("meeting_id"),
                     "meeting_date": interaction.get("date"),
                 }
@@ -343,6 +346,9 @@ def _select_primary_theme(themes: list[dict], dimension: str) -> dict | None:
         "interaction_id": selected.get("interaction_id"),
         "interaction_date": selected.get("interaction_date"),
         "interaction_type": selected.get("interaction_type"),
+        "source_confidence": selected.get("source_confidence"),
+        "source_label": evidence_source_label(selected),
+        "subject": selected.get("subject"),
         "meeting_id": selected.get("meeting_id"),
         "meeting_date": selected.get("meeting_date"),
     }

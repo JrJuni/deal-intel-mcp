@@ -371,6 +371,142 @@
           }
         },
         {
+          "$addFields": {
+            "_theme_interaction_type": {
+              "$ifNull": [
+                "$customer_themes.interaction_type",
+                {
+                  "$cond": [
+                    {
+                      "$ne": [
+                        {
+                          "$ifNull": [
+                            "$customer_themes.meeting_id",
+                            null
+                          ]
+                        },
+                        null
+                      ]
+                    },
+                    "meeting",
+                    "unknown"
+                  ]
+                }
+              ]
+            },
+            "_theme_source_confidence": {
+              "$ifNull": [
+                "$customer_themes.source_confidence",
+                "unknown"
+              ]
+            }
+          }
+        },
+        {
+          "$addFields": {
+            "_theme_interaction_type_label": {
+              "$switch": {
+                "branches": [
+                  {
+                    "case": {
+                      "$eq": [
+                        "$_theme_interaction_type",
+                        "meeting"
+                      ]
+                    },
+                    "then": "Meeting"
+                  },
+                  {
+                    "case": {
+                      "$eq": [
+                        "$_theme_interaction_type",
+                        "email_thread"
+                      ]
+                    },
+                    "then": "Email thread"
+                  },
+                  {
+                    "case": {
+                      "$eq": [
+                        "$_theme_interaction_type",
+                        "user_interview"
+                      ]
+                    },
+                    "then": "User interview"
+                  },
+                  {
+                    "case": {
+                      "$eq": [
+                        "$_theme_interaction_type",
+                        "call_summary"
+                      ]
+                    },
+                    "then": "Call summary"
+                  },
+                  {
+                    "case": {
+                      "$eq": [
+                        "$_theme_interaction_type",
+                        "internal_note"
+                      ]
+                    },
+                    "then": "Internal note"
+                  }
+                ],
+                "default": "$_theme_interaction_type"
+              }
+            },
+            "_theme_source_confidence_label": {
+              "$switch": {
+                "branches": [
+                  {
+                    "case": {
+                      "$eq": [
+                        "$_theme_source_confidence",
+                        "customer_stated"
+                      ]
+                    },
+                    "then": "customer-stated"
+                  },
+                  {
+                    "case": {
+                      "$eq": [
+                        "$_theme_source_confidence",
+                        "outbound_unconfirmed"
+                      ]
+                    },
+                    "then": "outbound-unconfirmed"
+                  }
+                ],
+                "default": "$_theme_source_confidence"
+              }
+            }
+          }
+        },
+        {
+          "$addFields": {
+            "_theme_source_label": {
+              "$cond": [
+                {
+                  "$eq": [
+                    "$_theme_source_confidence",
+                    "unknown"
+                  ]
+                },
+                "$_theme_interaction_type_label",
+                {
+                  "$concat": [
+                    "$_theme_interaction_type_label",
+                    " (",
+                    "$_theme_source_confidence_label",
+                    ")"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
           "$project": {
             "_id": 0,
             "deal_id": 1,
@@ -382,6 +518,11 @@
             "dimension": "$customer_themes.dimension",
             "importance": "$customer_themes.importance",
             "evidence": "$customer_themes.evidence",
+            "interaction_type": "$_theme_interaction_type",
+            "source_confidence": "$_theme_source_confidence",
+            "source_label": "$_theme_source_label",
+            "subject": "$customer_themes.subject",
+            "interaction_date": "$customer_themes.interaction_date",
             "meeting_date": "$customer_themes.meeting_date"
           }
         },

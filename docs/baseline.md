@@ -90,7 +90,7 @@ clients see a config-filtered tool surface:
 | `get_insights` | `query_type` | `as_of` | `ok`, `query_type`, `as_of`, `timezone`, `generated_at`, query-specific aggregate fields | Read only over the current collection snapshot |
 | `get_customer_themes` | None | `dimension`, `stage`, `industry`, `top_k` | `ok`, `filters`, `coverage`, `themes` | Read-only MongoDB counts and aggregation |
 | `get_customer_theme_breakdown` | None | `dimension`, `stage`, `industry`, `group_by`, `top_k` | `ok`, `filters`, `summary`, `groups`, `warnings` | Read only; compares curated customer themes by stage, industry, or dimension using the restricted metric projection |
-| `get_customer_theme_evidence` | `theme_key` | `dimension`, `stage`, `industry`, `limit`, `min_importance`, `interaction_type`, `source_confidence` | `ok`, `filters`, `summary`, `evidence`, `warnings` | Read only; returns curated customer-theme evidence snippets plus safe source metadata (`interaction_type`, `source_confidence`, `subject`), can filter by source type/confidence, treats legacy meeting evidence as `interaction_type=meeting`, and excludes raw notes, raw interaction content, contacts, and embeddings |
+| `get_customer_theme_evidence` | `theme_key` | `dimension`, `stage`, `industry`, `limit`, `min_importance`, `interaction_type`, `source_confidence` | `ok`, `filters`, `summary`, `evidence`, `warnings` | Read only; returns curated customer-theme evidence snippets plus safe source metadata (`interaction_type`, `source_confidence`, `source_label`, `subject`), can filter by source type/confidence, treats legacy meeting evidence as `interaction_type=meeting`, and excludes raw notes, raw interaction content, contacts, and embeddings |
 | `search_deals` | `query` | `limit` | `ok`, `query`, `result_count`, `results` | Generates a local query embedding and reads deal embeddings; may return a structured warmup response before search |
 | `analyze_deal` | `deal_id` | None | `ok`, `deal_id`, `analysis`, `usage` | Calls LLM and attempts to persist `bd_strategy`; analysis still returns if that save fails |
 
@@ -217,8 +217,11 @@ contract. The metrics read path uses a restricted projection that excludes
 
 `get_customer_theme_breakdown` and `get_customer_theme_evidence` are read-only
 M6 customer-theme surfaces. They use the restricted metric projection and only
-return structured `customer_themes` fields. They do not call an LLM, do not use
-embeddings, and do not expose raw meeting notes, contacts, or embeddings.
+return structured `customer_themes` fields. Evidence rows include safe source
+labels derived from structured metadata so assistants can distinguish meetings,
+email threads, and user interviews without reading raw content. They do not
+call an LLM, do not use embeddings, and do not expose raw meeting notes, raw
+interaction content, contacts, or embeddings.
 
 `search_deals` has additional preflight outcomes:
 

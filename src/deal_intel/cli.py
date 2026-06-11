@@ -1969,12 +1969,31 @@ def _format_natural_question_smoke_markdown(payload: dict) -> str:
         lines.append(
             "| "
             f"{index} | "
-            f"{question.get('question')} | "
+            f"{_markdown_cell(question.get('question'))} | "
             f"{question.get('answerability')} | "
             f"{question.get('sensitive')} | "
             f"{question.get('file')} | "
-            f"{question.get('quick_read')} |"
+            f"{_markdown_cell(question.get('quick_read'))} |"
         )
+    source_rows = _natural_question_source_rows(payload)
+    if source_rows:
+        lines.extend(
+            [
+                "",
+                "## Source Evidence",
+                "",
+                "| question | company | source | evidence |",
+                "|---|---|---|---|",
+            ]
+        )
+        for row in source_rows:
+            lines.append(
+                "| "
+                f"{_markdown_cell(row['question_id'])} | "
+                f"{_markdown_cell(row['company'])} | "
+                f"{_markdown_cell(row['source'])} | "
+                f"{_markdown_cell(row['evidence'])} |"
+            )
     lines.extend(
         [
             "",
@@ -1987,6 +2006,46 @@ def _format_natural_question_smoke_markdown(payload: dict) -> str:
         ]
     )
     return "\n".join(lines)
+
+
+def _natural_question_source_rows(payload: dict, *, limit: int = 10) -> list[dict]:
+    from deal_intel.schema.evidence_sources import evidence_source_label
+
+    rows = []
+    for question in payload.get("questions") or []:
+        if not isinstance(question, dict):
+            continue
+        question_id = str(question.get("id") or "")
+        question_payload = question.get("payload")
+        if not isinstance(question_payload, dict):
+            continue
+        for evidence in question_payload.get("evidence") or []:
+            if not isinstance(evidence, dict):
+                continue
+            rows.append(
+                {
+                    "question_id": question_id,
+                    "company": evidence.get("company") or "N/A",
+                    "source": evidence.get("source_label")
+                    or evidence_source_label(evidence),
+                    "evidence": _truncate_text(evidence.get("evidence"), limit=140),
+                }
+            )
+            if len(rows) >= limit:
+                return rows
+    return rows
+
+
+def _truncate_text(value: Any, *, limit: int) -> str:
+    text = str(value or "")
+    if len(text) <= limit:
+        return text
+    return text[: limit - 1] + "..."
+
+
+def _markdown_cell(value: Any) -> str:
+    text = "N/A" if value is None else str(value)
+    return text.replace("\r", " ").replace("\n", " ").replace("|", r"\|")
 
 
 def _format_companies(rows: list[dict], *, limit: int = 3) -> str:

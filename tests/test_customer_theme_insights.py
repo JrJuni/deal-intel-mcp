@@ -219,6 +219,7 @@ def test_customer_theme_evidence_returns_curated_snippets_only() -> None:
     assert [row["company"] for row in result["evidence"]] == ["Gamma", "Alpha"]
     assert result["evidence"][0]["interaction_type"] == "user_interview"
     assert result["evidence"][0]["source_confidence"] == "customer_stated"
+    assert result["evidence"][0]["source_label"] == "User interview (customer-stated)"
     assert result["evidence"][0]["subject"] == "Win review interview"
     payload = json.dumps(result, ensure_ascii=False)
     assert "raw_notes" not in payload

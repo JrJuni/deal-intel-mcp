@@ -194,6 +194,10 @@ def _build_markdown(
         "",
         *_gap_observation_section(rows),
         "",
+        "## Customer Evidence",
+        "",
+        *_customer_evidence_section(rows),
+        "",
         "## Data Quality",
         "",
         *_table(
@@ -304,6 +308,46 @@ def _gap_observation_section(rows: list[dict]) -> list[str]:
             for row, observation in observation_rows
         ],
     )
+
+
+def _customer_evidence_section(rows: list[dict]) -> list[str]:
+    evidence_rows = [
+        row
+        for row in rows
+        if isinstance(row.get("primary_pain"), dict)
+        or isinstance(row.get("primary_decision_criteria"), dict)
+    ]
+    if not evidence_rows:
+        return ["No primary customer evidence."]
+    return _table(
+        ["Company", "Primary pain", "Pain source", "Decision criteria", "DC source"],
+        [
+            [
+                row.get("company"),
+                _format_theme(row.get("primary_pain")),
+                _format_theme_source(row.get("primary_pain")),
+                _format_theme(row.get("primary_decision_criteria")),
+                _format_theme_source(row.get("primary_decision_criteria")),
+            ]
+            for row in evidence_rows
+        ],
+    )
+
+
+def _format_theme(theme: Any) -> str:
+    if not isinstance(theme, dict):
+        return "N/A"
+    evidence = str(theme.get("evidence") or "").strip()
+    label = str(theme.get("label") or theme.get("theme_key") or "").strip()
+    if label and evidence:
+        return f"{label}: {evidence}"
+    return evidence or label or "N/A"
+
+
+def _format_theme_source(theme: Any) -> str:
+    if not isinstance(theme, dict):
+        return "N/A"
+    return str(theme.get("source_label") or "Unknown source")
 
 
 def _format_action_items(actions: list[dict]) -> str:

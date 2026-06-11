@@ -175,7 +175,7 @@ Charts do not automatically update from repository JSON files.
 | `theme_overview` | Top Customer Themes | Bar or Table | `theme_key`, `label`, `deal_count`, `avg_importance` |
 | `decision_criteria_by_stage` | Decision Criteria By Stage | Grouped Bar or Table | `stage`, `theme_key`, `label`, `count`, `avg_importance` |
 | `pain_by_industry` | Pain By Industry | Grouped Bar or Table | `industry`, `theme_key`, `label`, `count`, `avg_importance` |
-| `theme_evidence_drilldown` | Theme Evidence Drill-down | Table | `company`, `industry`, `deal_stage`, `theme_key`, `label`, `dimension`, `importance`, `evidence`, `interaction_type`, `source_confidence`, `subject`, `interaction_date` |
+| `theme_evidence_drilldown` | Theme Evidence Drill-down | Table | `company`, `industry`, `deal_stage`, `theme_key`, `label`, `dimension`, `importance`, `evidence`, `interaction_type`, `source_confidence`, `source_label`, `subject`, `interaction_date` |
 
 Suggested customer themes layout:
 

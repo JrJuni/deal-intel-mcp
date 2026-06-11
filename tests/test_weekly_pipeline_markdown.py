@@ -66,6 +66,11 @@ def _themes() -> list[dict]:
             "importance": 4,
             "meeting_id": "m-theme",
             "meeting_date": "2026-06-01",
+            "interaction_id": "i-email-theme",
+            "interaction_date": "2026-06-01",
+            "interaction_type": "email_thread",
+            "source_confidence": "customer_stated",
+            "subject": "Re: reporting workflow",
         },
         {
             "theme_key": "integration_migration",
@@ -75,6 +80,11 @@ def _themes() -> list[dict]:
             "importance": 5,
             "meeting_id": "m-theme",
             "meeting_date": "2026-06-01",
+            "interaction_id": "i-interview-theme",
+            "interaction_date": "2026-06-01",
+            "interaction_type": "user_interview",
+            "source_confidence": "customer_stated",
+            "subject": "Ops lead interview",
         },
     ]
 
@@ -151,6 +161,9 @@ def test_weekly_pipeline_markdown_summarizes_kpis_and_matches_csv(tmp_path) -> N
     assert "`missing_expected_close_date`" in markdown
     assert "## Objective Action Items" in markdown
     assert "## Gap Observations" in markdown
+    assert "## Customer Evidence" in markdown
+    assert "Email thread (customer-stated)" in markdown
+    assert "User interview (customer-stated)" in markdown
 
 
 def test_weekly_pipeline_markdown_handles_empty_report() -> None:

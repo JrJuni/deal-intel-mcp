@@ -65,7 +65,13 @@ def mongo() -> MongoDBClient | LocalSampleClient:
                 cfg = config()
                 backend = storage_backend_name()
                 if backend == "local_sample":
-                    _mongo = LocalSampleClient()
+                    storage_cfg = cfg.get("storage", {})
+                    local_data_dir = (
+                        storage_cfg.get("local_data_dir")
+                        if isinstance(storage_cfg, dict)
+                        else None
+                    )
+                    _mongo = LocalSampleClient(local_data_dir=local_data_dir)
                 else:
                     db_name = cfg.get("mongodb", {}).get("database", "deal_intel")
                     _mongo = MongoDBClient(database=db_name)

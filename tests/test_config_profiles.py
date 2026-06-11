@@ -25,6 +25,9 @@ def test_sample_profile_is_zero_config_read_only_default() -> None:
     profile = get_config_profile("sample")
 
     assert profile.config_patch["storage"]["backend"] == "local_sample"
+    assert profile.config_patch["storage"]["local_data_dir"] == (
+        "~/.deal-intel/local-data"
+    )
     assert profile.config_patch["mongodb"]["vector_search"] == "python_cosine"
     assert "feature-test" in profile.description
     assert any("No MongoDB" in item for item in profile.requirements)

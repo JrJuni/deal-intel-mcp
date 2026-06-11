@@ -7,8 +7,8 @@ first-run guidance.
 
 ## Mental Model
 
-- `sample`: safe feature-test mode with bundled fictional data, designed to
-  grow into lightweight local personal use.
+- `sample`: safe feature-test mode with bundled fictional data and optional
+  lightweight local personal data.
 - `full`: normal Atlas-backed operating mode for real team data.
 - `pro`: paid-infrastructure upgrade path with Atlas Vector Search and API-key
   LLM providers.
@@ -24,9 +24,10 @@ The default user journey should be sample-first:
 
 The product is fundamentally designed for MongoDB-backed team operation.
 `sample` exists so users and AI agents can test the workflow before setup, and
-it should also become useful for lightweight personal/local experiments. The
-current bundled fixture path is read-only; local personal persistence is the
-next design target.
+it can now support lightweight personal/local experiments. It starts with a
+bundled immutable fixture; once user-created local deals exist, the fixture is
+archived from active reads and `storage.local_data_dir/deals.json` becomes the
+working dataset.
 
 ## Profile Contract
 
@@ -40,9 +41,11 @@ The source contract lives in `src/deal_intel/config_profiles.py`.
 
 Notes:
 
-- `sample` should stay safe by default, but it should not be permanently
-  read-only. The next local milestone should add mutable/resettable personal
-  data without requiring MongoDB.
+- `sample` stays safe by default, but it is not permanently read-only. Local
+  personal `deals.json` supports small user datasets without MongoDB, and
+  `local-data reset/export` gives users a recovery path for messy testing.
+- The default local personal data directory is `~/.deal-intel/local-data`, and
+  users should be able to override it through config as `storage.local_data_dir`.
 - `full` should remain the operational default for real customer data.
 - `pro` is an upgrade path, not the first-run default.
 - `openai_api` in `pro` is a default, not a hard vendor lock. Users may switch
@@ -100,7 +103,8 @@ Implemented behavior:
 - `init` creates `~/.deal-intel/config.yaml` when it does not exist.
 - `init` refuses to replace an existing config unless `--force` is provided.
 - `switch` updates only profile-managed keys:
-  `storage.backend`, `mongodb.vector_search`, and `llm.provider`.
+  `storage.backend`, `storage.local_data_dir` when present in the target
+  profile, `mongodb.vector_search`, and `llm.provider`.
 - `switch` preserves unrelated custom settings such as reporting, pipeline,
   metrics, and model tuning.
 - Actual overwrite/switch writes back up the previous config first with a
@@ -240,20 +244,56 @@ Result:
 
 ### Z5.9 Local Personal Sample Storage
 
-Planned scope:
+Implemented foundation:
 
-- Add mutable/resettable local personal storage on top of the current
-  `local_sample` experience.
-- Keep bundled fictional fixture data immutable.
-- Store user-created local data separately from bundled fixture data.
-- Support enough persistence for:
-  `create_deal`, `update_stage`, `update_deal`, `archive_deal`,
-  `restore_deal`, and `delete_deal`.
+- Added local personal data directory resolution.
+- Added `deals.json` as the first local personal read contract.
+- Added local personal `upsert_deal` persistence for safe non-LLM write tools.
+- Added local personal delete audit persistence in `delete_audit_logs.json`.
+- Kept bundled fictional fixture data immutable.
+- Hid bundled fixture deals from active read paths once user-created local
+  deals exist.
+- Preserved the fixture as an archived bundled sample, visible only through
+  diagnostic metadata.
+- Continued stripping `raw_notes`, `contacts`, and `summary_embedding` from
+  local sample read and write payloads.
+- Supported local persistence for `create_deal`, `update_stage`, and
+  `update_deal`.
+- Supported local persistence for `archive_deal`, `restore_deal`, and
+  `delete_deal` with existing confirmation, company-match, dry-run, archived-
+  before-delete, and audit-snapshot gates.
+- Preserved delete audit logs separately from local deal reset/delete flows.
+
+Implemented reset/export surface:
+
+```bash
+deal-intel local-data status
+deal-intel local-data export
+deal-intel local-data reset
+deal-intel local-data reset --force
+```
+
+Behavior:
+
+- `status` reports the configured local personal data directory, deal count,
+  and delete-audit-log count.
+- `export` writes a secret-safe JSON snapshot of local personal deals and
+  delete audit logs. It strips raw notes, contacts, and embeddings.
+- `reset` is dry-run by default.
+- `reset --force` clears only local personal deals in `deals.json`.
+- Delete audit logs are preserved across reset.
+- An empty `deals.json` still keeps the bundled fixture archived, so reset does
+  not silently re-mix fictional data into the working dataset.
+
+Remaining planned scope:
+
+- Add local analytics snapshot persistence if trend reports need local personal
+  write history.
 - Preserve existing safety gates:
   `confirmed_by_user`, exact company checks, dry-run defaults, archive-before-
   hard-delete, and safe delete audit snapshots.
-- Add reset/export behavior so a non-developer can recover from messy local
-  testing.
+- Add a later migration path from local personal data to MongoDB so users can
+  graduate from sample/local mode to `full` without retyping their deals.
 
 Non-goals for Z5.9:
 
@@ -261,6 +301,7 @@ Non-goals for Z5.9:
 - No semantic `search_deals` in local personal mode yet.
 - No Mongo aggregation compatibility.
 - No Atlas demo-database seed/cleanup behavior.
+- No local-to-Mongo migration implementation in the first local storage slice.
 
 Why this comes before MCP filtering:
 
@@ -270,6 +311,24 @@ Why this comes before MCP filtering:
   dataset before asking for MongoDB.
 - Once local write support exists, Z5.10 can safely expose the right sample
   write/admin tools through config-driven MCP filtering.
+
+### Z5.9 Follow-Up: Local To Mongo Migration
+
+Planned scope:
+
+- Read the local personal data directory.
+- Validate local deals before migration.
+- Dry-run by default.
+- Upsert into the configured MongoDB database only after explicit user
+  confirmation.
+- Preserve deal ids when possible.
+- Report conflicts, skipped records, and inserted/updated counts.
+
+Non-goals:
+
+- No automatic background sync.
+- No two-way sync between local and MongoDB.
+- No migration of bundled fictional fixture data.
 
 ### Z5.10 Config-Driven MCP Tool Filtering
 

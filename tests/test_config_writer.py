@@ -29,6 +29,7 @@ def test_init_config_profile_dry_run_does_not_write(tmp_path) -> None:
     assert user_config.exists() is False
     assert result["target_profile_values"] == {
         "storage.backend": "local_sample",
+        "storage.local_data_dir": "~/.deal-intel/local-data",
         "mongodb.vector_search": "python_cosine",
         "llm.provider": "chatgpt_oauth",
     }
@@ -93,7 +94,10 @@ def test_init_config_profile_force_backs_up_and_overwrites(tmp_path) -> None:
     assert backup.exists()
     assert "custom:" in backup.read_text(encoding="utf-8")
     assert _load(user_config) == {
-        "storage": {"backend": "local_sample"},
+        "storage": {
+            "backend": "local_sample",
+            "local_data_dir": "~/.deal-intel/local-data",
+        },
         "mongodb": {"vector_search": "python_cosine"},
         "llm": {"provider": "chatgpt_oauth"},
     }
@@ -104,6 +108,7 @@ def test_switch_config_profile_dry_run_preserves_file(tmp_path) -> None:
     user_config.write_text(
         "storage:\n"
         "  backend: mongo\n"
+        "  local_data_dir: custom-local-data\n"
         "mongodb:\n"
         "  vector_search: python_cosine\n"
         "  database: custom_db\n"
@@ -124,6 +129,7 @@ def test_switch_config_profile_dry_run_preserves_file(tmp_path) -> None:
     assert result["storage_written"] is False
     assert [change["field"] for change in result["changed_fields"]] == [
         "storage.backend",
+        "storage.local_data_dir",
         "llm.provider",
     ]
     assert _load(user_config)["storage"]["backend"] == "mongo"
@@ -134,6 +140,7 @@ def test_switch_config_profile_requires_force_when_changes_exist(tmp_path) -> No
     user_config.write_text(
         "storage:\n"
         "  backend: mongo\n"
+        "  local_data_dir: custom-local-data\n"
         "mongodb:\n"
         "  vector_search: python_cosine\n"
         "llm:\n"
@@ -155,6 +162,7 @@ def test_switch_config_profile_force_preserves_custom_settings(tmp_path) -> None
     user_config.write_text(
         "storage:\n"
         "  backend: mongo\n"
+        "  local_data_dir: custom-local-data\n"
         "mongodb:\n"
         "  vector_search: python_cosine\n"
         "  database: custom_db\n"
@@ -177,6 +185,7 @@ def test_switch_config_profile_force_preserves_custom_settings(tmp_path) -> None
     assert result["storage_written"] is True
     assert result["backup_written"] is True
     assert data["storage"]["backend"] == "mongo"
+    assert data["storage"]["local_data_dir"] == "custom-local-data"
     assert data["mongodb"]["vector_search"] == "atlas"
     assert data["mongodb"]["database"] == "custom_db"
     assert data["llm"]["provider"] == "openai_api"

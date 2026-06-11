@@ -481,8 +481,12 @@ def _safe_ping_details(ping: dict[str, Any]) -> dict[str, Any]:
         "database",
         "sample_dataset",
         "sample_dataset_version",
+        "data_mode",
         "deal_count",
         "snapshot_count",
+        "local_data_dir",
+        "local_deal_count",
+        "fixture_archived",
         "message",
         "fix",
     }

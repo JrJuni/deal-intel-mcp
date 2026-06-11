@@ -33,6 +33,7 @@ def test_profile_smoke_sample_passes_without_external_setup(monkeypatch, tmp_pat
     assert result["profile"] == "sample"
     assert result["target_profile_values"] == {
         "storage.backend": "local_sample",
+        "storage.local_data_dir": "~/.deal-intel/local-data",
         "mongodb.vector_search": "python_cosine",
         "llm.provider": "chatgpt_oauth",
     }

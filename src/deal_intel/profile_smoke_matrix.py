@@ -30,11 +30,16 @@ class ProfileSmokeContract:
     deferred_checks: tuple[str, ...]
 
     def profile_values(self) -> dict[str, str]:
-        return {
+        values = {
             "storage.backend": self.storage_backend,
             "mongodb.vector_search": self.vector_search,
             "llm.provider": self.llm_provider,
         }
+        profile = get_config_profile(self.profile)
+        storage = profile.config_patch.get("storage", {})
+        if isinstance(storage, dict) and "local_data_dir" in storage:
+            values["storage.local_data_dir"] = storage["local_data_dir"]
+        return values
 
     def to_dict(self) -> dict:
         profile = get_config_profile(self.profile)

@@ -12,6 +12,8 @@ import typer
 app = typer.Typer(help="deal-intel CLI")
 config_app = typer.Typer(help="Inspect and prepare deal-intel config profiles.")
 app.add_typer(config_app, name="config")
+local_data_app = typer.Typer(help="Inspect, export, and reset local personal data.")
+app.add_typer(local_data_app, name="local-data")
 
 SENSITIVE_RESULT_KEYS = {"raw_notes", "contacts", "summary_embedding"}
 ALERT_RANK = {"alert": 3, "watch": 2, "info": 1, "none": 0}
@@ -128,7 +130,9 @@ def config_doctor(
         storage = _mapping(cfg.get("storage"))
         backend = storage.get("backend", "mongo")
         if backend == "local_sample":
-            return LocalSampleClient().ping()
+            return LocalSampleClient(
+                local_data_dir=storage.get("local_data_dir")
+            ).ping()
         database = _mapping(cfg.get("mongodb")).get("database", "deal_intel")
         return MongoDBClient(database=database).ping()
 
@@ -326,6 +330,81 @@ def storage_status(
 
     if not payload["ok"]:
         raise typer.Exit(code=1)
+
+
+@local_data_app.command("status")
+def local_data_status(
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Print structured JSON instead of concise text.",
+    ),
+) -> None:
+    """Show the local personal data directory and row counts."""
+
+    store = _local_personal_store_from_config()
+    payload = {
+        "ok": True,
+        "storage_backend": "local_personal",
+        **store.summary(),
+    }
+    if json_output:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        typer.echo(_format_local_data_status(payload))
+
+
+@local_data_app.command("export")
+def local_data_export(
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help=(
+            "Optional JSON export path. Defaults to "
+            "storage.local_data_dir/exports/local-data-<timestamp>.json."
+        ),
+    ),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Print structured JSON instead of concise text.",
+    ),
+) -> None:
+    """Export local personal deals and delete audit logs to a JSON snapshot."""
+
+    store = _local_personal_store_from_config()
+    payload = store.export_data(output_path=output)
+    if json_output:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        typer.echo(_format_local_data_export(payload))
+
+
+@local_data_app.command("reset")
+def local_data_reset(
+    force: bool = typer.Option(
+        False,
+        "--force",
+        help=(
+            "Actually clear local personal deals. Without this flag the command "
+            "is a dry-run."
+        ),
+    ),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Print structured JSON instead of concise text.",
+    ),
+) -> None:
+    """Clear local personal deals while preserving delete audit logs."""
+
+    store = _local_personal_store_from_config()
+    payload = store.reset_deals(force=force)
+    if json_output:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        typer.echo(_format_local_data_reset(payload))
 
 
 @app.command("backfill-customer-themes")
@@ -839,6 +918,55 @@ def _format_storage_status(payload: dict) -> str:
     return "\n".join(lines)
 
 
+def _format_local_data_status(payload: dict) -> str:
+    return "\n".join(
+        [
+            "Local personal data:",
+            f"Data dir: {payload.get('data_dir')}",
+            f"Deals file: {payload.get('deals_path')}",
+            f"Delete audit file: {payload.get('delete_audit_logs_path')}",
+            f"Deals: {payload.get('deal_count')}",
+            f"Delete audit logs: {payload.get('delete_audit_log_count')}",
+            (
+                "Note: bundled fixture data is immutable and is not counted as "
+                "local personal data."
+            ),
+        ]
+    )
+
+
+def _format_local_data_export(payload: dict) -> str:
+    return "\n".join(
+        [
+            "Local personal data export: OK",
+            f"Export path: {payload.get('export_path')}",
+            f"Data dir: {payload.get('data_dir')}",
+            f"Deals: {payload.get('deal_count')}",
+            f"Delete audit logs: {payload.get('delete_audit_log_count')}",
+        ]
+    )
+
+
+def _format_local_data_reset(payload: dict) -> str:
+    status = "dry-run" if payload.get("dry_run") else "applied"
+    lines = [
+        f"Local personal data reset: {status}",
+        f"Data dir: {payload.get('data_dir')}",
+        f"Deals file: {payload.get('deals_path')}",
+        f"Would delete deals: {payload.get('would_delete_deal_count')}",
+        (
+            "Preserved delete audit logs: "
+            f"{payload.get('preserved_delete_audit_log_count')}"
+        ),
+        f"Storage written: {payload.get('storage_written')}",
+    ]
+    if payload.get("dry_run"):
+        lines.append("Run again with --force to clear only local personal deals.")
+    else:
+        lines.append("Delete audit logs were preserved.")
+    return "\n".join(lines)
+
+
 def _summarize_config_for_display(cfg: dict[str, Any]) -> dict[str, Any]:
     llm = _mapping(cfg.get("llm"))
     mongodb = _mapping(cfg.get("mongodb"))
@@ -851,6 +979,7 @@ def _summarize_config_for_display(cfg: dict[str, Any]) -> dict[str, Any]:
     return {
         "storage": {
             "backend": storage.get("backend", "mongo"),
+            "local_data_dir": storage.get("local_data_dir"),
         },
         "mongodb": {
             "database": mongodb.get("database", "deal_intel"),
@@ -889,13 +1018,18 @@ def _summarize_config_environment() -> dict[str, dict[str, bool]]:
 def _format_config_profiles(payload: dict) -> str:
     lines = ["Config profiles:"]
     for profile in payload["profiles"]:
+        storage_patch = profile["config_patch"]["storage"]
+        mongodb_patch = profile["config_patch"]["mongodb"]
+        llm_patch = profile["config_patch"]["llm"]
+        local_data_dir = storage_patch.get("local_data_dir", "preserve")
         lines.extend(
             [
                 f"- {profile['name']} ({profile['title']}): "
                 f"{profile['description']}",
-                f"  storage={profile['config_patch']['storage']['backend']}, "
-                f"vector_search={profile['config_patch']['mongodb']['vector_search']}, "
-                f"llm={profile['config_patch']['llm']['provider']}",
+                f"  storage={storage_patch['backend']}, "
+                f"local_data_dir={local_data_dir}, "
+                f"vector_search={mongodb_patch['vector_search']}, "
+                f"llm={llm_patch['provider']}",
             ]
         )
     return "\n".join(lines)
@@ -914,6 +1048,7 @@ def _format_config_show(payload: dict) -> str:
         (
             "Storage: "
             f"{cfg['storage']['backend']} | "
+            f"local_data_dir={cfg['storage']['local_data_dir']} | "
             f"Mongo database: {cfg['mongodb']['database']} | "
             f"Vector search: {cfg['mongodb']['vector_search']}"
         ),
@@ -1136,6 +1271,15 @@ def _config_write_error_payload(command: str, profile: str, message: str) -> dic
 
 def _mapping(value: Any) -> dict:
     return value if isinstance(value, dict) else {}
+
+
+def _local_personal_store_from_config() -> Any:
+    from deal_intel import _env
+    from deal_intel.storage.local_personal import LocalPersonalStore
+
+    cfg = _env.load_config()
+    storage = _mapping(cfg.get("storage"))
+    return LocalPersonalStore(storage.get("local_data_dir"))
 
 
 def _build_natural_question_smoke_pack(

@@ -22,6 +22,9 @@ def test_config_profiles_cli_returns_profile_catalog_json() -> None:
     assert payload["profiles"][0]["config_patch"]["storage"]["backend"] == (
         "local_sample"
     )
+    assert payload["profiles"][0]["config_patch"]["storage"]["local_data_dir"] == (
+        "~/.deal-intel/local-data"
+    )
     command_blob = json.dumps(payload["profiles"], ensure_ascii=False)
     assert "config init" not in command_blob
     assert "config doctor" not in command_blob
@@ -68,6 +71,9 @@ def test_config_show_cli_summarizes_effective_config_without_secrets(
     assert payload["profile"] == "sample"
     assert payload["user_config_exists"] is True
     assert payload["effective_config"]["storage"]["backend"] == "local_sample"
+    assert payload["effective_config"]["storage"]["local_data_dir"] == (
+        "~/.deal-intel/local-data"
+    )
     assert payload["effective_config"]["llm"]["provider"] == "openai_api"
     assert payload["environment"]["MONGODB_URI"]["configured"] is True
     assert payload["environment"]["OPENAI_API_KEY"]["configured"] is True
@@ -85,6 +91,9 @@ def test_config_show_cli_uses_env_storage_override(monkeypatch, tmp_path) -> Non
     assert payload["profile"] == "sample"
     assert payload["user_config_exists"] is False
     assert payload["effective_config"]["storage"]["backend"] == "local_sample"
+    assert payload["effective_config"]["storage"]["local_data_dir"] == (
+        "~/.deal-intel/local-data"
+    )
     assert payload["environment"]["DEAL_INTEL_STORAGE_BACKEND"]["configured"] is True
 
 

@@ -13,6 +13,7 @@ mongodb:
 
 storage:
   backend: mongo                  # mongo | local_sample
+  local_data_dir: ~/.deal-intel/local-data
 
 reporting:
   timezone: Asia/Seoul

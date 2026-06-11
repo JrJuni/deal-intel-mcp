@@ -14,6 +14,7 @@ from deal_intel.config_profiles import get_config_profile
 
 PROFILE_MANAGED_PATHS: tuple[tuple[str, str], ...] = (
     ("storage", "backend"),
+    ("storage", "local_data_dir"),
     ("mongodb", "vector_search"),
     ("llm", "provider"),
 )
@@ -269,6 +270,8 @@ def _apply_profile_managed_keys(
     profile_patch: dict[str, Any],
 ) -> None:
     for path in PROFILE_MANAGED_PATHS:
+        if not _has_nested(profile_patch, path):
+            continue
         value = _get_nested(profile_patch, path)
         _set_nested(target, path, value)
 
@@ -296,6 +299,7 @@ def _profile_values(cfg: dict[str, Any]) -> dict[str, Any]:
     return {
         _format_path(path): _get_nested(cfg, path)
         for path in PROFILE_MANAGED_PATHS
+        if _has_nested(cfg, path)
     }
 
 
@@ -306,6 +310,15 @@ def _get_nested(cfg: dict[str, Any], path: tuple[str, str]) -> Any:
             return None
         value = value.get(key)
     return value
+
+
+def _has_nested(cfg: dict[str, Any], path: tuple[str, str]) -> bool:
+    value: Any = cfg
+    for key in path:
+        if not isinstance(value, dict) or key not in value:
+            return False
+        value = value[key]
+    return True
 
 
 def _set_nested(cfg: dict[str, Any], path: tuple[str, str], value: Any) -> None:

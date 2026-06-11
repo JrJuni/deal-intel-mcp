@@ -45,13 +45,59 @@ Implemented:
   config-driven MCP tool filtering, but mutable/resettable local personal
   storage now comes first so the filtered `sample` surface is actually useful
   for small user datasets.
+- Added `storage.local_data_dir` to the config contract. The default planned
+  local personal data directory is `~/.deal-intel/local-data`, and config tools
+  can expose/override it through the sample profile.
+- Added a later dry-run-first local personal data to MongoDB migration target
+  to the Z5 plan tree.
+- Added Z5.9a local personal read foundation:
+  `storage.local_data_dir/deals.json` can provide user-created local deals.
+  When local deals exist, bundled fixture data is treated as archived demo data
+  and removed from active `local_sample` read paths.
+- Added Z5.9b local personal safe write foundation:
+  `LocalSampleClient.upsert_deal` persists to local `deals.json`, stripping
+  sensitive fields before storage. `create_deal`, `update_stage`, and
+  `update_deal` can now write local personal sample data.
+- Added Z5.9c-1 local lifecycle safety:
+  `archive_deal`, `restore_deal`, and `delete_deal` now work on local personal
+  data. `delete_deal` preserves audit snapshots in `delete_audit_logs.json`
+  before hard delete, keeps audit logs independent from deal storage, and
+  blocks bundled fixture deal ids from being persisted through lifecycle writes.
+- Added Z5.9c-2 local reset/export safety:
+  `deal-intel local-data status`, `deal-intel local-data export`, and
+  `deal-intel local-data reset` now inspect, export, and reset local personal
+  data without touching bundled fixture data.
+- `local-data reset` is dry-run by default.
+- `local-data reset --force` clears only local personal deals in `deals.json`
+  and preserves delete audit logs in `delete_audit_logs.json`.
+- An empty local `deals.json` keeps bundled fixture data archived, so reset
+  does not silently re-mix fictional sample data into the active working set.
+- `local-data export` writes a secret-safe JSON snapshot without raw notes,
+  contacts, or embeddings.
 
 Verification:
 
 - Tool surface/config/profile regression:
-  `61 passed`, `1 warning`
+  `71 passed`, `1 warning`
+- Local sample/personal read foundation:
+  `12 passed`
+- Local safe-write/config regression:
+  `86 passed`, `1 warning`
+- Local lifecycle safety:
+  `17 passed`
+- Local reset/export CLI safety:
+  `21 passed`
+- Lifecycle/config regression:
+  `92 passed`, `1 warning`
+- Local sample/config/profile regression:
+  `45 passed`, `1 warning`
+- Local data/config/profile regression:
+  `68 passed`
+- Config CLI smoke:
+  `config init --profile sample --dry-run` shows
+  `storage.local_data_dir: ~/.deal-intel/local-data`
 - Full pytest:
-  `375 passed`, `1 warning`
+  `390 passed`, `1 warning`
 - Diff whitespace check:
   `git diff --check`
 - Ruff:

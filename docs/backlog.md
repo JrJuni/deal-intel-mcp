@@ -24,8 +24,8 @@ and `pro`.
 
 Next candidate units:
 
-1. Mutable/resettable local personal data for `sample`, so users can try their
-   own small dataset before MongoDB.
+1. Local personal data -> MongoDB migration, dry-run by default, so users can
+   graduate to `full` without retyping their sample-mode deals.
 2. Config-driven MCP tool filtering from the Z5.8a tool surface contract, after
    local personal write support exists.
 3. Release packaging check: rebuild/validate the `.mcpb` artifact once the
@@ -89,15 +89,16 @@ Backlog items:
   repositories.
 - Use the Z5.8a tool surface contract to separate `sample`, `standard`, and
   `developer` MCP tool lists before a stable external release.
-- Add mutable/resettable local personal mode for temporary user data. The
-  current `sample` profile starts with bundled fictional read-first data, but
-  should support personal create/update/stage/lifecycle flows before external
-  release. Real team/shared operation uses MongoDB-backed `full`.
+- Keep local personal mode safe for temporary user data. The `sample` profile
+  starts with bundled fictional data, then switches active reads to local
+  `deals.json` once a user creates personal deals. Reset/export is now
+  available; real team/shared operation still uses MongoDB-backed `full`.
 - Consider whether natural-language smoke tools should remain CLI-only in
   production bundles.
-- After local personal sample storage lands, apply config-driven MCP filtering
-  so default users see the relevant `sample` or `standard` tool list instead of
-  every maintainer/debug tool.
+- Apply config-driven MCP filtering so default users see the relevant `sample`
+  or `standard` tool list instead of every maintainer/debug tool.
+- Add a dry-run-first local-to-Mongo migration tool after local personal
+  storage is stable.
 - Rebuild and attach a fresh `.mcpb` artifact after bundle manifest changes.
 
 ### Pro Infrastructure

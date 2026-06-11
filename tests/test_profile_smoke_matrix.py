@@ -72,11 +72,16 @@ def test_profile_smoke_contract_matches_profile_patches() -> None:
     for contract in list_profile_smoke_contracts():
         profile = get_config_profile(contract.profile)
 
-        assert contract.profile_values() == {
+        expected = {
             "storage.backend": profile.config_patch["storage"]["backend"],
             "mongodb.vector_search": profile.config_patch["mongodb"]["vector_search"],
             "llm.provider": profile.config_patch["llm"]["provider"],
         }
+        if "local_data_dir" in profile.config_patch["storage"]:
+            expected["storage.local_data_dir"] = profile.config_patch["storage"][
+                "local_data_dir"
+            ]
+        assert contract.profile_values() == expected
         assert profile.first_run_commands == tuple(
             contract.to_dict()["first_run_commands"]
         )

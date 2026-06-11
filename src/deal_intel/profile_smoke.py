@@ -67,7 +67,9 @@ def _storage_ping_for_config(cfg: dict[str, Any]) -> StoragePing:
         storage = _mapping(cfg.get("storage"))
         backend = storage.get("backend", "mongo")
         if backend == "local_sample":
-            return LocalSampleClient().ping()
+            return LocalSampleClient(
+                local_data_dir=storage.get("local_data_dir")
+            ).ping()
         database = _mapping(cfg.get("mongodb")).get("database", "deal_intel")
         return MongoDBClient(database=database).ping()
 
@@ -86,6 +88,9 @@ def _build_contract_checks(
         ),
         "llm.provider": _mapping(target_config.get("llm")).get("provider"),
     }
+    storage = _mapping(target_config.get("storage"))
+    if "local_data_dir" in storage:
+        target_values["storage.local_data_dir"] = storage["local_data_dir"]
     expected_values = contract.profile_values()
     return [
         {

@@ -108,6 +108,10 @@ personal data is the intended sample-mode upgrade. Until that lands, recommend
 `full` mode with a small MongoDB database. You can help them inspect profiles,
 set `MONGODB_URI`, and run `config doctor`.
 
+When local personal storage is available, its default directory is
+`~/.deal-intel/local-data`; users should be able to override it with
+`storage.local_data_dir`.
+
 Only request `MONGODB_URI`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or Atlas
 Vector Search setup after the user chooses `full` or `pro`.
 

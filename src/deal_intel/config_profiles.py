@@ -38,7 +38,10 @@ _PROFILES: dict[ConfigProfileName, ConfigProfile] = {
             "to grow into lightweight local personal use before MongoDB setup."
         ),
         config_patch={
-            "storage": {"backend": "local_sample"},
+            "storage": {
+                "backend": "local_sample",
+                "local_data_dir": "~/.deal-intel/local-data",
+            },
             "mongodb": {"vector_search": "python_cosine"},
             "llm": {"provider": "chatgpt_oauth"},
         },

@@ -11,9 +11,9 @@ smoke tests, and future lightweight personal use when `MONGODB_URI`, Atlas
 Charts, paid API keys, and Atlas Vector Search are not available.
 
 The first sample-mode milestone was intentionally read-only. It proved that the
-core BI and deal-review read paths can run over bundled fixture data. The next
-sample-mode storage milestone should add mutable/resettable local personal data
-for users who want to try their own small dataset before MongoDB.
+core BI and deal-review read paths can run over bundled fixture data. Sample
+mode now also supports a small mutable local personal dataset for users who want
+to try their own data before MongoDB.
 
 ## Backend Kinds
 
@@ -21,7 +21,7 @@ for users who want to try their own small dataset before MongoDB.
 |---|---|---|---|
 | `mongo_full` | Production and real demos backed by Atlas | MongoDB Atlas | Full read/write/admin surface |
 | `local_sample_mvp` | Zero-config sample experience | Bundled/local fixture data | Read-first BI/review/report surface |
-| `local_personal` | Future personal trial mode | Local resettable user data file | Safe non-LLM create/update/stage/lifecycle surface |
+| `local_personal` | Personal trial mode | Local resettable user data file | Safe non-LLM create/update/stage/lifecycle surface |
 
 Runtime config uses:
 
@@ -32,6 +32,16 @@ storage:
 
 `DEAL_INTEL_STORAGE_BACKEND=local_sample` can be used for temporary smoke
 tests without editing user config.
+
+Local personal storage should default to:
+
+```yaml
+storage:
+  local_data_dir: ~/.deal-intel/local-data
+```
+
+Users can override this directory through config tools before mutable local
+storage writes any data.
 
 ## Local Sample MVP Contract
 
@@ -61,24 +71,24 @@ This contract supports the first zero-config read stack:
 - `export_report(report_type="pipeline_trend")`
 - `smoke-natural-questions`
 
-## Local Personal Target
+## Local Personal Contract
 
-The next local storage target should add enough persistence for a user to try
-their own small dataset without MongoDB. Candidate methods:
+Local personal storage adds enough persistence for a user to try their own
+small dataset without MongoDB. Implemented methods:
 
-- `upsert_deal`
-- `upsert_analytics_snapshot`
-- `insert_delete_audit_log`
-- `hard_delete_deal`
+- `upsert_deal` (implemented for local personal `deals.json`)
+- `insert_delete_audit_log` (implemented for local personal
+  `delete_audit_logs.json`)
+- `hard_delete_deal` (implemented for local personal `deals.json`)
 
-Candidate MCP tools to enable after that storage exists:
+Supported safe non-LLM mutation tools:
 
-- `create_deal`
-- `update_stage`
-- `update_deal`
-- `archive_deal`
-- `restore_deal`
-- `delete_deal`
+- `create_deal` (supported by local personal `upsert_deal`)
+- `update_stage` (supported by local personal `upsert_deal`)
+- `update_deal` (supported by local personal `upsert_deal`)
+- `archive_deal` (supported by local personal `upsert_deal`)
+- `restore_deal` (supported by local personal `upsert_deal`)
+- `delete_deal` (supported by local personal audit + hard delete)
 
 This target should still defer LLM-heavy and semantic-search paths until their
 runtime requirements are clear:
@@ -89,10 +99,50 @@ runtime requirements are clear:
 
 Reset/export behavior must be explicit before local personal writes ship:
 
-- where the local data file lives,
-- whether bundled fixture data and personal data are merged or separated,
-- how users reset only their personal data,
-- whether local delete audit logs are retained after reset.
+- Local data lives under `storage.local_data_dir`.
+- `deal-intel local-data status` displays the resolved directory and counts.
+- `deal-intel local-data export` writes a secret-safe JSON snapshot.
+- `deal-intel local-data reset` is dry-run by default.
+- `deal-intel local-data reset --force` clears only local personal deals.
+- Local delete audit logs are retained after reset.
+- Local personal data to MongoDB migration is a later dry-run-first target.
+
+Active read policy:
+
+- When no user-created local deals exist, read paths use the bundled fixture.
+- When at least one user-created local deal exists, read paths use only local
+  personal deals.
+- The bundled fixture remains immutable and archived in the package; it is not
+  mixed into the working dataset after local personal data exists.
+- `get_deal` should not find bundled fixture deal ids while local personal
+  deals are active.
+- Pipeline trend fixture snapshots are also hidden while local personal deals
+  are active until local personal snapshots are implemented.
+
+Implemented write policy:
+
+- `LocalPersonalStore` writes `deals.json` with schema version and dataset
+  metadata.
+- Writes strip `raw_notes`, `contacts`, and `summary_embedding` before
+  persistence.
+- `create_deal`, `update_stage`, and `update_deal` can persist through
+  `LocalSampleClient.upsert_deal`.
+- `archive_deal` and `restore_deal` can persist through
+  `LocalSampleClient.upsert_deal`.
+- `delete_deal` writes an audit entry to `delete_audit_logs.json` before
+  removing a local personal deal from `deals.json`.
+- Delete audit logs are preserved independently from `deals.json` and should
+  not be removed by future local reset unless the user explicitly asks for an
+  audit reset.
+- `local-data reset --force` writes an empty `deals.json`, which keeps the
+  bundled fixture archived instead of re-mixing fictional data into active
+  reads.
+- `local-data export` includes local personal deals and delete audit logs, but
+  not raw notes, contacts, or embeddings.
+- Bundled fixture deal ids are read-only and cannot be promoted into local
+  personal storage through lifecycle writes.
+- Analytics snapshot writes are still deferred, so these local writes do not
+  yet create local trend snapshots.
 
 ## Still Deferred From Local Sample
 
@@ -107,6 +157,27 @@ The sample/local-personal backend does not need to implement:
 - Admin paths: `ensure_indexes`, `ensure_vector_index`
 
 Those paths are not required for lightweight personal use.
+
+## Local To Mongo Migration Target
+
+After local personal writes are stable, add a migration tool that lets a user
+graduate to MongoDB-backed `full` mode.
+
+Required behavior:
+
+- Dry-run by default.
+- Never migrate bundled fictional fixture records.
+- Read only user-created records from `storage.local_data_dir`.
+- Validate records before writing to MongoDB.
+- Require explicit confirmation before any Mongo write.
+- Preserve `deal_id` values where possible.
+- Return inserted, updated, skipped, and conflict counts.
+
+Non-goals:
+
+- No automatic background sync.
+- No two-way sync.
+- No migration from MongoDB back into local personal storage.
 
 ## Privacy Contract
 

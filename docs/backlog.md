@@ -26,8 +26,8 @@ Next candidate units:
 
 1. Optional live Atlas smoke for local personal -> MongoDB migration when a
    disposable target database is available.
-2. Release packaging artifact check: rebuild/validate the `.mcpb` artifact once
-   the external `mcpb` CLI is available.
+2. Claude Desktop install smoke with `deal-intel-mcp-0.1.10.mcpb`.
+3. Decide whether release bundles need signing before external distribution.
 
 Principle: agents and new users should start in `sample` before being asked for
 MongoDB, paid APIs, or Atlas Vector Search.
@@ -99,6 +99,7 @@ Backlog items:
   manifest fields, tool list alignment, environment mapping, and launcher
   behavior.
 - Rebuild and attach a fresh `.mcpb` artifact after bundle manifest changes.
+  Current local artifact: `deal-intel-mcp-0.1.10.mcpb`; unsigned.
 
 ### Pro Infrastructure
 

@@ -43,11 +43,16 @@ Verification:
   `All checks passed`
 - Diff whitespace check:
   `git diff --check`
+- MCPB CLI smoke:
+  `mcpb pack . deal-intel-mcp-0.1.10.mcpb`
+- MCPB artifact contents:
+  `manifest.json`, `README.md`, `server/launcher.py`
+- MCPB artifact info:
+  `size=5.29 KB`, `shasum=291b3f44b330d1fa8252d7917353f654d6695221`
 
-Not run:
+Notes:
 
-- `mcpb validate`, `mcpb pack`, and `mcpb info`; the external `mcpb` CLI is
-  not available on PATH in this environment.
+- The bundle is not signed yet; `mcpb info` reports `WARNING: Not signed`.
 
 ### Z5.11 local personal to MongoDB migration
 

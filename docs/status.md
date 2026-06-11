@@ -12,6 +12,19 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-11
 
+### Distribution plan
+
+Implemented:
+
+- Added `docs/distribution-plan.md`.
+- Recorded the current MVP stance: git clone remains acceptable for the first
+  MVP, while npx/uvx wrappers should not preempt sample/local readiness.
+- Documented the package portability constraint: repo-root `config/defaults.yaml`
+  reads must be refactored before a clean wheel/uvx path.
+- Recommended sequence: package-data readiness, uvx/Python-native distribution,
+  then npx as a thin convenience wrapper.
+- Linked the plan from the docs map and backlog.
+
 ### Zero-config sample/local UX polish
 
 Implemented:

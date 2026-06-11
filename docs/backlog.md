@@ -298,6 +298,10 @@ Current MVP stance:
 - npx/uvx wrappers are useful, but not required before the first MVP trial.
 - Packaging work should not preempt sample/local UX completion unless it
   directly reduces first-run confusion.
+- `docs/distribution-plan.md` records the wrapper rollout order:
+  package-data readiness first, then uvx/Python-native distribution, with npx
+  as a thin convenience wrapper after the core package can run without a git
+  checkout.
 
 Backlog items:
 

@@ -3,6 +3,11 @@
 import os
 from typing import Any
 
+from deal_intel.atlas_vector_indexes import (
+    build_create_search_index_command,
+    deal_summary_vector_index_name,
+    deal_summary_vector_search_settings,
+)
 from deal_intel.storage.diagnostics import (
     missing_mongodb_uri_message,
     missing_mongodb_uri_ping,
@@ -230,21 +235,7 @@ class MongoDBClient:
         """Create Atlas Vector Search index. Requires M10+ cluster — no-op on M0."""
         db = self._get_db()
         try:
-            db.command({
-                "createSearchIndexes": "deals",
-                "indexes": [{
-                    "name": "deal_summary_vector",
-                    "type": "vectorSearch",
-                    "definition": {
-                        "fields": [{
-                            "type": "vector",
-                            "path": "summary_embedding",
-                            "numDimensions": dimensions,
-                            "similarity": "cosine",
-                        }]
-                    },
-                }],
-            })
+            db.command(build_create_search_index_command(dimensions=dimensions))
         except Exception as e:
             msg = str(e).lower()
             if "already exists" in msg or "duplicate" in msg:
@@ -254,13 +245,17 @@ class MongoDBClient:
     def search_by_embedding(self, embedding: list[float], *, limit: int = 5) -> list[dict]:
         """$vectorSearch aggregation — M10+ only. Use get_deals_for_search() on M0."""
         col = self._get_db().deals
+        search_settings = deal_summary_vector_search_settings()
         pipeline = [
             {
                 "$vectorSearch": {
-                    "index": "deal_summary_vector",
+                    "index": deal_summary_vector_index_name(),
                     "path": "summary_embedding",
                     "queryVector": embedding,
-                    "numCandidates": max(limit * 10, 50),
+                    "numCandidates": max(
+                        limit * search_settings["num_candidates_multiplier"],
+                        search_settings["minimum_num_candidates"],
+                    ),
                     "limit": limit,
                 }
             },

@@ -26,7 +26,7 @@ def _cfg(
         "llm": {
             "provider": llm_provider,
             "chatgpt_oauth_model": "gpt-5.5",
-            "openai_api_model": "gpt-5.5",
+            "openai_api_model": "gpt-5.4-mini",
             "draft_model": "claude-sonnet-4-6",
         },
     }

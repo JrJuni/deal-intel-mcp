@@ -63,7 +63,7 @@ One repo, one package, three operating profiles:
 |---|---|---|
 | `sample` | Feature testing, friend review, agent smoke tests, and lightweight local personal use | Python package only |
 | `full` | Real team data on MongoDB Atlas | `MONGODB_URI`, plus ChatGPT OAuth or an API key for LLM tools |
-| `pro` | Paid-infra upgrade with Atlas Vector Search and API-key LLMs | Atlas M10+, vector index, `OPENAI_API_KEY` by default |
+| `pro` | Paid-infra upgrade with Atlas Vector Search and API-key LLMs | Atlas M10+, `deal_summary_vector` index, `OPENAI_API_KEY` by default |
 
 Start in `sample` to verify the experience. It begins with bundled fictional
 data. Once you create your own local deal, the bundled fixture is archived from
@@ -71,6 +71,10 @@ the working view and your local personal dataset becomes the active dataset.
 Some search and LLM-heavy paths remain limited in sample mode. Move to `full`
 when you are ready to connect real MongoDB-backed team storage. Move to `pro`
 only when paid infrastructure is intentional.
+
+`pro` defaults to `openai_api` with `gpt-5.4-mini` for lower API cost pressure.
+You can still override `llm.openai_api_model` or switch `llm.provider` to
+`anthropic` in user config.
 
 MCP tools are profile-filtered by default:
 
@@ -872,6 +876,13 @@ or Atlas Charts against your own database.
 No for first-run sample mode. For real team data, the core features work on the
 free M0 plan today. `search_deals` computes with Python cosine on M0. As deal
 volume grows you can switch to Atlas Vector Search on M10+.
+
+**Q. What does Pro add?**
+`pro` keeps the same MCP tools but switches semantic search to Atlas Vector
+Search and API-key LLM operation. The vector index spec is versioned at
+`atlas/vector_indexes/deal_summary_vector.v1.json`. If Atlas search fails, the
+server returns a structured error instead of silently falling back; use
+`docs/pro-fallback-errors.md` to record repeatable setup failures.
 
 **Q. search_deals returns nothing.**
 Right after the server first starts, the local model may still be warming up - retry after 5 seconds. You also need at least one deal with a stored `summary_embedding` (run `add_interaction` with scoring-eligible content).

@@ -1,0 +1,33 @@
+{
+  "id": "deal_summary_vector",
+  "version": 1,
+  "database": "deal_intel",
+  "collection": "deals",
+  "minimum_cluster_tier": "M10",
+  "description": "Atlas Vector Search index for semantic deal-summary search in the pro profile.",
+  "embedding": {
+    "path": "summary_embedding",
+    "numDimensions": 384,
+    "similarity": "cosine",
+    "source_config": "embedding.model"
+  },
+  "search": {
+    "numCandidatesMultiplier": 10,
+    "minimumNumCandidates": 50,
+    "maxLimit": 20
+  },
+  "create_search_index": {
+    "name": "deal_summary_vector",
+    "type": "vectorSearch",
+    "definition": {
+      "fields": [
+        {
+          "type": "vector",
+          "path": "summary_embedding",
+          "numDimensions": 384,
+          "similarity": "cosine"
+        }
+      ]
+    }
+  }
+}

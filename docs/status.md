@@ -12,6 +12,41 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-12
 
+### Pro profile skeleton planning and P-Pro.1/P-Pro.2 start
+
+Decisions:
+
+- `pro` stays an upgrade path, not the default first-run profile.
+- `pro` uses `openai_api` by default with `gpt-5.4-mini` to reduce API cost
+  pressure. The model can still be overridden in user config.
+- Atlas Vector Search failures must not silently fall back to Python cosine.
+  Repeatable failures should be recorded in
+  [pro-fallback-errors.md](pro-fallback-errors.md).
+- The current target is skeleton plus guardrails. Live OpenAI API and Atlas
+  Vector Search smoke will run later when disposable paid infra is available.
+- MongoDB ecosystem features that work on Atlas Free/M0 and improve ordinary
+  real-data operation should be implemented in `full`; `pro` is reserved for
+  paid infrastructure, cost-bearing defaults, or scale/admin paths beyond Free/M0.
+
+Implemented in this slice:
+
+- Added a versioned Atlas Vector Search index spec:
+  `atlas/vector_indexes/deal_summary_vector.v1.json`.
+- Added package resource copy under
+  `src/deal_intel/resources/atlas/vector_indexes/`.
+- Added `deal_intel.atlas_vector_indexes` as the source loader for future
+  doctor/check/apply tooling.
+- Updated OpenAI API defaults to `gpt-5.4-mini`.
+- Confirmed `search_deals` in `atlas` mode returns a structured error instead
+  of silently falling back to Python cosine.
+
+Validation:
+
+- P-Pro.1/P-Pro.2 targeted tests: `65 passed`
+- Targeted Ruff: `All checks passed`
+- `smoke-profile --profile pro --offline --json`: profile contract passed;
+  overall `ok=false` is expected until `OPENAI_API_KEY` is configured.
+
 ### Currency abstraction implementation
 
 Implemented:

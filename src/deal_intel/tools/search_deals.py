@@ -1,5 +1,6 @@
 ﻿from __future__ import annotations
 
+from deal_intel.atlas_vector_indexes import deal_summary_vector_index_name
 from deal_intel.errors import ErrorCode, MCPError, Stage
 from deal_intel.storage.mongodb import MongoDBClient
 
@@ -53,6 +54,14 @@ def handle(
 
     if mode == "atlas":
         return _search_atlas(mongo, query_embedding, query=query, limit=limit)
+    if mode != "python_cosine":
+        raise MCPError(
+            error_code=ErrorCode.INVALID_INPUT,
+            stage=Stage.PREFLIGHT,
+            message="mongodb.vector_search must be 'python_cosine' or 'atlas'.",
+            hint={"fix": "Set mongodb.vector_search to python_cosine or atlas."},
+            retryable=False,
+        )
     return _search_python_cosine(mongo, query_embedding, query=query, limit=limit)
 
 
@@ -124,8 +133,17 @@ def _search_atlas(
         raise MCPError(
             error_code=ErrorCode.STORAGE_ERROR,
             stage=Stage.STORAGE,
-            message=str(exc),
-            retryable=True,
+            message=f"Atlas Vector Search failed: {exc}",
+            hint={
+                "policy": "No silent fallback in pro/atlas mode.",
+                "index": deal_summary_vector_index_name(),
+                "fix": (
+                    "Verify Atlas M10+, create the vector index, or temporarily set "
+                    "mongodb.vector_search to python_cosine."
+                ),
+                "record_failures_in": "docs/pro-fallback-errors.md",
+            },
+            retryable=False,
         ) from exc
 
     for r in results:

@@ -60,10 +60,14 @@ MongoDB Atlas에 저장해 패턴 분석까지 한다.
 |---|---|---|
 | `sample` | 첫 실행, 친구 리뷰, AI/agent smoke test | Python 패키지만 |
 | `full` | 실제 팀 데이터 운영 | `MONGODB_URI`, LLM 도구용 ChatGPT OAuth 또는 API key |
-| `pro` | Atlas Vector Search와 API-key LLM을 쓰는 유료 인프라 경로 | Atlas M10+, vector index, 기본 `OPENAI_API_KEY` |
+| `pro` | Atlas Vector Search와 API-key LLM을 쓰는 유료 인프라 경로 | Atlas M10+, `deal_summary_vector` index, 기본 `OPENAI_API_KEY` |
 
 처음에는 `sample`로 시작한다. 실제 데이터를 연결할 준비가 되었을 때만 `full`로
 넘어가고, 유료 인프라가 의도된 경우에만 `pro`로 간다.
+
+`pro`의 OpenAI API 기본 모델은 비용 압박을 낮추기 위해 `gpt-5.4-mini`다.
+필요하면 user config에서 `llm.openai_api_model`을 바꾸거나
+`llm.provider`를 `anthropic`으로 바꿀 수 있다.
 
 ---
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from deal_intel import _context, mcp_server
+from deal_intel.errors import MCPError
 from deal_intel.providers.embedding import SentenceTransformerProvider
 from deal_intel.tools import search_deals as search_tool
 
@@ -142,6 +143,49 @@ def test_search_deals_calls_tool_only_after_embedding_is_ready(monkeypatch) -> N
     assert captured["embedding_provider"] is embedding
     assert captured["query"] == "cost reduction"
     assert captured["limit"] == 3
+
+
+def test_search_deals_atlas_mode_does_not_silently_fallback() -> None:
+    class Embedding:
+        def embed(self, _query: str) -> list[float]:
+            return [0.1, 0.2]
+
+    class Mongo:
+        def get_deals_for_search(self):
+            raise AssertionError("python cosine fallback must not be used")
+
+        def search_by_embedding(self, _embedding, *, limit):
+            raise RuntimeError("index not found")
+
+    with pytest.raises(MCPError) as exc_info:
+        search_tool.handle(
+            Mongo(),
+            Embedding(),
+            cfg={"mongodb": {"vector_search": "atlas"}},
+            query="cost reduction",
+        )
+
+    error = exc_info.value
+    assert error.error_code == "STORAGE_ERROR"
+    assert error.retryable is False
+    assert error.hint["policy"] == "No silent fallback in pro/atlas mode."
+    assert error.hint["record_failures_in"] == "docs/pro-fallback-errors.md"
+
+
+def test_search_deals_rejects_invalid_vector_search_mode() -> None:
+    class Embedding:
+        def embed(self, _query: str) -> list[float]:
+            return [0.1, 0.2]
+
+    with pytest.raises(MCPError) as exc_info:
+        search_tool.handle(
+            object(),
+            Embedding(),
+            cfg={"mongodb": {"vector_search": "surprise"}},
+            query="cost reduction",
+        )
+
+    assert exc_info.value.error_code == "INVALID_INPUT"
 
 
 def test_mongo_singleton_does_not_create_indexes_inline(monkeypatch) -> None:

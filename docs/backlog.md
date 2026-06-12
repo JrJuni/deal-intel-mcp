@@ -40,6 +40,12 @@ Recommended implementation order:
    - Add the paid-infra upgrade path around MongoDB M10+, Atlas Vector Search,
      and related MongoDB ecosystem features where they provide real value.
    - Keep `sample` and `full` working without paid infrastructure.
+   - MongoDB features that work on Atlas Free/M0 and improve normal real-data
+     operation belong in `full`, not `pro`.
+   - P-Pro.1/P-Pro.2 skeleton decisions: no silent Atlas fallback, version the
+     `deal_summary_vector` index spec, default OpenAI API usage to
+     `gpt-5.4-mini`, and defer live OpenAI/Atlas smoke until paid infra is
+     available.
 2. v1.0 distribution decision.
    - Confirm the first external distribution path after the MVP package is
      stable enough: git-clone assisted install, MCPB, uvx/Python-native, or a
@@ -53,6 +59,21 @@ Recommended implementation order:
    - Do it on a dedicated branch or separate repository if needed, because it
      touches extraction prompts, score calculation, gap logic, reports,
      dashboards, tests, and user mental models.
+
+MongoDB feature placement rule:
+
+- `full` should include MongoDB-backed features that run on Atlas Free/M0 and
+  help ordinary teams operate real data, such as schema validation, ordinary
+  indexes, bounded change-stream consumers that respect Free-cluster filter
+  limits, and time-series collections for analytics snapshots/events if they
+  materially simplify the product.
+- `pro` should be reserved for paid infrastructure, paid API defaults, scale
+  paths, or admin automation that assumes capabilities beyond Free/M0, such as
+  dedicated search/analytics nodes, Atlas Vector Search at scale, paid-tier
+  cluster operations, and API-key LLM operation by default.
+- Before promoting a MongoDB ecosystem feature to `full`, add a mock/contract
+  test and, when practical, a Free-cluster smoke note. If the feature creates
+  paid-infra or cost risk, keep it in `pro`.
 
 ### Currency Abstraction - Implemented 2026-06-12
 

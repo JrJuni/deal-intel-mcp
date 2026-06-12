@@ -81,17 +81,10 @@ def _build_contract_checks(
     contract,
     target_config: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    target_values = {
-        "storage.backend": _mapping(target_config.get("storage")).get("backend"),
-        "mongodb.vector_search": _mapping(target_config.get("mongodb")).get(
-            "vector_search"
-        ),
-        "llm.provider": _mapping(target_config.get("llm")).get("provider"),
-    }
-    storage = _mapping(target_config.get("storage"))
-    if "local_data_dir" in storage:
-        target_values["storage.local_data_dir"] = storage["local_data_dir"]
     expected_values = contract.profile_values()
+    target_values = {
+        key: _profile_value(target_config, key) for key in expected_values
+    }
     return [
         {
             "id": "profile_values",
@@ -126,3 +119,10 @@ def _build_contract_checks(
 
 def _mapping(value: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
+
+
+def _profile_value(cfg: dict[str, Any], dotted_key: str) -> Any:
+    current: Any = cfg
+    for part in dotted_key.split("."):
+        current = _mapping(current).get(part)
+    return current

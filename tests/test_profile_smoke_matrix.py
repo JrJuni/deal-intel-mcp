@@ -33,7 +33,7 @@ def _cfg_from_contract(profile: str) -> dict:
         "llm": {
             "provider": contract.llm_provider,
             "chatgpt_oauth_model": "gpt-5.5",
-            "openai_api_model": "gpt-5.5",
+            "openai_api_model": "gpt-5.4-mini",
             "draft_model": "claude-sonnet-4-6",
         },
     }

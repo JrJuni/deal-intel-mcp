@@ -32,6 +32,14 @@ def test_openai_api_provider_ping_reports_missing_key(monkeypatch) -> None:
     }
 
 
+def test_openai_api_provider_defaults_to_cost_control_model(monkeypatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+
+    provider = OpenAIAPIProvider()
+
+    assert provider.ping() == {"status": "ok", "model": "gpt-5.4-mini"}
+
+
 def test_openai_api_provider_posts_responses_payload(monkeypatch) -> None:
     seen: dict = {}
 
@@ -135,6 +143,7 @@ def test_openai_api_provider_chat_cached_concatenates_context(monkeypatch) -> No
     )
 
     assert result.text == "cached reply"
+    assert seen["json"]["model"] == "gpt-5.4-mini"
     assert seen["json"]["input"][0]["content"][0]["text"] == (
         "cached\n\nvolatile\n\ntask"
     )

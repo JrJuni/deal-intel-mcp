@@ -527,7 +527,7 @@ class OpenAIAPIProvider(LLMProvider):
     def __init__(
         self,
         *,
-        model: str = "gpt-5.5",
+        model: str = "gpt-5.4-mini",
         api_key: str | None = None,
         reasoning_effort: str | None = None,
         base_url: str | None = None,
@@ -669,7 +669,7 @@ def make_llm_provider(config: dict, *, model: str | None = None) -> LLMProvider:
         effort = config.get("llm", {}).get("chatgpt_oauth_reasoning_effort", "low")
         return ChatGPTOAuthProvider(model=oauth_model, reasoning_effort=effort)
     if provider_name == "openai_api":
-        openai_model = model or config.get("llm", {}).get("openai_api_model", "gpt-5.5")
+        openai_model = model or config.get("llm", {}).get("openai_api_model", "gpt-5.4-mini")
         effort = config.get("llm", {}).get("openai_api_reasoning_effort")
         return OpenAIAPIProvider(model=openai_model, reasoning_effort=effort)
     resolved = model or config.get("llm", {}).get("draft_model", "claude-sonnet-4-6")

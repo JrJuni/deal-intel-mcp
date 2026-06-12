@@ -37,7 +37,7 @@ The source contract lives in `src/deal_intel/config_profiles.py`.
 |---|---|---|---|---|
 | `sample` | `local_sample` | `python_cosine` | `chatgpt_oauth` | Zero-config feature test |
 | `full` | `mongo` | `python_cosine` | `chatgpt_oauth` | Real team data on Atlas |
-| `pro` | `mongo` | `atlas` | `openai_api` | Paid infra and vector search |
+| `pro` | `mongo` | `atlas` | `openai_api` (`gpt-5.4-mini` default) | Paid infra and vector search |
 
 Notes:
 
@@ -47,9 +47,39 @@ Notes:
 - The default local personal data directory is `~/.deal-intel/local-data`, and
   users should be able to override it through config as `storage.local_data_dir`.
 - `full` should remain the operational default for real customer data.
-- `pro` is an upgrade path, not the first-run default.
+- MongoDB features that work on Atlas Free/M0 and improve normal real-data
+  operation belong in `full`, not `pro`. Examples include schema validation,
+  ordinary indexes, bounded change-stream consumers, and time-series collections
+  for snapshots/events when useful.
+- `pro` is an upgrade path, not the first-run default. Reserve it for paid
+  infrastructure, scale paths, paid API defaults, or admin automation that
+  assumes capabilities beyond Free/M0.
 - `openai_api` in `pro` is a default, not a hard vendor lock. Users may switch
   to Anthropic in user config.
+- `pro` should not silently fall back from Atlas Vector Search to Python cosine.
+  Failures should return a structured error and, when repeatable, be recorded in
+  [pro-fallback-errors.md](pro-fallback-errors.md).
+
+## Pro Skeleton Contract
+
+The current Pro work is a skeleton plus guardrails, not a promise that every
+paid-infra path has been live-smoked yet.
+
+Implemented now:
+
+- `pro` profile shape: MongoDB Atlas storage, `mongodb.vector_search: atlas`,
+  `llm.provider: openai_api`.
+- OpenAI API default model: `gpt-5.4-mini`.
+- Versioned Atlas Vector Search index spec:
+  `atlas/vector_indexes/deal_summary_vector.v1.json`.
+- No-silent-fallback policy for `search_deals` in `atlas` mode.
+
+Deferred until disposable paid infra is available:
+
+- Live OpenAI API completion smoke.
+- Live Atlas Vector Search query smoke.
+- Atlas admin-level cluster-tier/index verification.
+- Automated vector index `check/apply` CLI.
 
 ## Z5 Implementation Units
 

@@ -90,6 +90,8 @@ def test_atlas_vector_search_pipeline_excludes_archived_deals() -> None:
     client.search_by_embedding([0.1, 0.2], limit=3)
 
     pipeline = db.deals.aggregate_calls[0]
+    assert pipeline[0]["$vectorSearch"]["index"] == "deal_summary_vector"
+    assert pipeline[0]["$vectorSearch"]["numCandidates"] == 50
     assert {"$match": {"archived": {"$ne": True}}} in pipeline
 
 

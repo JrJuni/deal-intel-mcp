@@ -39,9 +39,16 @@ The project uses one repository and one package with three profiles:
 |---|---|---|---|---|
 | `sample` | `local_sample` | no semantic search | `chatgpt_oauth` | Zero-config feature test, future local personal use |
 | `full` | MongoDB Atlas | Python cosine | `chatgpt_oauth` | Real team data |
-| `pro` | MongoDB Atlas | Atlas Vector Search | `openai_api` | Paid infra path |
+| `pro` | MongoDB Atlas | Atlas Vector Search | `openai_api` (`gpt-5.4-mini`) | Paid infra path |
 
 Profile details live in `docs/config-profiles.md`.
+
+Feature placement rule:
+
+- `full` is the home for MongoDB-backed features that run on Atlas Free/M0 and
+  help normal real-data operation.
+- `pro` is reserved for paid infrastructure, paid API defaults, scale paths, or
+  admin automation that assumes capabilities beyond Free/M0.
 
 ## Core Components
 
@@ -231,6 +238,12 @@ trend dashboards.
 
 Mongo mode creates regular indexes for common point lookups and dashboard
 queries. Atlas Vector Search is optional and belongs to the `pro` path.
+
+The Pro vector index spec is versioned at
+`atlas/vector_indexes/deal_summary_vector.v1.json` and packaged under
+`deal_intel.resources/atlas/vector_indexes/`. Runtime code should read the spec
+through `deal_intel.atlas_vector_indexes` instead of duplicating the index name,
+dimensions, or search candidate settings.
 
 Local sample mode does not create indexes.
 

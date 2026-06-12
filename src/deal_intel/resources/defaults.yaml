@@ -2,7 +2,7 @@ llm:
   provider: chatgpt_oauth        # chatgpt_oauth | anthropic | openai_api
   chatgpt_oauth_model: gpt-5.5
   chatgpt_oauth_reasoning_effort: low
-  openai_api_model: gpt-5.5
+  openai_api_model: gpt-5.4-mini
   openai_api_reasoning_effort: low
   draft_model: claude-sonnet-4-6
 

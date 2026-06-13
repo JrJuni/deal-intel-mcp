@@ -569,7 +569,7 @@ def test_mcp_create_deal_uses_industry_override(monkeypatch) -> None:
             "pipeline": {
                 "expected_close": {
                     "default_days": 7,
-                    "days_by_industry": {"공공": 60},
+                    "days_by_industry": {"Government": 60},
                 }
             }
         },
@@ -579,6 +579,8 @@ def test_mcp_create_deal_uses_industry_override(monkeypatch) -> None:
     result = mcp_server.create_deal("Public Co", industry="공공")
 
     assert result["ok"] is True
+    assert result["industry"] == "Government"
+    assert result["industry_tags"] == ["Government"]
     assert result["expected_close_date"] == (before + timedelta(days=60)).isoformat()
     assert result["expected_close_date_source"] == "config_industry"
 
@@ -609,6 +611,7 @@ def test_mcp_create_deal_prefers_segment_override(monkeypatch) -> None:
 
     assert result["ok"] is True
     assert result["industry"] == "Finance"
+    assert result["industry_tags"] == ["Finance"]
     assert result["customer_segment"] == "Enterprise"
     assert result["expected_close_date"] == (before + timedelta(days=21)).isoformat()
     assert result["expected_close_date_source"] == "config_segment"
@@ -623,7 +626,7 @@ def test_mcp_create_deal_forwards_value_classification(monkeypatch) -> None:
 
     result = mcp_server.create_deal(
         "Reference Co",
-        industry="Enterprise",
+        industry="IT",
         deal_size_amount=0,
         deal_size_status="strategic_zero",
         deal_size_note="reference project",
@@ -668,6 +671,8 @@ def test_list_deals_surfaces_timing_and_attention_fields() -> None:
         entered_at=(today - timedelta(days=7)).isoformat(),
         expected_close_date=(today - timedelta(days=1)).isoformat(),
     )
+    deal["industry"] = "SaaS"
+    deal["industry_tags"] = ["SaaS", "Insurance"]
 
     result = list_deals.handle(
         mongo=FakeMongo([deal]),
@@ -681,6 +686,7 @@ def test_list_deals_surfaces_timing_and_attention_fields() -> None:
     )
 
     row = result["deals"][0]
+    assert row["industry_tags"] == ["SaaS", "Insurance"]
     assert row["is_stuck"] is True
     assert row["is_overdue"] is True
     assert row["attention_reasons"] == ["overdue", "stuck", "at_risk"]

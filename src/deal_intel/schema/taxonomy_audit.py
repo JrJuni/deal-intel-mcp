@@ -5,24 +5,9 @@ from collections import Counter
 from collections.abc import Iterable
 from typing import Any
 
-SEGMENT_SEPARATOR = "; "
+from deal_intel.schema.industry_taxonomy import industry_candidates
 
-INDUSTRY_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("Aviation Mobility", ("uam", "항공모빌리티", "항공 모빌리티")),
-    ("Finance", ("fintech", "finance", "financial", "금융", "핀테크")),
-    ("Retail", ("retail", "commerce", "ecommerce", "e-commerce", "리테일", "이커머스")),
-    ("SaaS", ("saas", "software as a service")),
-    ("IT", ("it", "software", "ai", "인공지능")),
-    ("Manufacturing", ("manufacturing", "제조")),
-    ("Logistics", ("logistics", "물류")),
-    ("Healthcare", ("healthcare", "medical", "clinic", "의료", "헬스케어", "병원")),
-    ("Education", ("education", "edtech", "교육")),
-    ("Insurance", ("insurance", "보험")),
-    ("Gaming", ("gaming", "game", "게임")),
-    ("Energy", ("energy", "에너지")),
-    ("Consumer", ("consumer", "beauty", "cosmetic", "소비재", "뷰티", "화장품")),
-    ("Government", ("government", "public sector", "공공", "정부", "공공기관")),
-)
+SEGMENT_SEPARATOR = "; "
 
 SEGMENT_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("startup", ("startup", "start-up", "스타트업")),
@@ -368,17 +353,7 @@ def _human_review_reason(
 
 
 def _industry_candidates(value: str | None) -> list[str]:
-    if not value:
-        return []
-    text = value.casefold()
-    candidates = [
-        canonical
-        for canonical, patterns in INDUSTRY_RULES
-        if any(pattern.casefold() in text for pattern in patterns)
-    ]
-    if "Aviation Mobility" in candidates:
-        candidates = [item for item in candidates if item not in {"IT"}]
-    return _dedupe(candidates)
+    return industry_candidates(value)
 
 
 def _segment_candidates(value: str | None) -> list[str]:

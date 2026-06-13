@@ -233,6 +233,7 @@ semantic `search_deals`, Atlas Charts는 MongoDB가 연결된 `full` 또는 `pro
 |---|---|---|
 | `company` | 필수 | 고객사 이름 |
 | `industry` | 선택 | 순수 업종 (예: "제조", "금융", "리테일") |
+| `industry_tags` | 선택 | 여러 업종에 걸친 고객사의 추가 업종 태그. 기본 `industry`는 자동 포함된다 |
 | `customer_segment` | 선택 | 고객군/성숙도/사업단계 (예: "startup", "enterprise", "public_sector", "Series B", "Pre-IPO") |
 | `deal_size_amount` | 선택 | `deal_size_currency` 기준 예상 계약 규모의 중앙값 (예: 200000000) |
 | `deal_size_currency` | 선택 | 3글자 통화 코드. 생략 시 `deal_value.default_currency` 사용 (`KRW` 기본값) |
@@ -247,7 +248,8 @@ semantic `search_deals`, Atlas Charts는 MongoDB가 연결된 `full` 또는 `pro
   "ok": true,
   "deal_id": "a3f9...",
   "company": "현대정밀",
-  "industry": "제조",
+  "industry": "Manufacturing",
+  "industry_tags": ["Manufacturing"],
   "customer_segment": "enterprise",
   "deal_size_amount": 200000000,
   "deal_size_currency": "KRW",
@@ -286,14 +288,18 @@ pipeline:
       public_sector: 60
       enterprise: 28
     days_by_industry:
-      정부: 60
-      제조: 28
+      Government: 60
+      Manufacturing: 28
 
 reporting:
   timezone: Asia/Seoul
 ```
 
-`industry`에는 실제 업종만 넣고, 스타트업/대기업/공공기관/Series B/Pre-IPO처럼
+`industry`에는 대표 업종 하나만 넣는다. 고객사가 여러 업종에 걸쳐 있으면 나머지는
+`industry_tags`에 넣고, 대표 `industry`는 태그 목록에 자동 포함된다. 저장 시 가능한
+값은 canonical taxonomy로 정규화되므로 `제조`는 `Manufacturing`, `핀테크`는
+`Finance`처럼 저장될 수 있다. `보험·금융`처럼 대표 업종을 하나로 고르기 어려운 값은
+바로 저장하지 않고 대표 업종 선택을 요구한다. 스타트업/대기업/공공기관/Series B/Pre-IPO처럼
 고객군이나 사업단계에 가까운 값은 `customer_segment`에 넣는다. 예상 종료일은
 segment override가 먼저 적용되고, 없으면 industry override, 그것도 없으면 기본값을
 쓴다. 자동 날짜는 reporting timezone의 업무 날짜를 사용하며, 저장되는 감사 timestamp는
@@ -401,12 +407,11 @@ discovery → qualification → proposal → negotiation → won / lost / stalle
 
 ---
 
-### 5. `update_deal` — 기존 딜 금액 분류 수정
+### 5. `update_deal` — 기존 딜 금액 또는 확인된 메타데이터 수정
 
-**언제 쓰나**: 기존 딜의 `deal_size_status`가 빠졌거나, 고객 예산·견적·전략적 0원 여부를 사용자가 확인해준 뒤 저장할 때.
+**언제 쓰나**: 기존 딜의 `deal_size_status`가 빠졌거나, 고객 예산·견적·전략적 0원 여부를 사용자가 확인해준 뒤 저장할 때. 또는 회사명, 대표 업종, 업종 태그, 고객군, 예상/실제 종료일처럼 사용자가 확인한 메타데이터를 고칠 때.
 
-첫 버전은 안전을 위해 deal value 필드만 수정한다. 회사명, 산업, stage, 회의록,
-연락처는 건드리지 않는다.
+이 도구는 일부 필드만 수정하도록 일부러 좁게 유지한다. 금액 필드와 확인된 메타데이터는 수정할 수 있지만, pipeline stage, interaction, 회의록, 연락처, raw notes는 건드리지 않는다. 단계 변경은 계속 `update_stage`를 사용한다.
 
 **예시 대화**:
 ```
@@ -416,9 +421,10 @@ discovery → qualification → proposal → negotiation → won / lost / stalle
 
 **필수 조건**:
 - `confirmed_by_user=true`
-- `deal_size_note`에 사용자 확인 근거 또는 회의록 evidence 입력
+- 금액 수정은 `deal_size_note`에 사용자 확인 근거 또는 회의록 evidence 입력
+- 메타데이터 수정은 `update_note` 또는 fallback `deal_size_note` 입력
 
-수정 시 `deal_value_history`에 변경 이력이 남는다.
+금액 수정은 `deal_value_history`, 메타데이터 수정은 `deal_metadata_history`에 이력이 남는다. `보험·금융`처럼 대표 업종을 하나로 고르기 어려운 값은 바로 저장하지 않고, 대표 `industry` 하나와 추가 `industry_tags`를 나눠 입력하도록 요구한다.
 
 ---
 
@@ -655,8 +661,13 @@ Decision Criteria에서 가장 자주 나온 주제와 근거를 알려줘.
 **필터**:
 - `dimension`: `all`, `identify_pain`, `decision_criteria`, `metrics`
 - `stage`: `active`, `all` 또는 개별 딜 stage
-- `industry`: 정확한 업종명
+- `industry`: 대표 `industry` 또는 `industry_tags` 일치
 - `top_k`: 최대 20
+
+크로스 인더스트리 고객사는 파이프라인/forecast 지표에서는 단일 대표
+`industry`를 기준으로 보고, 고객 고민 분석에서는 `industry` 필터나
+`get_customer_theme_breakdown(group_by="industry_tag")`로 태그 기준 묶음을
+볼 수 있다.
 
 기존 데이터에 주제를 채우려면 먼저 실행한다:
 
@@ -785,7 +796,7 @@ src/deal_intel/
     add_meeting.py      deprecated meeting alias (developer surface only)
     get_deal.py
     update_stage.py     stage_history 기록 + MEDDPICC 재계산
-    update_deal.py      사용자 확인 후 deal value 필드 수정
+    update_deal.py      사용자 확인 후 deal value 및 제한된 metadata 수정
     list_deals.py       health_pct / gaps / stuck flag 집계
     get_metrics.py      pipeline_health KPI·stage 집계·warning 반환
     get_deal_gaps.py    read-only 우선순위 고객 공략 정보 공백

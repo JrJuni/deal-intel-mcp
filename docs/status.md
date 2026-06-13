@@ -12,6 +12,70 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-13
 
+### Industry tags read behavior I2
+
+Implemented:
+
+- Made Customer Themes `industry` filters match either the primary `industry`
+  or `industry_tags`, so cross-industry accounts can be found semantically
+  without changing primary-industry pipeline metrics.
+- Added `group_by="industry_tag"` to Customer Theme breakdowns.
+- Added safe `industry_tags` output to Customer Theme evidence rows,
+  `list_deals`, and both Python-cosine and Atlas-vector `search_deals` results.
+- Kept forecast, pipeline value, expected-close defaults, and primary industry
+  grouping on the single primary `industry`.
+- Updated MCP contract docs, metrics docs, README, Korean README, and backlog
+  wording to mark tag-aware read behavior as implemented.
+
+Validation:
+
+- I2 targeted regression:
+  `74 passed, 1 warning`.
+- Full regression:
+  `487 passed, 1 warning`.
+- Ruff:
+  `All checks passed`.
+
+Next:
+
+- Review the existing Atlas Customer Themes dashboard later if an
+  `industry_tag` visual cut becomes useful in practice.
+- Keep the older-row `industry_tags` backfill as a future operator task.
+
+### Industry tags foundation I0/I1
+
+Implemented:
+
+- Added shared `schema.industry_taxonomy` normalization so taxonomy audit,
+  `create_deal`, and `update_deal` use one industry rule source.
+- Added `industry_tags` to create/update MCP contracts and internal handlers.
+- Enforced the primary industry invariant: the single `industry` is always
+  included in `industry_tags` when industry metadata is written.
+- Normalized clear aliases such as `제조` -> `Manufacturing` and
+  `핀테크` -> `Finance`.
+- Rejected ambiguous primary industry input such as `보험·금융` with a
+  preflight error and candidate list instead of guessing.
+- Kept tag input flexible: compound tags can expand into multiple canonical
+  tags, and unknown custom tags are preserved with `taxonomy_warnings`.
+- Added `industry_tags` to Mongo validators, safe Mongo projections,
+  analytics snapshots, zero-config fixture data, demo sample data, README, and
+  metric/baseline docs.
+
+Validation:
+
+- Targeted industry/taxonomy/write/snapshot/schema regression:
+  `93 passed, 1 warning`.
+- Local sample/add interaction regression:
+  `29 passed, 1 warning`.
+- Full regression:
+  `481 passed, 1 warning`.
+- Ruff:
+  `All checks passed`.
+
+Next:
+
+- Continue with I2 tag-aware read behavior. Completed in the section above.
+
 ### Industry / customer segment split
 
 Implemented:

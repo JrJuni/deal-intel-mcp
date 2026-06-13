@@ -167,11 +167,17 @@ pipeline:
 - Default, segment, and industry day values must be non-negative integers.
 - These defaults are operating assumptions, not customer-confirmed dates.
 
-`industry` should stay a true business vertical such as Finance, Retail,
-Healthcare, Logistics, or Government. Use `customer_segment` for maturity,
-market, ownership, or lifecycle labels such as startup, Series B, enterprise,
-public_sector, or Pre-IPO. This keeps industry BI charts from mixing verticals
-with company stage or account segment.
+`industry` should stay the single primary business vertical such as Finance,
+Retail, Healthcare, Logistics, or Government. `industry_tags` stores additional
+vertical tags for cross-industry accounts and always includes the primary
+industry. Pipeline value, close-date override, and forecast metrics use the
+primary `industry`. Customer-theme comparison and evidence surfaces use
+`industry_tags` for semantic grouping: an `industry` filter matches either the
+primary industry or tags, and `group_by=industry_tag` can place a cross-industry
+account into multiple theme groups.
+Use `customer_segment` for maturity, market, ownership, or lifecycle labels
+such as startup, Series B, enterprise, public_sector, or Pre-IPO. This keeps
+industry BI charts from mixing verticals with company stage or account segment.
 
 ### User approval before persistence
 

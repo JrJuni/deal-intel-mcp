@@ -83,6 +83,7 @@ def config_doctor(offline: bool = False) -> dict:
 def create_deal(
     company: str,
     industry: str = "",
+    industry_tags: str = "",
     customer_segment: str = "",
     deal_size_amount: int | None = None,
     deal_size_status: str = "",
@@ -100,7 +101,8 @@ def create_deal(
 
     Keep industry as the actual business vertical. Use customer_segment for
     maturity/market/ownership labels such as startup, enterprise, public_sector,
-    Series B, or Pre-IPO.
+    Series B, or Pre-IPO. Use industry_tags for additional verticals when a
+    customer is cross-industry; the primary industry is always included.
 
     When expected_close_date is omitted, config supplies a default date with
     optional exact customer segment overrides before industry overrides.
@@ -114,6 +116,7 @@ def create_deal(
             cfg=_context.config(),
             company=company,
             industry=industry or None,
+            industry_tags=industry_tags or None,
             customer_segment=customer_segment or None,
             deal_size_amount=deal_size_amount,
             deal_size_status=deal_size_status or None,
@@ -253,6 +256,7 @@ def update_deal(
     deal_size_currency: str = "",
     company: str = "",
     industry: str = "",
+    industry_tags: str = "",
     customer_segment: str = "",
     expected_close_date: str = "",
     actual_close_date: str = "",
@@ -281,6 +285,7 @@ def update_deal(
             deal_size_currency=deal_size_currency or None,
             company=company or None,
             industry=industry or None,
+            industry_tags=industry_tags or None,
             customer_segment=customer_segment or None,
             expected_close_date=expected_close_date or None,
             actual_close_date=actual_close_date or None,
@@ -706,7 +711,7 @@ def get_customer_themes(
 
     dimension: all | identify_pain | decision_criteria | metrics
     stage: active | all | discovery | qualification | proposal | negotiation | won | lost | stalled
-    industry: exact industry filter, or empty for all industries
+    industry: primary industry or industry_tags filter, or empty for all industries
     """
     try:
         from deal_intel import _context
@@ -731,15 +736,15 @@ def get_customer_theme_breakdown(
     group_by: str = "stage",
     top_k: int = 5,
 ) -> dict:
-    """Compare recurring customer themes by stage, industry, or dimension.
+    """Compare recurring customer themes by stage, industry, industry tag, or dimension.
 
     Read-only. Uses curated customer_themes only; does not return raw meeting
     notes, contacts, or embeddings.
 
     dimension: all | identify_pain | decision_criteria | metrics
     stage: active | all | discovery | qualification | proposal | negotiation | won | lost | stalled
-    industry: exact industry filter, or empty for all industries
-    group_by: stage | industry | dimension
+    industry: primary industry or industry_tags filter, or empty for all industries
+    group_by: stage | industry | industry_tag | dimension
     """
     try:
         from deal_intel import _context
@@ -777,7 +782,7 @@ def get_customer_theme_evidence(
     theme_key: controlled taxonomy key, e.g. compliance_security
     dimension: all | identify_pain | decision_criteria | metrics
     stage: active | all | discovery | qualification | proposal | negotiation | won | lost | stalled
-    industry: exact industry filter, or empty for all industries
+    industry: primary industry or industry_tags filter, or empty for all industries
     limit: 1..50
     min_importance: 1..5
     interaction_type: all | meeting | email_thread | user_interview |

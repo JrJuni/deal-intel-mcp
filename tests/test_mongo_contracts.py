@@ -68,6 +68,7 @@ def test_deals_schema_command_is_warn_moderate_and_permissive() -> None:
     assert summary["required_fields"] == ["deal_id", "company", "deal_stage"]
     assert command["validator"]["$jsonSchema"]["additionalProperties"] is True
     properties = command["validator"]["$jsonSchema"]["properties"]
+    assert properties["industry_tags"]["bsonType"] == ["array", "null"]
     assert properties["customer_segment"]["bsonType"] == ["string", "null"]
 
 
@@ -87,6 +88,7 @@ def test_managed_schema_commands_are_warn_moderate_and_permissive() -> None:
         assert command["validator"]["$jsonSchema"]["additionalProperties"] is True
         if collection == "analytics_snapshots":
             properties = command["validator"]["$jsonSchema"]["properties"]
+            assert properties["industry_tags"]["bsonType"] == ["array", "null"]
             assert properties["customer_segment"]["bsonType"] == ["string", "null"]
 
 

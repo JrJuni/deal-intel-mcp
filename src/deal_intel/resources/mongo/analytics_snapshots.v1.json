@@ -58,6 +58,12 @@
         "industry": {
           "bsonType": ["string", "null"]
         },
+        "industry_tags": {
+          "bsonType": ["array", "null"],
+          "items": {
+            "bsonType": "string"
+          }
+        },
         "customer_segment": {
           "bsonType": ["string", "null"]
         },

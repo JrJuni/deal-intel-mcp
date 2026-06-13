@@ -3,6 +3,10 @@
 from datetime import UTC, date, datetime
 
 from deal_intel.errors import ErrorCode, MCPError, Stage
+from deal_intel.schema.industry_taxonomy import (
+    IndustryTaxonomyError,
+    normalize_industry_profile,
+)
 from deal_intel.schema.metrics import (
     DEFAULT_DEAL_CURRENCY,
     OPEN_STAGES,
@@ -26,6 +30,7 @@ def handle(
     deal_size_currency: str | None = None,
     company: str | None = None,
     industry: str | None = None,
+    industry_tags: str | list[str] | None = None,
     customer_segment: str | None = None,
     expected_close_date: str | None = None,
     actual_close_date: str | None = None,
@@ -61,6 +66,7 @@ def handle(
     metadata_update_requested = _metadata_update_requested(
         company=company,
         industry=industry,
+        industry_tags=industry_tags,
         customer_segment=customer_segment,
         expected_close_date=expected_close_date,
         actual_close_date=actual_close_date,
@@ -82,6 +88,7 @@ def handle(
                 "metadata_fields": [
                     "company",
                     "industry",
+                    "industry_tags",
                     "customer_segment",
                     "expected_close_date",
                     "actual_close_date",
@@ -111,6 +118,7 @@ def handle(
     old_metadata = _deal_metadata_snapshot(deal)
     new_value = old_value
     new_metadata = old_metadata
+    taxonomy_warnings: list[dict] = []
     if status is not None and value_note is not None:
         new_value = _build_updated_value(
             old_value,
@@ -134,11 +142,12 @@ def handle(
                 retryable=False,
             )
     if metadata_update_requested:
-        new_metadata = _build_updated_metadata(
+        new_metadata, taxonomy_warnings = _build_updated_metadata(
             deal,
             current=old_metadata,
             company=company,
             industry=industry,
+            industry_tags=industry_tags,
             customer_segment=customer_segment,
             expected_close_date=expected_close_date,
             actual_close_date=actual_close_date,
@@ -161,6 +170,7 @@ def handle(
             "changed_value_fields": [],
             "changed_metadata_fields": [],
             "storage_written": False,
+            "taxonomy_warnings": taxonomy_warnings,
         }
 
     now = datetime.now(UTC).isoformat()
@@ -209,6 +219,7 @@ def handle(
         "changed_value_fields": changed_value_fields,
         "changed_metadata_fields": changed_metadata_fields,
         "storage_written": True,
+        "taxonomy_warnings": taxonomy_warnings,
     }
 
 
@@ -233,6 +244,7 @@ def _metadata_update_requested(
     *,
     company: str | None,
     industry: str | None,
+    industry_tags: str | list[str] | None,
     customer_segment: str | None,
     expected_close_date: str | None,
     actual_close_date: str | None,
@@ -248,7 +260,7 @@ def _metadata_update_requested(
             actual_close_date,
             close_reason,
         )
-    )
+    ) or _has_industry_tags_value(industry_tags)
 
 
 def _parse_status(value: str) -> DealValueStatus:
@@ -316,6 +328,7 @@ def _deal_metadata_snapshot(deal: dict) -> dict:
     return {
         "company": deal.get("company"),
         "industry": deal.get("industry"),
+        "industry_tags": deal.get("industry_tags"),
         "customer_segment": deal.get("customer_segment"),
         "expected_close_date": deal.get("expected_close_date"),
         "expected_close_date_source": deal.get("expected_close_date_source"),
@@ -392,17 +405,28 @@ def _build_updated_metadata(
     current: dict,
     company: str | None,
     industry: str | None,
+    industry_tags: str | list[str] | None,
     customer_segment: str | None,
     expected_close_date: str | None,
     actual_close_date: str | None,
     close_reason: str | None,
-) -> dict:
+) -> tuple[dict, list[dict]]:
     stage = deal.get("deal_stage")
     updated = dict(current)
+    taxonomy_warnings: list[dict] = []
     if _has_text(company):
         updated["company"] = _clean_text(company, "company")
-    if _has_text(industry):
-        updated["industry"] = _clean_text(industry, "industry")
+    if _has_text(industry) or _has_industry_tags_value(industry_tags):
+        profile = _normalize_industry_or_raise(
+            industry=industry if _has_text(industry) else current.get("industry"),
+            industry_tags=industry_tags
+            if _has_industry_tags_value(industry_tags)
+            else None,
+            existing_industry_tags=current.get("industry_tags"),
+        )
+        updated["industry"] = profile.industry
+        updated["industry_tags"] = profile.industry_tags
+        taxonomy_warnings.extend(profile.warnings)
     if _has_text(customer_segment):
         updated["customer_segment"] = _clean_text(
             customer_segment,
@@ -448,11 +472,49 @@ def _build_updated_metadata(
                 retryable=False,
             )
         updated["close_reason"] = _clean_text(close_reason, "close_reason")
-    return updated
+    return updated, taxonomy_warnings
+
+
+def _normalize_industry_or_raise(
+    *,
+    industry: str | None,
+    industry_tags: str | list[str] | None,
+    existing_industry_tags: list[str] | None,
+):
+    try:
+        return normalize_industry_profile(
+            industry=industry,
+            industry_tags=industry_tags,
+            existing_industry_tags=existing_industry_tags,
+        )
+    except IndustryTaxonomyError as exc:
+        raise MCPError(
+            error_code=ErrorCode.INVALID_INPUT,
+            stage=Stage.PREFLIGHT,
+            message=str(exc),
+            hint={
+                "field": exc.field,
+                "value": exc.value,
+                "candidates": exc.candidates,
+                "fix": (
+                    "Choose one value for industry and pass the other applicable "
+                    "verticals as industry_tags."
+                ),
+            },
+            retryable=False,
+        ) from exc
 
 
 def _has_text(value: str | None) -> bool:
     return bool((value or "").strip())
+
+
+def _has_industry_tags_value(value: str | list[str] | None) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return bool(value.strip())
+    return any(str(item).strip() for item in value)
 
 
 def _clean_text(value: str | None, field_name: str) -> str:

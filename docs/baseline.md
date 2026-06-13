@@ -70,11 +70,11 @@ clients see a config-filtered tool surface:
 | Tool | Required inputs | Optional inputs | Success response | Persistence or external effects |
 |---|---|---|---|---|
 | `config_doctor` | None | `offline` | `ok`, `profile`, `generated_at`, `summary`, `checks`, `next_actions` | Read only; checks config, storage readiness, vector-search mode, and LLM provider readiness without LLM calls, embeddings, or writes. The default path may perform a bounded storage ping; `offline=true` skips it |
-| `create_deal` | `company` | `industry`, `customer_segment`, `deal_size_amount`, `deal_size_currency`, `deal_size_status`, `deal_size_low_amount`, `deal_size_high_amount`, `deal_size_note`, `expected_close_date` | `ok`, `deal_id`, `company`, `industry`, `customer_segment`, deal value fields, `expected_close_date`, `expected_close_date_source`, optional `analytics_snapshot` | Validates the initial deal-value classification, applies the configured close-date default when omitted, upserts one deal, initializes `discovery` stage history, and attempts a non-blocking analytics snapshot |
+| `create_deal` | `company` | `industry`, `industry_tags`, `customer_segment`, `deal_size_amount`, `deal_size_currency`, `deal_size_status`, `deal_size_low_amount`, `deal_size_high_amount`, `deal_size_note`, `expected_close_date` | `ok`, `deal_id`, `company`, `industry`, `industry_tags`, `customer_segment`, deal value fields, `expected_close_date`, `expected_close_date_source`, `taxonomy_warnings`, optional `analytics_snapshot` | Validates the initial deal-value classification, normalizes industry metadata, applies the configured close-date default when omitted, upserts one deal, initializes `discovery` stage history, and attempts a non-blocking analytics snapshot |
 | `add_meeting` | `deal_id`, `date`, `raw_notes` | None | `ok`, `interaction_id`, `meeting_id`, `summary`, `meddpicc`, `meddpicc_latest`, `customer_themes`, `stage_suggestion`, `embedding_stored`, `usage`, optional `analytics_snapshot` | Deprecated developer-surface compatibility alias over `add_interaction` with `interaction_type: meeting`. Calls LLM, writes an `interaction_type: meeting` record under `deal.interactions`, recalculates deal signals, optionally stores an embedding for MongoDB-backed data, upserts the deal, and attempts a non-blocking analytics snapshot. New clients should call `add_interaction` directly |
 | `add_interaction` | `deal_id`, `date`, `interaction_type`, `direction`, `content` | `participants`, `subject`, `source_confidence`, `custom_fields_json` | `ok`, `interaction_id`, `meeting_id`, `interaction_type`, `direction`, `source_confidence`, `source_policy`, `participants`, `subject`, `summary`, `meddpicc`, `unconfirmed_meddpicc`, `meddpicc_latest`, `customer_themes`, `unconfirmed_customer_themes`, `scoring_applied`, `stage_suggestion`, `embedding_stored`, `usage`, optional `analytics_snapshot` | Calls LLM, appends a canonical `deal.interactions` record, stores source metadata and `raw_content`, recalculates deal signals only when the source is scoring-eligible, optionally stores an embedding for MongoDB-backed data, upserts the deal, and attempts a non-blocking analytics snapshot. `source_policy` explains whether the input became confirmed scoring evidence or stored-unconfirmed context. `outbound_unconfirmed` and `internal` evidence is stored but does not update MEDDPICC health or customer-theme counts by default. Custom interaction types must be registered in config |
 | `update_stage` | `deal_id`, `new_stage` | `actual_close_date` | `ok`, `deal_id`, `old_stage`, `new_stage`, `actual_close_date`, `days_in_previous_stage`, `stuck_threshold_days`, optional `analytics_snapshot` | Appends stage history, records the actual terminal date, recalculates stage-aware MEDDPICC gaps, upserts the deal, and attempts a non-blocking analytics snapshot |
-| `update_deal` | `deal_id` | `confirmed_by_user`, value fields, `company`, `industry`, `customer_segment`, `expected_close_date`, `actual_close_date`, `close_reason`, `update_note` | `ok`, `deal_id`, `company`, old/new value snapshots, old/new metadata snapshots, `changed_fields`, `changed_value_fields`, `changed_metadata_fields`, `storage_written` | Requires explicit user confirmation, updates confirmed value/metadata fields only, appends value/metadata history entries, and upserts the deal |
+| `update_deal` | `deal_id` | `confirmed_by_user`, value fields, `company`, `industry`, `industry_tags`, `customer_segment`, `expected_close_date`, `actual_close_date`, `close_reason`, `update_note` | `ok`, `deal_id`, `company`, old/new value snapshots, old/new metadata snapshots, `changed_fields`, `changed_value_fields`, `changed_metadata_fields`, `storage_written`, `taxonomy_warnings` | Requires explicit user confirmation, updates confirmed value/metadata fields only, normalizes industry metadata, appends value/metadata history entries, and upserts the deal |
 | `archive_deal` | `deal_id`, `expected_company`, `archive_reason` | `confirmed_by_user` | `ok`, `deal_id`, `company`, `already_archived`, `old_deal`, `new_deal`, `storage_written` | Requires explicit confirmation and exact company match, marks the deal archived, appends archive history, and hides it from default BI/read paths |
 | `restore_deal` | `deal_id`, `expected_company`, `restore_reason` | `confirmed_by_user` | `ok`, `deal_id`, `company`, `already_active`, `old_deal`, `new_deal`, `storage_written` | Requires explicit confirmation and exact company match, clears archived state, appends restore history, and returns the deal to default BI/read paths |
 | `delete_deal` | `deal_id`, `expected_company`, `delete_reason` | `confirmed_by_user`, `dry_run` | `ok`, `deal_id`, `company`, `dry_run`, `can_delete`, `would_delete`, `blocked_reason`, `storage_written` or `deleted_count`, `audit_id`, `deleted_at` | Defaults to dry-run. Real hard delete requires confirmation, exact company match, a non-empty reason, and an already archived deal. Writes a safe delete audit snapshot before deleting |
@@ -88,9 +88,9 @@ clients see a config-filtered tool surface:
 | `get_deal_review` | `deal_id` | `as_of` | `ok`, `as_of`, `timezone`, `generated_at`, `review` | Read only; uses the restricted metric projection, separates health quality from evidence coverage, returns v2 `assessment`, `actionable_gaps`, and `gap_observations`, suppresses uncalibrated win probability numbers, and excludes raw notes, raw interaction content, contacts, and embeddings |
 | `export_report` | None | `report_type`, `output_dir`, `stage`, `industry`, `as_of`, `lookback_days` | `ok`, `report_type`, `as_of`, `timezone`, `generated_at`, `filters`, `row_count`, `warnings`, `metrics`, `output_dir`, `artifacts`, `csv_path`, `markdown_path` | Reads through the report-specific restricted projection and writes local CSV/Markdown report artifacts |
 | `get_insights` | `query_type` | `as_of` | `ok`, `query_type`, `as_of`, `timezone`, `generated_at`, query-specific aggregate fields | Read only over the current collection snapshot |
-| `get_customer_themes` | None | `dimension`, `stage`, `industry`, `top_k` | `ok`, `filters`, `coverage`, `themes` | Read-only MongoDB counts and aggregation |
-| `get_customer_theme_breakdown` | None | `dimension`, `stage`, `industry`, `group_by`, `top_k` | `ok`, `filters`, `summary`, `groups`, `warnings` | Read only; compares curated customer themes by stage, industry, or dimension using the restricted metric projection |
-| `get_customer_theme_evidence` | `theme_key` | `dimension`, `stage`, `industry`, `limit`, `min_importance`, `interaction_type`, `source_confidence` | `ok`, `filters`, `summary`, `evidence`, `warnings` | Read only; returns curated customer-theme evidence snippets plus safe source metadata (`interaction_type`, `source_confidence`, `source_label`, `subject`), can filter by source type/confidence, treats legacy meeting evidence as `interaction_type=meeting`, and excludes raw notes, raw interaction content, contacts, and embeddings |
+| `get_customer_themes` | None | `dimension`, `stage`, `industry`, `top_k` | `ok`, `filters`, `coverage`, `themes` | Read-only MongoDB counts and aggregation. The `industry` filter matches primary `industry` or `industry_tags` |
+| `get_customer_theme_breakdown` | None | `dimension`, `stage`, `industry`, `group_by`, `top_k` | `ok`, `filters`, `summary`, `groups`, `warnings` | Read only; compares curated customer themes by stage, primary industry, industry tag, or dimension using the restricted metric projection. The `industry` filter matches primary `industry` or `industry_tags` |
+| `get_customer_theme_evidence` | `theme_key` | `dimension`, `stage`, `industry`, `limit`, `min_importance`, `interaction_type`, `source_confidence` | `ok`, `filters`, `summary`, `evidence`, `warnings` | Read only; returns curated customer-theme evidence snippets plus safe source metadata (`industry_tags`, `interaction_type`, `source_confidence`, `source_label`, `subject`), can filter by source type/confidence and primary-or-tag industry, treats legacy meeting evidence as `interaction_type=meeting`, and excludes raw notes, raw interaction content, contacts, and embeddings |
 | `search_deals` | `query` | `limit` | `ok`, `query`, `result_count`, `results` | Generates a local query embedding and reads deal embeddings; may return a structured warmup response before search |
 | `analyze_deal` | `deal_id` | None | `ok`, `deal_id`, `analysis`, `usage` | Calls LLM and attempts to persist `bd_strategy`; analysis still returns if that save fails |
 
@@ -110,20 +110,25 @@ also returns a preflight clarification error so new records do not enter BI as
 unclassified amounts. `deal_size_currency` is optional and defaults from
 `deal_value.default_currency`.
 
-`industry` is the true business vertical. Use `customer_segment` for maturity,
-account segment, ownership, or lifecycle labels such as startup, Series B,
-enterprise, public_sector, or Pre-IPO. This split keeps industry dashboards and
-theme breakdowns from mixing verticals with company stage.
+`industry` is the single primary business vertical. `industry_tags` is the
+multi-select vertical tag list for cross-industry accounts; the primary
+`industry` is always included in `industry_tags`. Use `customer_segment` for
+maturity, account segment, ownership, or lifecycle labels such as startup,
+Series B, enterprise, public_sector, or Pre-IPO. This split keeps industry
+dashboards and theme breakdowns from mixing verticals with company stage.
+Primary industry input is normalized against the shared taxonomy when possible.
+Ambiguous primary values return a preflight error with candidate industries
+instead of guessing.
 
 `update_deal` supports confirmed deal value fields plus selected metadata:
-`company`, `industry`, `customer_segment`, `expected_close_date`, `actual_close_date`, and
-`close_reason`. It requires `confirmed_by_user: true`. Value updates require a
-non-empty `deal_size_note`; metadata updates require `update_note` or a
-fallback `deal_size_note`. `expected_close_date` is allowed only on open deals
-and sets `expected_close_date_source: user_provided`; `actual_close_date` is
-allowed only on won/lost deals; `close_reason` is allowed only on lost deals.
-It does not update `deal_stage`, interactions, legacy meetings, contacts, or
-notes.
+`company`, `industry`, `industry_tags`, `customer_segment`,
+`expected_close_date`, `actual_close_date`, and `close_reason`. It requires
+`confirmed_by_user: true`. Value updates require a non-empty `deal_size_note`;
+metadata updates require `update_note` or a fallback `deal_size_note`.
+`expected_close_date` is allowed only on open deals and sets
+`expected_close_date_source: user_provided`; `actual_close_date` is allowed only
+on won/lost deals; `close_reason` is allowed only on lost deals. It does not
+update `deal_stage`, interactions, legacy meetings, contacts, or notes.
 
 `archive_deal`, `restore_deal`, and `delete_deal` form the M4.3 lifecycle
 safety layer. All three require exact `expected_company` matching after

@@ -272,6 +272,7 @@ Create a new deal for Hyundai Precision. Manufacturing industry, deal size 200M 
 |---|---|---|
 | `company` | required | Customer company name |
 | `industry` | optional | True business vertical (e.g., "Manufacturing", "Finance", "Retail") |
+| `industry_tags` | optional | Additional vertical tags for cross-industry accounts. The primary `industry` is automatically included |
 | `customer_segment` | optional | Customer segment or maturity label (e.g., "startup", "enterprise", "public_sector", "Series B", "Pre-IPO") |
 | `deal_size_amount` | optional | Median expected contract size in `deal_size_currency` units (e.g., 200000000) |
 | `deal_size_currency` | optional | ISO-style 3-letter currency code. Defaults to `deal_value.default_currency` (`KRW` by default) |
@@ -287,6 +288,7 @@ Create a new deal for Hyundai Precision. Manufacturing industry, deal size 200M 
   "deal_id": "a3f9...",
   "company": "Hyundai Precision",
   "industry": "Manufacturing",
+  "industry_tags": ["Manufacturing"],
   "customer_segment": "enterprise",
   "deal_size_amount": 200000000,
   "deal_size_currency": "KRW",
@@ -320,7 +322,7 @@ reporting:
   timezone: Asia/Seoul
 ```
 
-Keep `industry` as the actual business vertical. Put account maturity, ownership, buying segment, or funding stage in `customer_segment` instead. Segment overrides apply first; industry overrides apply second, both on a case-insensitive exact match. Auto-dates use the business date in the reporting timezone, while stored audit timestamps stay in UTC.
+Keep `industry` as the single primary business vertical. If an account is cross-industry, put the other verticals in `industry_tags`; the primary `industry` is always included in that tag list. Put account maturity, ownership, buying segment, or funding stage in `customer_segment` instead. Industry input is normalized against the built-in taxonomy when possible, so values such as `제조` or `핀테크` are stored as canonical labels such as `Manufacturing` or `Finance`. Ambiguous primary industry input such as `보험·금융` is rejected until the user chooses one primary industry and passes the rest as tags. Segment overrides apply first; industry overrides apply second, both on a case-insensitive exact match. Auto-dates use the business date in the reporting timezone, while stored audit timestamps stay in UTC.
 
 For existing data, use the taxonomy cleanup CLIs:
 
@@ -434,11 +436,11 @@ discovery -> qualification -> proposal -> negotiation -> won / lost / stalled
 
 ---
 
-### 5. `update_deal` - fix an existing deal's amount classification
+### 5. `update_deal` - fix an existing deal's amount or confirmed metadata
 
-**When to use**: When an existing deal's `deal_size_status` is missing, or to save after the user confirms customer-budget / quote / strategic-zero.
+**When to use**: When an existing deal's `deal_size_status` is missing, to save after the user confirms customer-budget / quote / strategic-zero, or to correct confirmed metadata such as company, industry, industry tags, customer segment, and close dates.
 
-The first version only edits deal-value fields, for safety. It does not touch company, industry, stage, meetings, or contacts.
+This tool stays intentionally narrow. It can update deal-value fields and selected metadata, but it does not change pipeline stage, interactions, meetings, contacts, or raw notes. Stage transitions still go through `update_stage`.
 
 **Example**:
 ```
@@ -448,9 +450,12 @@ Note the rationale as "CEO said let's sign today and paid same-day."
 
 **Required conditions**:
 - `confirmed_by_user=true`
-- `deal_size_note` with the user's confirmation rationale or meeting evidence
+- Value updates require `deal_size_note` with the user's confirmation rationale or meeting evidence
+- Metadata updates require `update_note` or a fallback `deal_size_note`
 
-Edits are logged to `deal_value_history`.
+Value edits are logged to `deal_value_history`; metadata edits are logged to
+`deal_metadata_history`. Ambiguous primary industry input is rejected until the
+user chooses one primary industry and passes extra verticals as `industry_tags`.
 
 ---
 
@@ -700,8 +705,13 @@ Tell me the most frequent themes and evidence in Decision Criteria.
 **Filters**:
 - `dimension`: `all`, `identify_pain`, `decision_criteria`, `metrics`
 - `stage`: `active`, `all`, or an individual deal stage
-- `industry`: exact industry name
+- `industry`: primary industry or `industry_tags` match
 - `top_k`: up to 20
+
+For cross-industry accounts, keep pipeline and forecast metrics on the single
+primary `industry`, then use Customer Themes with the `industry` filter or
+`get_customer_theme_breakdown(group_by="industry_tag")` to see semantic
+industry-tag groupings.
 
 To backfill themes onto existing data, run this first:
 
@@ -836,7 +846,7 @@ src/deal_intel/
     add_meeting.py      deprecated compatibility alias for meeting interactions
     get_deal.py
     update_stage.py     stage_history logging + MEDDPICC recompute
-    update_deal.py      edit deal-value fields after user confirmation
+    update_deal.py      edit deal value and limited metadata after user confirmation
     list_deals.py       health_pct / gaps / stuck-flag aggregation
     get_metrics.py      pipeline_health KPIs / stage aggregation / warnings
     get_deal_gaps.py    read-only prioritized sales follow-up gaps

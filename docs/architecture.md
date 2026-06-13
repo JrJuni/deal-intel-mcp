@@ -214,6 +214,7 @@ Primary deal fields:
 - `deal_id`
 - `company`
 - `industry`
+- `industry_tags`
 - `customer_segment`
 - `deal_size_amount`
 - `deal_size_currency`

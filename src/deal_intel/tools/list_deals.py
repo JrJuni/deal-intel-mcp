@@ -82,6 +82,7 @@ def handle(
             "deal_id": d["deal_id"],
             "company": d["company"],
             "industry": d.get("industry"),
+            "industry_tags": d.get("industry_tags") or [],
             "customer_segment": d.get("customer_segment"),
             "deal_stage": current_stage,
             "deal_size_amount": d.get("deal_size_amount"),

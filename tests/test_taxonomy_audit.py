@@ -192,5 +192,6 @@ def test_apply_taxonomy_cleanup_writes_only_high_confidence_by_default(
     assert len(mongo.saved) == 1
     assert mongo.saved[0]["deal_id"] == "deal-1"
     assert mongo.saved[0]["industry"] == "IT"
+    assert mongo.saved[0]["industry_tags"] == ["IT"]
     assert mongo.saved[0]["customer_segment"] == "startup; Series B"
     assert mongo.saved[0]["deal_metadata_history"][-1]["source"] == "update_deal"

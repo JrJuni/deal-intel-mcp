@@ -67,12 +67,14 @@ def _deal(
     stage: str,
     industry: str,
     themes: list[dict],
+    industry_tags: list[str] | None = None,
 ) -> dict:
     return {
         "deal_id": deal_id,
         "company": company,
         "deal_stage": stage,
         "industry": industry,
+        "industry_tags": industry_tags or [industry],
         "customer_themes": themes,
         "meetings": [{"raw_notes": "do not leak"}],
         "contacts": [{"name": "secret"}],
@@ -152,6 +154,22 @@ def _deals() -> list[dict]:
             ],
         ),
         _deal("d4", "NoTheme", "proposal", "SaaS", []),
+        _deal(
+            "d5",
+            "CrossIndustry",
+            "proposal",
+            "SaaS",
+            [
+                _theme(
+                    "compliance_security",
+                    "decision_criteria",
+                    "insurance compliance evidence",
+                    importance=4,
+                    meeting_date="2026-06-07",
+                )
+            ],
+            industry_tags=["SaaS", "Insurance"],
+        ),
     ]
 
 
@@ -165,9 +183,9 @@ def test_customer_theme_breakdown_groups_by_stage_and_counts_unique_deals() -> N
     )
 
     assert result["summary"] == {
-        "deals_analyzed": 3,
-        "deals_with_evidence": 2,
-        "coverage_pct": 66.7,
+        "deals_analyzed": 4,
+        "deals_with_evidence": 3,
+        "coverage_pct": 75.0,
         "group_count": 2,
     }
     discovery = result["groups"][0]
@@ -176,9 +194,9 @@ def test_customer_theme_breakdown_groups_by_stage_and_counts_unique_deals() -> N
     assert discovery["themes"][0]["theme_key"] == "compliance_security"
     assert discovery["themes"][0]["deal_count"] == 1
     assert proposal["group_value"] == "proposal"
-    assert proposal["deal_count"] == 2
-    assert proposal["deals_with_evidence"] == 1
-    assert proposal["themes"][0]["share_of_group_deals_pct"] == 50.0
+    assert proposal["deal_count"] == 3
+    assert proposal["deals_with_evidence"] == 2
+    assert proposal["themes"][0]["share_of_group_deals_pct"] == 66.7
 
 
 def test_customer_theme_breakdown_groups_by_dimension() -> None:
@@ -197,7 +215,38 @@ def test_customer_theme_breakdown_groups_by_dimension() -> None:
     ]
     decision_group = result["groups"][1]
     assert decision_group["themes"][0]["theme_key"] == "compliance_security"
-    assert decision_group["themes"][0]["deal_count"] == 2
+    assert decision_group["themes"][0]["deal_count"] == 3
+
+
+def test_customer_theme_breakdown_filters_by_industry_tags() -> None:
+    result = build_customer_theme_breakdown(
+        _deals(),
+        dimension="decision_criteria",
+        stage="active",
+        industry="Insurance",
+        group_by="stage",
+        top_k=2,
+    )
+
+    assert result["filters"]["industry"] == "Insurance"
+    assert result["summary"]["deals_analyzed"] == 1
+    assert result["groups"][0]["group_value"] == "proposal"
+    assert result["groups"][0]["themes"][0]["theme_key"] == "compliance_security"
+
+
+def test_customer_theme_breakdown_can_group_by_industry_tag() -> None:
+    result = build_customer_theme_breakdown(
+        _deals(),
+        dimension="decision_criteria",
+        stage="active",
+        group_by="industry_tag",
+        top_k=2,
+    )
+
+    values = {group["group_value"]: group for group in result["groups"]}
+    assert {"Finance", "Insurance", "SaaS"}.issubset(values)
+    assert values["Insurance"]["deal_count"] == 1
+    assert values["SaaS"]["deal_count"] == 3
 
 
 def test_customer_theme_evidence_returns_curated_snippets_only() -> None:
@@ -211,13 +260,14 @@ def test_customer_theme_evidence_returns_curated_snippets_only() -> None:
     )
 
     assert result["summary"] == {
-        "deals_analyzed": 4,
-        "unique_deal_count": 3,
-        "evidence_count": 3,
+        "deals_analyzed": 5,
+        "unique_deal_count": 4,
+        "evidence_count": 4,
         "returned_count": 2,
     }
     assert [row["company"] for row in result["evidence"]] == ["Gamma", "Alpha"]
     assert result["evidence"][0]["interaction_type"] == "user_interview"
+    assert result["evidence"][0]["industry_tags"] == ["Finance"]
     assert result["evidence"][0]["source_confidence"] == "customer_stated"
     assert result["evidence"][0]["source_label"] == "User interview (customer-stated)"
     assert result["evidence"][0]["subject"] == "Win review interview"
@@ -241,6 +291,22 @@ def test_customer_theme_evidence_filters_by_industry_and_importance() -> None:
 
     assert result["summary"]["evidence_count"] == 0
     assert result["warnings"] == ["no_customer_theme_evidence"]
+
+
+def test_customer_theme_evidence_filters_by_industry_tags() -> None:
+    result = build_customer_theme_evidence(
+        _deals(),
+        theme_key="compliance_security",
+        dimension="decision_criteria",
+        stage="active",
+        industry="Insurance",
+        min_importance=4,
+    )
+
+    assert result["summary"]["evidence_count"] == 1
+    assert result["evidence"][0]["company"] == "CrossIndustry"
+    assert result["evidence"][0]["industry"] == "SaaS"
+    assert result["evidence"][0]["industry_tags"] == ["SaaS", "Insurance"]
 
 
 def test_customer_theme_evidence_filters_by_interaction_source() -> None:
@@ -268,8 +334,12 @@ def test_customer_theme_evidence_treats_legacy_meeting_as_meeting_source() -> No
         interaction_type="meeting",
     )
 
-    assert result["summary"]["evidence_count"] == 2
-    assert {row["company"] for row in result["evidence"]} == {"Alpha", "Beta"}
+    assert result["summary"]["evidence_count"] == 3
+    assert {row["company"] for row in result["evidence"]} == {
+        "Alpha",
+        "Beta",
+        "CrossIndustry",
+    }
 
 
 def test_customer_theme_tools_validate_before_storage() -> None:
@@ -338,7 +408,7 @@ def test_customer_theme_tool_handlers_return_expected_shape() -> None:
     assert breakdown["filters"]["group_by"] == "industry"
     assert breakdown["groups"]
     assert evidence["ok"] is True
-    assert evidence["summary"]["returned_count"] == 2
+    assert evidence["summary"]["returned_count"] == 3
     assert evidence["filters"]["interaction_type"] == "meeting"
 
 

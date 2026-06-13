@@ -172,6 +172,65 @@ def test_search_deals_atlas_mode_does_not_silently_fallback() -> None:
     assert error.hint["record_failures_in"] == "docs/pro-fallback-errors.md"
 
 
+def test_search_deals_returns_industry_tags_from_python_cosine() -> None:
+    class Embedding:
+        def embed(self, _query: str) -> list[float]:
+            return [1.0, 0.0]
+
+    class Mongo:
+        def get_deals_for_search(self) -> list[dict]:
+            return [
+                {
+                    "deal_id": "d1",
+                    "company": "Cross Industry Co",
+                    "deal_stage": "proposal",
+                    "industry": "SaaS",
+                    "industry_tags": ["SaaS", "Insurance"],
+                    "summary_embedding": [1.0, 0.0],
+                    "meddpicc_latest": {"health_pct": 88.88, "gaps": []},
+                }
+            ]
+
+    result = search_tool.handle(
+        Mongo(),
+        Embedding(),
+        cfg={"mongodb": {"vector_search": "python_cosine"}},
+        query="insurance workflow",
+    )
+
+    assert result["results"][0]["industry_tags"] == ["SaaS", "Insurance"]
+    assert result["results"][0]["health_pct"] == 88.9
+
+
+def test_search_deals_normalizes_missing_industry_tags_from_atlas() -> None:
+    class Embedding:
+        def embed(self, _query: str) -> list[float]:
+            return [0.1, 0.2]
+
+    class Mongo:
+        def search_by_embedding(self, _embedding, *, limit):
+            assert limit == 1
+            return [
+                {
+                    "deal_id": "d1",
+                    "company": "No Tag Co",
+                    "score": 0.98765,
+                    "health_pct": 81.23,
+                }
+            ]
+
+    result = search_tool.handle(
+        Mongo(),
+        Embedding(),
+        cfg={"mongodb": {"vector_search": "atlas"}},
+        query="insurance workflow",
+        limit=1,
+    )
+
+    assert result["results"][0]["industry_tags"] == []
+    assert result["results"][0]["score"] == 0.9877
+
+
 def test_search_deals_rejects_invalid_vector_search_mode() -> None:
     class Embedding:
         def embed(self, _query: str) -> list[float]:

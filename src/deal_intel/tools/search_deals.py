@@ -105,6 +105,7 @@ def _search_python_cosine(
             "company": deal["company"],
             "deal_stage": deal.get("deal_stage"),
             "industry": deal.get("industry"),
+            "industry_tags": deal.get("industry_tags") or [],
             "customer_segment": deal.get("customer_segment"),
             "deal_size_amount": deal.get("deal_size_amount"),
             "deal_size_currency": deal.get("deal_size_currency") or "KRW",
@@ -152,5 +153,6 @@ def _search_atlas(
             r["score"] = round(r["score"], 4)
         if r.get("health_pct") is not None:
             r["health_pct"] = round(r["health_pct"], 1)
+        r["industry_tags"] = r.get("industry_tags") or []
 
     return {"ok": True, "query": query, "result_count": len(results), "results": results}

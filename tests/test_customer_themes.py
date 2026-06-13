@@ -34,6 +34,7 @@ class FakeMongo:
         self.saved: list[dict] = []
         self.aggregate_result: list[dict] = []
         self.count_results: list[int] = []
+        self.count_queries: list[dict] = []
         self.pipeline = None
 
     def get_deal(self, deal_id: str):
@@ -46,7 +47,8 @@ class FakeMongo:
         deals = deepcopy(self.deals)
         return deals[:limit] if limit > 0 else deals
 
-    def count_deals(self, _query: dict) -> int:
+    def count_deals(self, query: dict) -> int:
+        self.count_queries.append(deepcopy(query))
         return self.count_results.pop(0)
 
     def aggregate_deals(self, pipeline: list[dict]) -> list[dict]:
@@ -304,6 +306,35 @@ def test_get_customer_themes_counts_unique_deals_and_adds_shares() -> None:
     assert mongo.pipeline[0]["$match"]["archived"] == {"$ne": True}
     assert mongo.pipeline[0]["$match"]["deal_stage"] == {"$nin": ["won", "lost"]}
     assert {"$match": {"customer_themes.dimension": "decision_criteria"}} in mongo.pipeline
+
+
+def test_get_customer_themes_industry_filter_matches_primary_or_tags() -> None:
+    mongo = FakeMongo()
+    mongo.count_results = [3, 2]
+    mongo.aggregate_result = []
+
+    result = get_customer_themes.handle(
+        mongo,
+        dimension="all",
+        stage="active",
+        industry="보험",
+        top_k=5,
+    )
+
+    expected_scope = {
+        "archived": {"$ne": True},
+        "deal_stage": {"$nin": ["won", "lost"]},
+        "$or": [
+            {"industry": {"$in": ["Insurance"]}},
+            {"industry_tags": {"$in": ["Insurance"]}},
+        ],
+    }
+    assert result["filters"]["industry"] == "보험"
+    assert mongo.count_queries[0] == expected_scope
+    assert mongo.pipeline[0]["$match"] == {
+        **expected_scope,
+        "customer_themes.0": {"$exists": True},
+    }
 
 
 def test_backfill_is_idempotent_and_rebuilds_deal_themes() -> None:

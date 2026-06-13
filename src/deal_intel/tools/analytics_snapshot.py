@@ -102,6 +102,7 @@ def build_analytics_snapshot(
         "deal_id": deal.get("deal_id"),
         "company": deal.get("company"),
         "industry": deal.get("industry"),
+        "industry_tags": _safe_string_list(deal.get("industry_tags")),
         "customer_segment": deal.get("customer_segment"),
         "deal_stage": stage,
         "deal_size_amount": deal.get("deal_size_amount"),
@@ -142,3 +143,9 @@ def _safe_gap_list(meddpicc_latest: dict) -> list[str]:
     if not isinstance(gaps, list):
         return []
     return [str(gap) for gap in gaps]
+
+
+def _safe_string_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value if str(item).strip()]

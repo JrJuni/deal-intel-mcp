@@ -7,6 +7,7 @@ from typing import Any
 
 from deal_intel.schema.customer_themes import THEME_DIMENSIONS, THEME_TAXONOMY
 from deal_intel.schema.evidence_sources import evidence_source_label
+from deal_intel.schema.industry_taxonomy import deal_matches_industry_filter
 from deal_intel.schema.interactions import (
     DEFAULT_INTERACTION_TYPES,
     VALID_SOURCE_CONFIDENCE,
@@ -17,7 +18,7 @@ TERMINAL_STAGES = frozenset({"won", "lost"})
 VALID_STAGE_FILTERS = VALID_STAGES | {"active", "all"}
 VALID_DIMENSION_FILTERS = THEME_DIMENSIONS | {"all"}
 VALID_SOURCE_CONFIDENCE_FILTERS = VALID_SOURCE_CONFIDENCE | {"all"}
-VALID_GROUP_BY = frozenset({"stage", "industry", "dimension"})
+VALID_GROUP_BY = frozenset({"stage", "industry", "industry_tag", "dimension"})
 MAX_TOP_K = 20
 MAX_EVIDENCE_LIMIT = 50
 
@@ -229,6 +230,7 @@ def build_customer_theme_evidence(
                     "deal_id": deal.get("deal_id"),
                     "company": deal.get("company"),
                     "industry": deal.get("industry"),
+                    "industry_tags": _industry_tags(deal),
                     "customer_segment": deal.get("customer_segment"),
                     "deal_stage": deal.get("deal_stage"),
                     "theme_key": record["theme_key"],
@@ -341,7 +343,7 @@ def _filter_deals(
                 continue
         elif stage != "all" and deal_stage != stage:
             continue
-        if industry is not None and deal.get("industry") != industry:
+        if not deal_matches_industry_filter(deal, industry):
             continue
         filtered.append(deal)
     return filtered
@@ -417,8 +419,22 @@ def _group_values(deal: dict, records: list[dict], *, group_by: str) -> list[str
         return [str(deal.get("deal_stage") or "unknown")]
     if group_by == "industry":
         return [str(deal.get("industry") or "unknown")]
+    if group_by == "industry_tag":
+        return _industry_tags(deal) or ["unknown"]
     values = sorted({record["dimension"] for record in records}, key=_dimension_sort_key)
     return values
+
+
+def _industry_tags(deal: dict) -> list[str]:
+    tags = [
+        str(tag).strip()
+        for tag in (deal.get("industry_tags") or [])
+        if str(tag).strip()
+    ]
+    if tags:
+        return tags
+    industry = str(deal.get("industry") or "").strip()
+    return [industry] if industry else []
 
 
 def _theme_summaries(

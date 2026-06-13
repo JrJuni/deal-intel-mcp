@@ -152,15 +152,15 @@ Rules:
 
 Deferred work:
 
-- Run `deal-intel apply-taxonomy-cleanup` against live Atlas and inspect the
-  dry-run plan.
-- Apply only high-confidence rows with
-  `deal-intel apply-taxonomy-cleanup --apply --confirmed-by-user`.
 - Review medium-confidence rows manually. These rows include sensemaking
   explanations because choosing between two plausible industries can change
   charts, reporting groups, and future search behavior.
 - Add optional `customer_segment` filters/grouping to Customer Themes and Atlas
   Charts after the existing dashboard is stable.
+- Extend Atlas Charts Customer Themes views with optional `industry_tag`
+  dashboard cuts after the current MongoDB dashboard is stable.
+- Add an operator backfill to initialize `industry_tags` on older MongoDB rows
+  from the current primary `industry`, then review ambiguous rows manually.
 
 ### Qualification Framework Abstraction v2.0
 

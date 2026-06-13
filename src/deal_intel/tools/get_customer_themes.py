@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from deal_intel.errors import ErrorCode, MCPError, Stage
 from deal_intel.schema.customer_themes import THEME_DIMENSIONS
+from deal_intel.schema.industry_taxonomy import industry_filter_values
 from deal_intel.schema.meddpicc import VALID_STAGES
 from deal_intel.storage.mongodb import MongoDBClient, with_unarchived_deal_filter
 
@@ -25,8 +26,12 @@ def build_scope_query(*, stage: str, industry: str | None) -> dict:
         query["deal_stage"] = {"$nin": _TERMINAL_STAGES}
     elif stage != "all":
         query["deal_stage"] = stage
-    if industry:
-        query["industry"] = industry
+    industry_values = industry_filter_values(industry)
+    if industry_values:
+        query["$or"] = [
+            {"industry": {"$in": industry_values}},
+            {"industry_tags": {"$in": industry_values}},
+        ]
     return query
 
 

@@ -4,6 +4,10 @@ import uuid
 from datetime import UTC, datetime
 
 from deal_intel.errors import ErrorCode, MCPError, Stage
+from deal_intel.schema.industry_taxonomy import (
+    IndustryTaxonomyError,
+    normalize_industry_profile,
+)
 from deal_intel.schema.metrics import (
     DealValueStatus,
     ExpectedCloseSettings,
@@ -25,7 +29,8 @@ def handle(
     *,
     company: str,
     industry: str | None,
-    deal_size_amount: int | None,
+    industry_tags: str | list[str] | None = None,
+    deal_size_amount: int | None = None,
     customer_segment: str | None = None,
     deal_size_status: str | None = None,
     deal_size_low_amount: int | None = None,
@@ -54,10 +59,14 @@ def handle(
             message=str(exc),
             retryable=False,
         ) from exc
+    taxonomy = _normalize_industry_or_raise(
+        industry=industry,
+        industry_tags=industry_tags,
+    )
     try:
         resolved_close_date, close_date_source = resolve_expected_close_date(
             provided=expected_close_date,
-            industry=industry,
+            industry=taxonomy.industry,
             customer_segment=customer_segment,
             created_on=reporting.as_of,
             settings=expected_close_settings,
@@ -81,7 +90,8 @@ def handle(
     deal = {
         "deal_id": str(uuid.uuid4()),
         "company": company.strip(),
-        "industry": _clean_optional_text(industry),
+        "industry": taxonomy.industry,
+        "industry_tags": taxonomy.industry_tags,
         "customer_segment": _clean_optional_text(customer_segment),
         **deal_value,
         "contacts": [],
@@ -129,6 +139,7 @@ def handle(
         "deal_id": deal["deal_id"],
         "company": deal["company"],
         "industry": deal["industry"],
+        "industry_tags": deal["industry_tags"],
         "customer_segment": deal["customer_segment"],
         "deal_size_amount": deal["deal_size_amount"],
         "deal_size_status": deal["deal_size_status"],
@@ -138,10 +149,39 @@ def handle(
         "deal_size_note": deal["deal_size_note"],
         "expected_close_date": resolved_close_date,
         "expected_close_date_source": close_date_source,
+        "taxonomy_warnings": taxonomy.warnings,
     }
     if analytics_snapshot is not None:
         result["analytics_snapshot"] = analytics_snapshot
     return result
+
+
+def _normalize_industry_or_raise(
+    *,
+    industry: str | None,
+    industry_tags: str | list[str] | None,
+):
+    try:
+        return normalize_industry_profile(
+            industry=industry,
+            industry_tags=industry_tags,
+        )
+    except IndustryTaxonomyError as exc:
+        raise MCPError(
+            error_code=ErrorCode.INVALID_INPUT,
+            stage=Stage.PREFLIGHT,
+            message=str(exc),
+            hint={
+                "field": exc.field,
+                "value": exc.value,
+                "candidates": exc.candidates,
+                "fix": (
+                    "Choose one value for industry and pass the other applicable "
+                    "verticals as industry_tags."
+                ),
+            },
+            retryable=False,
+        ) from exc
 
 
 def _build_deal_value(

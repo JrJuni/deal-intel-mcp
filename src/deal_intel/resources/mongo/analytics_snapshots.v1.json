@@ -1,0 +1,146 @@
+{
+  "id": "analytics_snapshots_collection_validator",
+  "version": 1,
+  "database": "deal_intel",
+  "collection": "analytics_snapshots",
+  "validation_action": "warn",
+  "validation_level": "moderate",
+  "description": "Permissive MongoDB validator for BI analytics snapshots. It protects event identity and metric field shape without blocking MVP metric evolution.",
+  "validator": {
+    "$jsonSchema": {
+      "bsonType": "object",
+      "required": [
+        "snapshot_id",
+        "schema_version",
+        "source",
+        "event_id",
+        "event_type",
+        "deal_id",
+        "as_of",
+        "occurred_at",
+        "created_at"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "snapshot_id": {
+          "bsonType": "string"
+        },
+        "schema_version": {
+          "bsonType": ["int", "long"]
+        },
+        "source": {
+          "bsonType": "string"
+        },
+        "event_id": {
+          "bsonType": "string"
+        },
+        "event_type": {
+          "bsonType": "string"
+        },
+        "occurred_at": {
+          "bsonType": ["string", "date"]
+        },
+        "created_at": {
+          "bsonType": ["string", "date"]
+        },
+        "as_of": {
+          "bsonType": ["string", "date"]
+        },
+        "timezone": {
+          "bsonType": ["string", "null"]
+        },
+        "deal_id": {
+          "bsonType": "string"
+        },
+        "company": {
+          "bsonType": ["string", "null"]
+        },
+        "industry": {
+          "bsonType": ["string", "null"]
+        },
+        "deal_stage": {
+          "enum": [
+            "discovery",
+            "qualification",
+            "proposal",
+            "negotiation",
+            "stalled",
+            "won",
+            "lost",
+            null
+          ]
+        },
+        "deal_size_amount": {
+          "bsonType": ["int", "long", "double", "decimal", "null"]
+        },
+        "deal_size_low_amount": {
+          "bsonType": ["int", "long", "double", "decimal", "null"]
+        },
+        "deal_size_high_amount": {
+          "bsonType": ["int", "long", "double", "decimal", "null"]
+        },
+        "deal_size_currency": {
+          "bsonType": ["string", "null"]
+        },
+        "deal_size_status": {
+          "enum": [
+            "unknown",
+            "rough_estimate",
+            "customer_budget",
+            "quoted",
+            "strategic_zero",
+            null
+          ]
+        },
+        "expected_close_date": {
+          "bsonType": ["string", "date", "null"]
+        },
+        "expected_close_date_source": {
+          "bsonType": ["string", "null"]
+        },
+        "actual_close_date": {
+          "bsonType": ["string", "date", "null"]
+        },
+        "close_reason_present": {
+          "bsonType": ["bool", "null"]
+        },
+        "health_pct": {
+          "bsonType": ["int", "long", "double", "decimal", "null"]
+        },
+        "health_band": {
+          "enum": ["healthy", "watch", "at_risk", "unassessed", null]
+        },
+        "meddpicc_filled_count": {
+          "bsonType": ["int", "long", "null"]
+        },
+        "meddpicc_gap_count": {
+          "bsonType": ["int", "long", "null"]
+        },
+        "meddpicc_gaps": {
+          "bsonType": ["array", "null"]
+        },
+        "days_in_stage": {
+          "bsonType": ["int", "long", "null"]
+        },
+        "stuck_threshold_days": {
+          "bsonType": ["int", "long", "null"]
+        },
+        "is_stuck": {
+          "bsonType": ["bool", "null"]
+        },
+        "close_date_status": {
+          "bsonType": ["string", "null"]
+        },
+        "is_overdue": {
+          "bsonType": ["bool", "null"]
+        },
+        "overdue_days": {
+          "bsonType": ["int", "long", "null"]
+        },
+        "attention_reasons": {
+          "bsonType": ["array", "null"]
+        }
+      }
+    }
+  }
+}

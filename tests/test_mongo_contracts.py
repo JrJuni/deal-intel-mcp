@@ -7,10 +7,13 @@ from typer.testing import CliRunner
 from deal_intel import _env
 from deal_intel.cli import app
 from deal_intel.mongo_contracts import (
+    build_collection_schema_command,
     build_deals_schema_command,
+    collection_schema_contract_summary,
     compare_mongo_indexes,
     deals_schema_contract_summary,
     expected_mongo_indexes,
+    mongo_schema_collections,
 )
 from deal_intel.mongo_doctor import build_mongo_doctor_report
 from deal_intel.storage import mongodb as storage_mongodb
@@ -66,18 +69,34 @@ def test_deals_schema_command_is_warn_moderate_and_permissive() -> None:
     assert command["validator"]["$jsonSchema"]["additionalProperties"] is True
 
 
+def test_managed_schema_commands_are_warn_moderate_and_permissive() -> None:
+    collections = mongo_schema_collections()
+
+    assert collections == ("deals", "analytics_snapshots", "delete_audit_logs")
+    for collection in collections:
+        command = build_collection_schema_command(collection)
+        summary = collection_schema_contract_summary(collection)
+
+        assert command["collMod"] == collection
+        assert command["validationAction"] == "warn"
+        assert command["validationLevel"] == "moderate"
+        assert summary["collection"] == collection
+        assert summary["required_fields"]
+        assert command["validator"]["$jsonSchema"]["additionalProperties"] is True
+
+
 class FakeSchemaDB:
     def __init__(self, *, options: dict | None = None) -> None:
         self.options = options or {}
 
     def command(self, name: str | dict, **kwargs):
         if name == "listCollections":
-            assert kwargs == {"filter": {"name": "deals"}}
+            collection = kwargs["filter"]["name"]
             return {
                 "cursor": {
                     "firstBatch": [
                         {
-                            "name": "deals",
+                            "name": collection,
                             "options": self.options,
                         }
                     ]
@@ -104,6 +123,55 @@ def test_check_deals_schema_validation_reports_match() -> None:
     assert report["status"] == "ok"
 
 
+def test_check_schema_validations_reports_every_managed_collection() -> None:
+    db = FakeSchemaDB()
+    client = MongoDBClient(uri="mongodb://example.invalid")
+    client._db = db
+
+    report = client.check_schema_validations()
+
+    assert set(report) == set(mongo_schema_collections())
+    assert report["analytics_snapshots"]["collection"] == "analytics_snapshots"
+    assert report["delete_audit_logs"]["status"] == "mismatched"
+
+
+class FakeDoctorClient:
+    def ping(self) -> dict:
+        return {"status": "ok", "database": "deal_intel"}
+
+    def check_indexes(self) -> dict:
+        return {
+            "ok": True,
+            "missing_count": 0,
+            "mismatch_count": 0,
+            "collections": {},
+        }
+
+    def check_collection_schema_validation(self, collection: str) -> dict:
+        return {
+            "ok": collection == "deals",
+            "status": "ok" if collection == "deals" else "missing_collection",
+            "collection": collection,
+            "expected": collection_schema_contract_summary(collection),
+            "current": None,
+        }
+
+
+def test_mongo_doctor_reports_auxiliary_schema_checks(monkeypatch) -> None:
+    monkeypatch.setenv("MONGODB_URI", "configured-mongodb-uri-sentinel")
+
+    report = build_mongo_doctor_report(
+        _full_cfg(),
+        mongo_client_factory=lambda _database: FakeDoctorClient(),
+    )
+
+    assert report["ok"] is True
+    assert _status(report, "deals_schema") == "pass"
+    assert _status(report, "analytics_snapshots_schema") == "warn"
+    assert _status(report, "delete_audit_logs_schema") == "warn"
+    assert "configured-mongodb-uri-sentinel" not in json.dumps(report)
+
+
 def test_mongo_doctor_offline_skips_live_checks(monkeypatch) -> None:
     monkeypatch.setenv("MONGODB_URI", "configured-mongodb-uri-sentinel")
 
@@ -112,6 +180,8 @@ def test_mongo_doctor_offline_skips_live_checks(monkeypatch) -> None:
     assert report["ok"] is True
     assert _status(report, "mongodb_uri") == "pass"
     assert _status(report, "storage_ping") == "skipped"
+    assert _status(report, "analytics_snapshots_schema") == "skipped"
+    assert _status(report, "delete_audit_logs_schema") == "skipped"
     assert "configured-mongodb-uri-sentinel" not in json.dumps(report)
 
 
@@ -139,6 +209,51 @@ def test_mongo_cli_apply_schema_dry_run_does_not_require_mongodb_uri(
     assert payload["dry_run"] is True
     assert payload["collection"] == "deals"
     assert payload["validation_action"] == "warn"
+
+
+def test_mongo_cli_apply_schema_dry_run_supports_auxiliary_collection(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setattr(_env, "_USER_CONFIG_PATH", tmp_path / "missing.yaml")
+    monkeypatch.delenv("MONGODB_URI", raising=False)
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "mongo",
+            "apply-schema",
+            "--collection",
+            "analytics_snapshots",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["dry_run"] is True
+    assert payload["collection"] == "analytics_snapshots"
+    assert payload["collections"] == ["analytics_snapshots"]
+    assert payload["command"]["collMod"] == "analytics_snapshots"
+
+
+def test_mongo_cli_apply_schema_dry_run_supports_all_collections(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setattr(_env, "_USER_CONFIG_PATH", tmp_path / "missing.yaml")
+    monkeypatch.delenv("MONGODB_URI", raising=False)
+
+    result = CliRunner().invoke(
+        app,
+        ["mongo", "apply-schema", "--collection", "all", "--json"],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["dry_run"] is True
+    assert payload["collection"] == "all"
+    assert set(payload["commands"]) == set(mongo_schema_collections())
 
 
 def test_mongo_cli_doctor_json_is_secret_safe(monkeypatch, tmp_path) -> None:

@@ -10,7 +10,68 @@ Read the newest section first. Older sections are retained as an archive for
 traceability and should be searched by topic, milestone, or file path rather
 than loaded wholesale.
 
-## Latest Update - 2026-06-12
+## Latest Update - 2026-06-13
+
+### Auxiliary Mongo collection validators
+
+Implemented:
+
+- Generalized MongoDB schema validation contracts from deals-only helpers to
+  managed collection helpers in `src/deal_intel/mongo_contracts.py`.
+- Added permissive v1 validator resources:
+  - `src/deal_intel/resources/mongo/analytics_snapshots.v1.json`
+  - `src/deal_intel/resources/mongo/delete_audit_logs.v1.json`
+- Added generic MongoDB client methods:
+  - `check_collection_schema_validation(collection)`
+  - `check_schema_validations()`
+  - `collection_schema_command(collection)`
+  - `apply_collection_schema_validation(collection)`
+- Kept existing deals wrappers for compatibility:
+  `check_deals_schema_validation()`, `deals_schema_command()`, and
+  `apply_deals_schema_validation()`.
+- Extended `mongo doctor` to report:
+  - `deals_schema`
+  - `analytics_snapshots_schema`
+  - `delete_audit_logs_schema`
+- Extended `deal-intel mongo apply-schema` with:
+  - `--collection deals` (default)
+  - `--collection analytics_snapshots`
+  - `--collection delete_audit_logs`
+  - `--collection all`
+
+Behavior:
+
+- All validators use `validationAction: warn` and
+  `validationLevel: moderate`.
+- The new validators are intentionally permissive and keep
+  `additionalProperties: true` so MVP field evolution is not blocked.
+- `apply-schema` remains dry-run by default.
+- No live Atlas write was performed in this slice; applying auxiliary
+  validators requires an explicit future `--apply`.
+
+Validation:
+
+- Targeted Mongo contract/index/snapshot/lifecycle tests:
+  `38 passed, 1 warning`.
+- Targeted Ruff:
+  `All checks passed`.
+- Full regression:
+  `464 passed, 1 warning`.
+- Full Ruff:
+  `All checks passed`.
+- CLI dry-runs passed:
+  - `deal-intel mongo apply-schema --collection analytics_snapshots --json`
+  - `deal-intel mongo apply-schema --collection delete_audit_logs --json`
+  - `deal-intel mongo apply-schema --collection all --json`
+- Live Atlas read-only smoke:
+  - `deal-intel mongo doctor --json` returned `ok=true`.
+  - Ping and ordinary index checks passed.
+  - `deals_schema` passed.
+  - `analytics_snapshots_schema` and `delete_audit_logs_schema` returned
+    expected warnings because the new auxiliary validators have not been
+    applied to Atlas yet.
+
+## Previous Update - 2026-06-12
 
 ### F-Mongo operational contracts
 

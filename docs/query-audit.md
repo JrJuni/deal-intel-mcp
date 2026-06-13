@@ -151,7 +151,11 @@ Completed:
 3. Added `MongoDBClient.check_indexes()` for read-only index drift detection.
 4. Added a permissive v1 `deals` collection validator resource and
    `MongoDBClient.check_deals_schema_validation()`.
-5. Added CLI admin surfaces:
+5. Added permissive v1 validator resources for `analytics_snapshots` and
+   `delete_audit_logs`.
+6. Added generic collection schema helpers and read-only doctor checks for all
+   managed validator contracts.
+7. Added CLI admin surfaces:
    - `deal-intel mongo doctor`
    - `deal-intel mongo apply-indexes`
    - `deal-intel mongo apply-schema`
@@ -160,7 +164,9 @@ Notes:
 
 - `mongo doctor` is read-only.
 - `apply-indexes` and `apply-schema` are dry-run unless `--apply` is passed.
-- The v1 deals validator is `warn + moderate`, not hard `error`
+- `apply-schema` defaults to `deals`; use `--collection all` to inspect or
+  apply all managed validators.
+- The v1 validators are `warn + moderate`, not hard `error`
   enforcement, because the MVP document model is still changing.
 - No new read-path indexes were added in this slice; the goal was to make the
   existing contract inspectable and safer to operate.
@@ -171,8 +177,8 @@ Notes:
 - Fixed in O2: `list_deals()` excludes contacts and vectors.
 - Fixed in O3: trend chart/snapshot range reads have a direct `as_of` index.
 - Fixed in O3: list views have a compound archived/stage/updated index.
-- Fixed in F-Mongo: ordinary index drift and deals schema validator drift can
-  be diagnosed through CLI without writing to MongoDB.
+- Fixed in F-Mongo: ordinary index drift and managed collection schema
+  validator drift can be diagnosed through CLI without writing to MongoDB.
 - Low at current scale: legacy aggregation paths can scan the small `deals`
   collection.
 - Deferred: `list_deals_for_metrics()` remains blacklist-style until metric

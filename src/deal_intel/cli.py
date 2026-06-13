@@ -428,7 +428,15 @@ def mongo_apply_schema(
     apply: bool = typer.Option(
         False,
         "--apply",
-        help="Apply the deals collection validator. Without this flag, only print dry-run output.",
+        help="Apply a MongoDB collection validator. Without this flag, only print dry-run output.",
+    ),
+    collection: str = typer.Option(
+        "deals",
+        "--collection",
+        help=(
+            "Validator target: deals, analytics_snapshots, delete_audit_logs, "
+            "or all. Defaults to deals."
+        ),
     ),
     json_output: bool = typer.Option(
         False,
@@ -436,29 +444,63 @@ def mongo_apply_schema(
         help="Print structured JSON instead of concise text.",
     ),
 ) -> None:
-    """Apply the permissive v1 deals collection validator when --apply is set."""
+    """Apply permissive v1 MongoDB collection validators when --apply is set."""
 
     from deal_intel import _env
-    from deal_intel.mongo_contracts import build_deals_schema_command
+    from deal_intel.mongo_contracts import (
+        build_collection_schema_command,
+        mongo_schema_collections,
+    )
     from deal_intel.storage.mongodb import MongoDBClient
+
+    managed_collections = mongo_schema_collections()
+    if collection == "all":
+        selected_collections = managed_collections
+    elif collection in managed_collections:
+        selected_collections = (collection,)
+    else:
+        valid = ", ".join((*managed_collections, "all"))
+        raise typer.BadParameter(f"collection must be one of: {valid}")
 
     cfg = _env.load_config()
     database = _mapping(_mapping(cfg).get("mongodb")).get("database", "deal_intel")
-    command = build_deals_schema_command()
+    commands = {
+        name: build_collection_schema_command(name) for name in selected_collections
+    }
+    command = commands[selected_collections[0]]
     payload = {
         "ok": True,
         "dry_run": not apply,
         "database": database,
-        "collection": command["collMod"],
-        "validation_action": command["validationAction"],
-        "validation_level": command["validationLevel"],
-        "command": command,
+        "collection": collection,
+        "collections": list(selected_collections),
+        "validation_action": command["validationAction"]
+        if len(selected_collections) == 1
+        else "mixed",
+        "validation_level": command["validationLevel"]
+        if len(selected_collections) == 1
+        else "mixed",
+        "available_collections": list(managed_collections),
     }
+    if len(selected_collections) == 1:
+        payload["command"] = command
+    else:
+        payload["commands"] = commands
     if apply:
         try:
             client = MongoDBClient(database=database)
-            payload["result"] = _safe_mongo_command_result(
-                client.apply_deals_schema_validation()
+            results = {
+                name: _safe_mongo_command_result(
+                    client.apply_deals_schema_validation()
+                    if name == "deals"
+                    else client.apply_collection_schema_validation(name)
+                )
+                for name in selected_collections
+            }
+            payload["result"] = (
+                results[selected_collections[0]]
+                if len(selected_collections) == 1
+                else results
             )
         except Exception as exc:
             payload.update(
@@ -1247,8 +1289,9 @@ def _format_mongo_apply_indexes(payload: dict) -> str:
 
 def _format_mongo_apply_schema(payload: dict) -> str:
     status = "dry-run" if payload.get("dry_run") else payload.get("result", "applied")
+    collections = payload.get("collections") or [payload.get("collection")]
     lines = [
-        f"Mongo deals schema: {status}",
+        f"Mongo schema contract: {status}",
         f"Database: {payload.get('database')}",
         f"Collection: {payload.get('collection')}",
         (
@@ -1257,6 +1300,8 @@ def _format_mongo_apply_schema(payload: dict) -> str:
             f"level={payload.get('validation_level')}"
         ),
     ]
+    if collections:
+        lines.append(f"Managed validators: {', '.join(str(item) for item in collections)}")
     if payload.get("dry_run"):
         lines.append("Run again with --apply to apply this collection validator.")
     if payload.get("error"):

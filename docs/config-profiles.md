@@ -181,6 +181,9 @@ deal-intel mongo doctor --offline
 deal-intel mongo apply-indexes --json
 deal-intel mongo apply-indexes --apply
 deal-intel mongo apply-schema --json
+deal-intel mongo apply-schema --collection analytics_snapshots --json
+deal-intel mongo apply-schema --collection delete_audit_logs --json
+deal-intel mongo apply-schema --collection all --json
 deal-intel mongo apply-schema --apply
 deal-intel mongo apply-vector-index --json
 deal-intel mongo apply-vector-index --apply
@@ -190,16 +193,16 @@ Implemented behavior:
 
 - `mongo doctor` is the full/pro MongoDB operational check. It verifies the
   storage backend, Mongo URI readiness, bounded ping, expected ordinary
-  indexes, deals collection validator status, and vector-search mode.
+  indexes, managed collection validator status, and vector-search mode.
 - `apply-indexes` applies the versioned ordinary index contract only when
   `--apply` is passed.
-- `apply-schema` applies the v1 `deals` collection validator only when
-  `--apply` is passed.
+- `apply-schema` applies a v1 collection validator only when `--apply` is
+  passed. The default target is `deals`; `--collection all` includes
+  `deals`, `analytics_snapshots`, and `delete_audit_logs`.
 - `apply-vector-index` prints or applies the Pro Atlas Vector Search index
   command. It requires an M10+ Atlas cluster when `--apply` is used.
-- The v1 validator is intentionally permissive: `validationAction: warn`,
-  `validationLevel: moderate`, and only `deal_id`, `company`, and
-  `deal_stage` are required.
+- The v1 validators are intentionally permissive: `validationAction: warn`,
+  `validationLevel: moderate`, and `additionalProperties: true`.
 - These are CLI/admin surfaces first. They are not exposed as MCP tools in the
   user-facing tool list.
 

@@ -1,0 +1,50 @@
+{
+  "id": "delete_audit_logs_collection_validator",
+  "version": 1,
+  "database": "deal_intel",
+  "collection": "delete_audit_logs",
+  "validation_action": "warn",
+  "validation_level": "moderate",
+  "description": "Permissive MongoDB validator for hard-delete audit logs. It preserves audit identity and snapshot shape without constraining future lifecycle metadata.",
+  "validator": {
+    "$jsonSchema": {
+      "bsonType": "object",
+      "required": [
+        "audit_id",
+        "deal_id",
+        "company",
+        "deleted_at",
+        "deleted_by",
+        "delete_reason",
+        "deal_snapshot"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "audit_id": {
+          "bsonType": "string"
+        },
+        "deal_id": {
+          "bsonType": "string"
+        },
+        "company": {
+          "bsonType": ["string", "null"]
+        },
+        "deleted_at": {
+          "bsonType": ["string", "date"]
+        },
+        "deleted_by": {
+          "bsonType": "string"
+        },
+        "delete_reason": {
+          "bsonType": "string"
+        },
+        "snapshot_excluded_fields": {
+          "bsonType": ["array", "null"]
+        },
+        "deal_snapshot": {
+          "bsonType": "object"
+        }
+      }
+    }
+  }
+}

@@ -169,12 +169,14 @@ Minimum future concept:
 Goal: make the normal MongoDB-backed `full` path operationally diagnosable and
 safe on Atlas Free/M0 before spending effort on paid-infrastructure Pro paths.
 
-Implemented first slice:
+Implemented slices:
 
 - Versioned ordinary MongoDB index contract in code.
 - `MongoDBClient.ensure_indexes()` now applies the shared contract.
 - Read-only index/schema readiness checks.
 - Permissive v1 `deals` collection validator resource.
+- Permissive v1 `analytics_snapshots` and `delete_audit_logs` validator
+  resources.
 - CLI admin commands:
 
 ```bash
@@ -183,6 +185,9 @@ deal-intel mongo doctor --offline --json
 deal-intel mongo apply-indexes --json
 deal-intel mongo apply-indexes --apply
 deal-intel mongo apply-schema --json
+deal-intel mongo apply-schema --collection analytics_snapshots --json
+deal-intel mongo apply-schema --collection delete_audit_logs --json
+deal-intel mongo apply-schema --collection all --json
 deal-intel mongo apply-schema --apply
 ```
 
@@ -203,14 +208,13 @@ Next candidate units:
 1. Optional live Atlas smoke:
    - `deal-intel mongo doctor --json`
    - `deal-intel mongo apply-indexes --json`
-   - `deal-intel mongo apply-schema --json`
-   - `deal-intel mongo apply-schema --apply` only after manual confirmation.
+   - `deal-intel mongo apply-schema --collection all --json`
+   - `deal-intel mongo apply-schema --collection all --apply` only after
+     manual confirmation.
    - `deal-intel mongo apply-vector-index --apply` only on an M10+ Pro cluster.
-2. Add schema checks for `analytics_snapshots` and `delete_audit_logs` if those
-   collections show drift in real use.
-3. Evaluate whether `analytics_snapshots` should remain a normal collection or
+2. Evaluate whether `analytics_snapshots` should remain a normal collection or
    get a separate time-series/event collection after v1.0.
-4. Evaluate bounded change-stream consumers only when there is a clear product
+3. Evaluate bounded change-stream consumers only when there is a clear product
    workflow that benefits from them.
 
 ### Z5 - Profile and Config Rollout

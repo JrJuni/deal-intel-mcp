@@ -6,7 +6,10 @@ from datetime import UTC, datetime
 from typing import Any
 
 from deal_intel.config_profiles import infer_config_profile
-from deal_intel.mongo_contracts import deals_schema_contract_summary
+from deal_intel.mongo_contracts import (
+    collection_schema_contract_summary,
+    mongo_schema_collections,
+)
 
 MongoClientFactory = Callable[[str], Any]
 
@@ -186,39 +189,51 @@ def _add_index_check(checks: list[dict[str, Any]], client: Any) -> None:
 
 
 def _add_schema_check(checks: list[dict[str, Any]], client: Any) -> None:
-    try:
-        report = client.check_deals_schema_validation()
-    except Exception as exc:
+    for collection in mongo_schema_collections():
+        check_id = f"{collection}_schema"
+        label = f"{collection} schema validation"
+        try:
+            report = client.check_collection_schema_validation(collection)
+        except Exception as exc:
+            _add_check(
+                checks,
+                check_id=check_id,
+                label=label,
+                status="fail",
+                message=(
+                    f"Could not read {collection} schema validation: "
+                    f"{type(exc).__name__}"
+                ),
+                details={"error": _redact_text(str(exc))},
+                hint=(
+                    "Run `deal-intel mongo apply-schema --collection "
+                    f"{collection}` to inspect the intended validator."
+                ),
+            )
+            continue
+
+        status = "pass" if report.get("ok") else "warn"
         _add_check(
             checks,
-            check_id="deals_schema",
-            label="Deals schema validation",
-            status="fail",
-            message=f"Could not read deals schema validation: {type(exc).__name__}",
-            details={"error": _redact_text(str(exc))},
-            hint="Run `deal-intel mongo apply-schema --dry-run` to inspect the intended validator.",
+            check_id=check_id,
+            label=label,
+            status=status,
+            message=(
+                f"{collection} collection validator matches the v1 contract."
+                if report.get("ok")
+                else (
+                    f"{collection} collection validator is missing or differs "
+                    "from the v1 contract."
+                )
+            ),
+            details=report,
+            hint=(
+                "Run `deal-intel mongo apply-schema --collection "
+                f"{collection}`, then `--apply` if the command looks correct."
+            )
+            if not report.get("ok")
+            else None,
         )
-        return
-
-    status = "pass" if report.get("ok") else "warn"
-    _add_check(
-        checks,
-        check_id="deals_schema",
-        label="Deals schema validation",
-        status=status,
-        message=(
-            "Deals collection validator matches the v1 contract."
-            if report.get("ok")
-            else "Deals collection validator is missing or differs from the v1 contract."
-        ),
-        details=report,
-        hint=(
-            "Run `deal-intel mongo apply-schema --dry-run`, then `--apply` "
-            "if the command looks correct."
-        )
-        if not report.get("ok")
-        else None,
-    )
 
 
 def _add_vector_search_check(
@@ -296,8 +311,19 @@ def _add_skipped_mongo_checks(
         label="Deals schema validation",
         status="skipped",
         message=f"Deals schema check skipped because {reason}",
-        details={"expected": deals_schema_contract_summary()},
+        details={"expected": collection_schema_contract_summary("deals")},
     )
+    for collection in mongo_schema_collections():
+        if collection == "deals":
+            continue
+        _add_check(
+            checks,
+            check_id=f"{collection}_schema",
+            label=f"{collection} schema validation",
+            status="skipped",
+            message=f"{collection} schema check skipped because {reason}",
+            details={"expected": collection_schema_contract_summary(collection)},
+        )
 
 
 def _make_client(*, database: Any, factory: MongoClientFactory | None) -> Any:

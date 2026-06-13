@@ -9,10 +9,12 @@ from deal_intel.atlas_vector_indexes import (
     deal_summary_vector_search_settings,
 )
 from deal_intel.mongo_contracts import (
+    build_collection_schema_command,
     build_deals_schema_command,
+    collection_schema_contract_summary,
     compare_mongo_indexes,
-    deals_schema_contract_summary,
     expected_mongo_indexes,
+    mongo_schema_collections,
 )
 from deal_intel.storage.diagnostics import (
     missing_mongodb_uri_message,
@@ -93,8 +95,13 @@ class MongoDBClient:
     def check_deals_schema_validation(self) -> dict:
         """Read-only check for the deals collection validator contract."""
 
+        return self.check_collection_schema_validation("deals")
+
+    def check_collection_schema_validation(self, collection: str) -> dict:
+        """Read-only check for a managed collection validator contract."""
+
         db = self._get_db()
-        expected = deals_schema_contract_summary()
+        expected = collection_schema_contract_summary(collection)
         response = db.command("listCollections", filter={"name": expected["collection"]})
         first_batch = response.get("cursor", {}).get("firstBatch", [])
         if not first_batch:
@@ -112,7 +119,7 @@ class MongoDBClient:
             "validation_action": options.get("validationAction"),
             "validation_level": options.get("validationLevel"),
         }
-        expected_command = build_deals_schema_command()
+        expected_command = build_collection_schema_command(collection)
         mismatches = []
         if options.get("validator") != expected_command["validator"]:
             mismatches.append("validator")
@@ -129,15 +136,33 @@ class MongoDBClient:
             "mismatches": mismatches,
         }
 
+    def check_schema_validations(self) -> dict[str, dict]:
+        """Read-only checks for every managed collection validator contract."""
+
+        return {
+            collection: self.check_collection_schema_validation(collection)
+            for collection in mongo_schema_collections()
+        }
+
     def deals_schema_command(self) -> dict:
         """Return the versioned collMod command without executing it."""
 
         return build_deals_schema_command()
 
+    def collection_schema_command(self, collection: str) -> dict:
+        """Return a versioned collMod command without executing it."""
+
+        return build_collection_schema_command(collection)
+
     def apply_deals_schema_validation(self) -> dict:
         """Apply the deals collection validator. Caller must gate this behind --apply."""
 
-        return self._get_db().command(build_deals_schema_command())
+        return self.apply_collection_schema_validation("deals")
+
+    def apply_collection_schema_validation(self, collection: str) -> dict:
+        """Apply a collection validator. Caller must gate this behind --apply."""
+
+        return self._get_db().command(build_collection_schema_command(collection))
 
     def ping(self) -> dict:
         if not self._uri:

@@ -10,7 +10,12 @@ from typing import Any
 ASC = 1
 DESC = -1
 
-DEALS_SCHEMA_FILE = "deals.v1.json"
+MONGO_SCHEMA_FILES = {
+    "deals": "deals.v1.json",
+    "analytics_snapshots": "analytics_snapshots.v1.json",
+    "delete_audit_logs": "delete_audit_logs.v1.json",
+}
+DEALS_SCHEMA_FILE = MONGO_SCHEMA_FILES["deals"]
 DEFAULT_DEALS_SCHEMA_SPEC = (
     Path(__file__).resolve().parent / "resources" / "mongo" / DEALS_SCHEMA_FILE
 )
@@ -113,11 +118,27 @@ def expected_mongo_indexes() -> dict[str, list[MongoIndexSpec]]:
 def load_deals_schema_spec(path: str | Path | None = None) -> dict[str, Any]:
     """Load the version-managed MongoDB collection validator spec."""
 
+    return load_collection_schema_spec("deals", path=path)
+
+
+def mongo_schema_collections() -> tuple[str, ...]:
+    return tuple(MONGO_SCHEMA_FILES)
+
+
+def load_collection_schema_spec(
+    collection: str,
+    *,
+    path: str | Path | None = None,
+) -> dict[str, Any]:
+    """Load a version-managed MongoDB collection validator spec."""
+
     if path is not None:
         return json.loads(Path(path).read_text(encoding="utf-8"))
-    if DEFAULT_DEALS_SCHEMA_SPEC.exists():
-        return json.loads(DEFAULT_DEALS_SCHEMA_SPEC.read_text(encoding="utf-8"))
-    return json.loads(_deals_schema_resource_text())
+    filename = _schema_filename(collection)
+    schema_path = Path(__file__).resolve().parent / "resources" / "mongo" / filename
+    if schema_path.exists():
+        return json.loads(schema_path.read_text(encoding="utf-8"))
+    return json.loads(_schema_resource_text(filename))
 
 
 def build_deals_schema_command(
@@ -127,7 +148,22 @@ def build_deals_schema_command(
 ) -> dict[str, Any]:
     """Build a safe collMod command for the deals collection validator."""
 
-    spec = load_deals_schema_spec()
+    return build_collection_schema_command(
+        "deals",
+        validation_action=validation_action,
+        validation_level=validation_level,
+    )
+
+
+def build_collection_schema_command(
+    collection: str,
+    *,
+    validation_action: str | None = None,
+    validation_level: str | None = None,
+) -> dict[str, Any]:
+    """Build a safe collMod command for a managed collection validator."""
+
+    spec = load_collection_schema_spec(collection)
     return {
         "collMod": spec["collection"],
         "validator": deepcopy(spec["validator"]),
@@ -137,7 +173,11 @@ def build_deals_schema_command(
 
 
 def deals_schema_contract_summary() -> dict[str, Any]:
-    spec = load_deals_schema_spec()
+    return collection_schema_contract_summary("deals")
+
+
+def collection_schema_contract_summary(collection: str) -> dict[str, Any]:
+    spec = load_collection_schema_spec(collection)
     return {
         "id": spec["id"],
         "version": spec["version"],
@@ -235,9 +275,17 @@ def _normalize_index_keys(value: Any) -> list[tuple[str, int]]:
     return [(str(key), int(direction)) for key, direction in value]
 
 
-def _deals_schema_resource_text() -> str:
+def _schema_filename(collection: str) -> str:
+    try:
+        return MONGO_SCHEMA_FILES[collection]
+    except KeyError as exc:
+        valid = ", ".join(mongo_schema_collections())
+        raise ValueError(f"unknown Mongo schema collection {collection!r}; valid: {valid}") from exc
+
+
+def _schema_resource_text(filename: str) -> str:
     return (
         resources.files("deal_intel.resources")
-        .joinpath("mongo", DEALS_SCHEMA_FILE)
+        .joinpath("mongo", filename)
         .read_text(encoding="utf-8")
     )

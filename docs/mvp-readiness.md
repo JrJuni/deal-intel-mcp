@@ -34,10 +34,12 @@ Green:
 - Customer interaction intake supports meeting notes, email threads, user
   interviews, call summaries, and internal notes through one public tool:
   `add_interaction`.
+- LLM usage/cost visibility is planned as v1 polish so users can see estimated
+  provider spend from the MCP surface.
 - Local mode can create/update/stage/archive/delete local personal deals, then
   export, reset, or migrate them to MongoDB through dry-run-first commands.
 - Natural-question smoke has a deterministic 12-question pack.
-- Claude Desktop MCPB `0.1.12` packs successfully and reflects the current
+- Claude Desktop MCPB `0.1.13` packs successfully and reflects the current
   installer fields.
 
 Yellow:
@@ -62,6 +64,15 @@ Not MVP-blocking:
 - Atlas Vector Search live validation.
 - OpenAI API live smoke with paid credits.
 - Deep account people graph / CRM-like contact model.
+
+V1 polish candidates before broader public release:
+
+- Add an MCP usage tool focused on LLM call counts, token usage, and estimated
+  provider spend.
+- Improve CSV/Markdown report readability so exported artifacts have a clearer
+  role than Atlas Charts or chat-rendered dashboards.
+- Reposition `analyze_deal` as optional generated strategy text, with
+  `get_deal_review` as the default LLM-free review.
 
 ## Required Gates
 
@@ -175,7 +186,7 @@ Run the relevant tests:
 Pass criteria:
 
 - `sample`, `standard`, and `developer` tool counts match the documented
-  contract: `sample=19`, `standard=23`, `developer=26`.
+  contract: `sample=20`, `standard=24`, `developer=27`.
 - `add_interaction` is visible on sample/standard.
 - Deprecated `add_meeting` is hidden from sample/standard and only visible on
   developer.
@@ -203,8 +214,8 @@ From `mcpb/`:
 
 ```powershell
 mcpb validate manifest.json
-mcpb pack . deal-intel-mcp-0.1.12.mcpb
-mcpb info deal-intel-mcp-0.1.12.mcpb
+mcpb pack . deal-intel-mcp-0.1.13.mcpb
+mcpb info deal-intel-mcp-0.1.13.mcpb
 ```
 
 Pass criteria:
@@ -215,7 +226,7 @@ Pass criteria:
 - Reinstall smoke in Claude Desktop should show the expected sample or standard
   surface based on selected config.
 - For the current package, the latest known build is
-  `deal-intel-mcp-0.1.12.mcpb` with an unsigned-package warning only.
+  `deal-intel-mcp-0.1.13.mcpb` with an unsigned-package warning only.
 
 ## User Trial Script
 

@@ -104,9 +104,9 @@ When installing the MCPB, recommend:
 
 Expected visible tool counts:
 
-- `sample`: 19 tools
-- `standard` / `full`: 23 tools
-- `developer`: 26 tools
+- `sample`: 20 tools
+- `standard` / `full`: 24 tools
+- `developer`: 27 tools
 
 After restart, ask Claude/Codex to run `config_doctor` first.
 

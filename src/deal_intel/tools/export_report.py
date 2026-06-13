@@ -30,7 +30,7 @@ from deal_intel.storage.mongodb import MongoDBClient
 
 REPORT_TYPE_WEEKLY_PIPELINE = "weekly_pipeline"
 VALID_REPORT_TYPES = frozenset({REPORT_TYPE_WEEKLY_PIPELINE, REPORT_TYPE_PIPELINE_TREND})
-DEFAULT_OUTPUT_DIR = Path("outputs") / "reports"
+DEFAULT_OUTPUT_DIR = Path("~/.deal-intel/reports")
 
 
 def handle(
@@ -253,7 +253,7 @@ def _resolve_output_dir(cfg: dict, output_dir: str | None) -> Path:
         raise ValueError("reporting must be a mapping")
     configured = reporting.get("output_dir")
     if configured in (None, ""):
-        return DEFAULT_OUTPUT_DIR
+        return DEFAULT_OUTPUT_DIR.expanduser()
     if not isinstance(configured, str):
         raise ValueError("reporting.output_dir must be a string path")
     return Path(configured).expanduser()

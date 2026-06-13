@@ -338,7 +338,7 @@ MCP.
 | Parameter | Required | Contract |
 |---|---|---|
 | `report_type` | optional | Defaults to `weekly_pipeline`; other values fail preflight |
-| `output_dir` | optional | Explicit local directory. Defaults to `reporting.output_dir` or `outputs/reports` |
+| `output_dir` | optional | Explicit local directory. Defaults to `reporting.output_dir` or `~/.deal-intel/reports` |
 | `stage` | optional | Exact valid stage match |
 | `industry` | optional | Exact stored industry match |
 | `as_of` | optional | `YYYY-MM-DD` business date for stuck/overdue calculations |
@@ -356,7 +356,7 @@ MCP.
   "row_count": 7,
   "warnings": [],
   "metrics": {},
-  "output_dir": "C:/absolute/path/outputs/reports",
+  "output_dir": "C:/Users/example/.deal-intel/reports",
   "artifacts": {
     "csv": {
       "path": "C:/absolute/path/weekly_pipeline_20260609_123456.csv",
@@ -464,7 +464,7 @@ CSV and Markdown artifacts.
 | Parameter | Required | Contract |
 |---|---|---|
 | `report_type` | optional | `pipeline_trend` for this report |
-| `output_dir` | optional | Explicit local directory. Defaults to `reporting.output_dir` or `outputs/reports` |
+| `output_dir` | optional | Explicit local directory. Defaults to `reporting.output_dir` or `~/.deal-intel/reports` |
 | `stage` | optional | Exact valid snapshot `deal_stage` match |
 | `industry` | optional | Exact stored snapshot industry match |
 | `as_of` | optional | `YYYY-MM-DD` business end date |

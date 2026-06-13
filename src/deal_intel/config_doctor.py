@@ -566,7 +566,7 @@ def _resolve_surface_summary(cfg: dict[str, Any]) -> tuple[str | None, int]:
     try:
         return resolve_tool_surface(cfg), len(tool_names_for_config(cfg))
     except ValueError:
-        return None, 1
+        return None, 2
 
 
 def _severity_for_status(status: str) -> str:

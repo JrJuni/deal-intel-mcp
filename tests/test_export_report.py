@@ -279,6 +279,13 @@ def test_export_report_writes_pipeline_trend_csv_and_markdown(tmp_path) -> None:
     assert open_value["end_value"] == "100000000"
 
 
+def test_export_report_default_output_dir_uses_user_home() -> None:
+    assert export_report.DEFAULT_OUTPUT_DIR == Path("~/.deal-intel/reports")
+    assert export_report._resolve_output_dir({}, None) == Path(
+        "~/.deal-intel/reports"
+    ).expanduser()
+
+
 def test_export_report_mcp_wrapper_forwards_to_handler(monkeypatch, tmp_path) -> None:
     mongo = FakeMongo([_deal("deal-1", company="PublicCo")])
     monkeypatch.setattr(_context, "mongo", lambda: mongo)

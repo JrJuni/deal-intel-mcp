@@ -7,7 +7,11 @@ from typer.testing import CliRunner
 
 from deal_intel import _env
 from deal_intel.cli import app
-from deal_intel.config_writer import init_config_profile, switch_config_profile
+from deal_intel.config_writer import (
+    init_config_profile,
+    switch_config_profile,
+    update_config_settings,
+)
 
 
 def _load(path):
@@ -201,6 +205,90 @@ def test_switch_config_profile_missing_config_fails(tmp_path) -> None:
     assert result["ok"] is False
     assert result["error_code"] == "CONFIG_NOT_FOUND"
     assert result["storage_written"] is False
+
+
+def test_update_config_settings_dry_run_does_not_write(tmp_path) -> None:
+    user_config = tmp_path / "config.yaml"
+
+    result = update_config_settings(
+        config_path=user_config,
+        dry_run=True,
+        llm_provider="openai_api",
+        openai_api_model="gpt-5.4-mini",
+        reporting_output_dir="~/.deal-intel/reports",
+    )
+
+    assert result["ok"] is True
+    assert result["dry_run"] is True
+    assert result["storage_written"] is False
+    assert user_config.exists() is False
+    assert [change["field"] for change in result["changed_fields"]] == [
+        "llm.provider",
+        "llm.openai_api_model",
+        "reporting.output_dir",
+    ]
+
+
+def test_update_config_settings_requires_confirmation_for_write(tmp_path) -> None:
+    user_config = tmp_path / "config.yaml"
+
+    result = update_config_settings(
+        config_path=user_config,
+        dry_run=False,
+        confirmed_by_user=False,
+        llm_provider="openai_api",
+    )
+
+    assert result["ok"] is False
+    assert result["error_code"] == "REQUIRES_CONFIRMATION"
+    assert result["requires_confirmation"] is True
+    assert user_config.exists() is False
+
+
+def test_update_config_settings_writes_and_backs_up_existing_config(tmp_path) -> None:
+    user_config = tmp_path / "config.yaml"
+    user_config.write_text(
+        "llm:\n"
+        "  provider: chatgpt_oauth\n"
+        "reporting:\n"
+        "  timezone: Asia/Seoul\n"
+        "custom:\n"
+        "  keep: true\n",
+        encoding="utf-8",
+    )
+
+    result = update_config_settings(
+        config_path=user_config,
+        dry_run=False,
+        confirmed_by_user=True,
+        timestamp="20260614-010203",
+        llm_provider="openai_api",
+        openai_api_model="gpt-5.4-mini",
+        tools_surface="standard",
+    )
+
+    backup = tmp_path / "config.yaml.bak.20260614-010203"
+    data = _load(user_config)
+    assert result["ok"] is True
+    assert result["storage_written"] is True
+    assert result["backup_written"] is True
+    assert result["backup_path"] == str(backup)
+    assert backup.exists()
+    assert data["llm"]["provider"] == "openai_api"
+    assert data["llm"]["openai_api_model"] == "gpt-5.4-mini"
+    assert data["tools"]["surface"] == "standard"
+    assert data["custom"]["keep"] is True
+
+
+def test_update_config_settings_rejects_secret_shaped_values(tmp_path) -> None:
+    result = update_config_settings(
+        config_path=tmp_path / "config.yaml",
+        reporting_output_dir="mongodb+srv://secret.example",
+    )
+
+    assert result["ok"] is False
+    assert result["error_code"] == "INVALID_INPUT"
+    assert "MongoDB URI" in result["message"]
 
 
 def test_config_init_cli_json_uses_user_config_path(monkeypatch, tmp_path) -> None:

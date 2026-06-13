@@ -28,7 +28,7 @@ Claude Desktop / Codex / ChatGPT
   -> storage backend selected by deal_intel._context
 ```
 
-The server exposes 26 MCP tools. The source of truth is
+The server exposes 27 MCP tools. The source of truth is
 `src/deal_intel/mcp_server.py`.
 
 ## Product Profiles
@@ -108,14 +108,41 @@ Supported providers:
 
 Provider construction must go through `make_llm_provider(config)`.
 
-LLMs are allowed in:
+### Host App LLM vs Server LLM
+
+Deal Intelligence is normally used inside a host LLM app such as Claude
+Desktop, Codex, or ChatGPT with MCP support. The host model is already good at
+reading structured tool output, explaining results, asking follow-up questions,
+and drafting human-facing language. The MCP server should therefore avoid
+calling its own LLM unless the result must be written back as structured,
+repeatable product data.
+
+Use the host app LLM for:
+
+- explaining `get_metrics`, `get_deal_review`, `get_deal_gaps`, `list_deals`,
+  and report outputs to the user;
+- turning deterministic BI payloads into meeting-ready narratives;
+- asking the user confirmation questions;
+- setup guidance, troubleshooting, and config-change walkthroughs;
+- one-off judgment or wording that does not need to be persisted.
+
+Use the server-side LLM provider for:
 
 - `add_meeting`
 - `add_interaction`
 - `analyze_deal`
 - customer-theme extraction/backfill paths
 
-LLMs are not allowed in BI/reporting metric paths.
+The reason is persistence and repeatability: these flows extract or generate
+structured data that becomes part of the deal record. They need schema checks,
+source metadata, and stable storage behavior that should not depend on a
+particular host app prompt.
+
+LLMs are not allowed in BI/reporting metric paths. New read-only tools should
+prefer deterministic calculation and let the host app perform the final
+explanation layer. New write tools should make LLM calls explicit in the tool
+contract and provide a lower-cost path when useful, such as raw capture,
+dry-run extraction, or deferred enrichment.
 
 ### Embeddings
 

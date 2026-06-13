@@ -17,8 +17,8 @@ def _enabled_mcp_tool_names() -> set[str]:
 
         return set(tool_names_for_config(_context.config()))
     except Exception:
-        # Keep config_doctor visible so invalid config can explain itself.
-        return {"config_doctor"}
+        # Keep safe setup tools visible so invalid config can explain itself.
+        return {"config_doctor", "update_config"}
 
 
 def _install_tool_surface_filter(server: FastMCP) -> None:
@@ -74,6 +74,50 @@ def config_doctor(offline: bool = False) -> dict:
             _context.config(),
             offline=offline,
             storage_ping=_storage_ping,
+        )
+    except Exception as exc:
+        return envelope_from_exception(exc, stage=Stage.PREFLIGHT)
+
+
+@app.tool()
+def update_config(
+    dry_run: bool = True,
+    confirmed_by_user: bool = False,
+    llm_provider: str = "",
+    chatgpt_oauth_model: str = "",
+    openai_api_model: str = "",
+    reporting_output_dir: str = "",
+    reporting_timezone: str = "",
+    tools_surface: str = "",
+) -> dict:
+    """Preview or apply safe non-secret user-config changes.
+
+    This tool writes only allowlisted, non-secret settings to
+    ~/.deal-intel/config.yaml. It cannot set MongoDB URIs, API keys, OAuth
+    tokens, or other secrets; keep those in MCPB sensitive fields, `.env`, or
+    shell environment variables.
+
+    Defaults to dry_run=true. Actual writes require confirmed_by_user=true.
+    Supported fields:
+    - llm_provider: chatgpt_oauth | anthropic | openai_api
+    - chatgpt_oauth_model
+    - openai_api_model
+    - reporting_output_dir
+    - reporting_timezone
+    - tools_surface: auto | sample | standard | developer
+    """
+    try:
+        from deal_intel.config_writer import update_config_settings
+
+        return update_config_settings(
+            dry_run=dry_run,
+            confirmed_by_user=confirmed_by_user,
+            llm_provider=llm_provider or None,
+            chatgpt_oauth_model=chatgpt_oauth_model or None,
+            openai_api_model=openai_api_model or None,
+            reporting_output_dir=reporting_output_dir or None,
+            reporting_timezone=reporting_timezone or None,
+            tools_surface=tools_surface or None,
         )
     except Exception as exc:
         return envelope_from_exception(exc, stage=Stage.PREFLIGHT)
@@ -680,7 +724,7 @@ def export_report(
     - industry: exact stored industry match
     - as_of: YYYY-MM-DD business date for stuck/overdue calculations
     - lookback_days: trend window length, used only by pipeline_trend
-    - output_dir: local output directory; defaults to reporting.output_dir or outputs/reports
+    - output_dir: local output directory; defaults to reporting.output_dir or ~/.deal-intel/reports
     """
     try:
         from deal_intel import _context

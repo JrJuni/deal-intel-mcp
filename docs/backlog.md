@@ -58,9 +58,12 @@ Recommended implementation order:
    - Confirm the first external distribution path after the MVP package is
      stable enough: git-clone assisted install, MCPB, uvx/Python-native, or a
      thin npx wrapper.
-4. Review and CSV quality improvements.
+4. Review, usage visibility, and CSV/report quality improvements.
    - Improve human-readable deal review and reporting artifacts using external
      feedback after the architecture is stable enough to trial.
+   - Add a usage/cost visibility tool so users can inspect LLM call volume and
+     estimated provider spend from the MCP surface instead of relying on
+     external dashboards only.
 5. Other MVP polish and issue fixes.
 6. Qualification framework abstraction for v2.0.
    - Defer full MEDDPICC abstraction until after v1.0.
@@ -82,6 +85,80 @@ MongoDB feature placement rule:
 - Before promoting a MongoDB ecosystem feature to `full`, add a mock/contract
   test and, when practical, a Free-cluster smoke note. If the feature creates
   paid-infra or cost risk, keep it in `pro`.
+
+### LLM Cost And Host-App Delegation
+
+Goal: reduce provider cost and latency while preserving extraction quality for
+persistent deal intelligence.
+
+Design stance:
+
+- The host app LLM, such as Claude Desktop, Codex, or ChatGPT, should handle
+  explanation, synthesis, user-facing wording, setup guidance, and
+  confirmation questions from deterministic MCP payloads.
+- The server-side LLM provider should be reserved for work that creates or
+  updates persistent structured deal intelligence: interaction extraction,
+  customer-theme extraction/backfills, and explicit strategy generation.
+- Read-only BI, reports, reviews, gap lists, metrics, and dashboard support
+  should remain LLM-free.
+- Any new tool that calls the server-side LLM must state that cost/latency in
+  its tool contract and docs.
+
+Current product decision:
+
+- Keep `add_interaction` quality-first for now. It currently makes two LLM
+  calls per run: structured extraction and a short summary. Merging those calls
+  is a valid later optimization, but not worth the output-quality and JSON
+  parsing risk at current usage levels.
+- GPT-5.4 mini pricing as of 2026-06-14 is low enough that a typical
+  one-person/small-team BD workflow does not justify weakening extraction
+  quality for cost alone. A rough high-activity day with 20 emails and 5
+  meetings is estimated around a few hundred KRW; ordinary usage should usually
+  be below that. Monthly cost is expected to be in the low-thousands KRW range
+  for this scale.
+- The expected savings from merging the two `add_interaction` calls would not
+  cleanly halve the total run cost because output tokens, prompt complexity,
+  parsing retries, and quality regression risk still remain.
+
+Near-term candidates:
+
+1. Reclassify `analyze_deal` as an optional strategy-generation tool.
+   - Prefer `get_deal_review` for default deal review because it is
+     deterministic and LLM-free.
+   - Use `analyze_deal` only when the user explicitly asks for generated BD
+     strategy text or wants to persist `bd_strategy`.
+2. Add a usage/cost visibility tool for v1 polish.
+   - Report server-side LLM calls by tool, provider, model, and date window
+     where usage metadata is available.
+   - Estimate cost with a versioned pricing table and clearly label the result
+     as an estimate.
+   - Start with LLM usage; MongoDB/Atlas and embedding runtime cost can remain
+     future work.
+   - Avoid raw content, prompts, API keys, OAuth tokens, and MongoDB URIs in
+     usage payloads.
+3. Keep customer-theme backfill as an explicit maintenance/admin flow.
+   - It is for legacy meeting data, migration, and theme logic refreshes rather
+     than day-to-day user interaction.
+   - Document that it may incur LLM cost when run over many historical
+     meetings.
+4. Keep batch/deferred interaction processing as a long-term optimization
+   candidate.
+   - Useful if usage grows enough that many interactions are captured daily.
+   - Not urgent for v1 because it adds operational complexity and asks users to
+     think about save-vs-enrich timing.
+5. Consider host-assisted extraction later.
+   - A host app could pass a structured extraction payload into a validation
+     tool, but this needs careful schema validation and source handling because
+     host prompts are less reproducible than server-side extraction.
+
+Acceptance principles:
+
+- No LLM calls in read-only BI/reporting paths.
+- No silent downgrade in data quality: any future raw-only/deferred intake must
+  clearly show that health/themes are not updated yet.
+- No secret exposure in cost/usage reports.
+- Natural-language smoke tests should still answer common read-only questions
+  without server-side LLM calls.
 
 ### User Memory MCP Tools
 
@@ -308,9 +385,8 @@ Next candidate units:
 
 1. Optional live Atlas smoke for local personal -> MongoDB migration when a
    disposable target database is available.
-2. Reinstall smoke with `deal-intel-mcp-0.1.12.mcpb` after the interaction
-   intake manifest update and UTF-8 bundle hardening patch.
-   hardening patch.
+2. Reinstall smoke with `deal-intel-mcp-0.1.13.mcpb` after the safe config
+   update manifest change.
 3. Decide whether release bundles need signing before external distribution.
 
 Principle: human-facing setup starts with `full`. `sample` remains an optional
@@ -620,7 +696,7 @@ Backlog items:
   manifest fields, tool list alignment, environment mapping, and launcher
   behavior.
 - Rebuild and attach a fresh `.mcpb` artifact after bundle manifest changes.
-  Current local artifact target: `deal-intel-mcp-0.1.12.mcpb`; unsigned.
+  Current local artifact target: `deal-intel-mcp-0.1.13.mcpb`; unsigned.
 
 ### Cost And Query Optimization
 

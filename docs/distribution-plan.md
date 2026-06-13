@@ -39,6 +39,9 @@ Current contract:
   `deal_intel.resources`.
 - `.env` is still loaded from the repo/runtime root, not from packaged
   resources.
+- MCPB user-config secrets are injected as runtime environment variables when
+  Claude Desktop starts the server; local CLI commands still need `.env` or
+  shell environment variables for equivalent live checks.
 
 Implication:
 
@@ -97,7 +100,7 @@ Tasks:
   setup checks.
 - Keep `sample` smoke documented as an optional zero-config evaluation path.
 - Keep tool surface counts aligned with the runtime contract:
-  `sample=19`, `standard=23`, `developer=26`.
+  `sample=20`, `standard=24`, `developer=27`.
 - Keep user-memory, canonical interaction intake, industry metadata, and local
   personal data commands represented in the MVP checklist.
 - Record any live MongoDB or MCPB reinstall checks that could not be completed

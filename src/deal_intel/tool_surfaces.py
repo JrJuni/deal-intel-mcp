@@ -59,6 +59,19 @@ MCP_TOOL_SURFACE_CONTRACTS: tuple[MCPToolSurfaceContract, ...] = (
         notes="Safe setup diagnosis. May perform bounded storage ping.",
     ),
     MCPToolSurfaceContract(
+        name="update_config",
+        category="diagnostic",
+        surfaces=_SAMPLE,
+        user_facing=True,
+        db_writes=False,
+        llm_calls=False,
+        local_file_writes=True,
+        notes=(
+            "Dry-run-first updates for safe non-secret user-config fields; "
+            "does not accept MongoDB URIs or API keys."
+        ),
+    ),
+    MCPToolSurfaceContract(
         name="create_deal",
         category="core_write",
         surfaces=_SAMPLE,

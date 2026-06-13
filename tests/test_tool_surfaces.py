@@ -30,7 +30,7 @@ def test_tool_surface_contract_covers_registered_mcp_tools(monkeypatch) -> None:
     contracted = {contract.name for contract in list_tool_surface_contracts()}
 
     assert registered == contracted
-    assert len(contracted) == 26
+    assert len(contracted) == 27
 
 
 def test_tool_surface_matrix_is_stable_and_serializable() -> None:
@@ -54,6 +54,7 @@ def test_sample_surface_is_zero_config_safe_local_personal() -> None:
 
     assert sample_tools == {
         "config_doctor",
+        "update_config",
         "create_deal",
         "add_interaction",
         "update_stage",
@@ -91,6 +92,7 @@ def test_sample_surface_is_zero_config_safe_local_personal() -> None:
         "delete_deal",
         "migrate_local_data",
     }
+    assert get_tool_surface_contract("update_config").local_file_writes is True
 
 
 @pytest.mark.parametrize(

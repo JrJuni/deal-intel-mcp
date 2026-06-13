@@ -12,6 +12,111 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-14
 
+### Cost-aware host LLM boundary
+
+Documented:
+
+- Added the host-app vs server-side LLM responsibility split to
+  `docs/architecture.md`.
+- Added a user-facing README note that read-only BI/review/reporting tools are
+  designed to be LLM-free and should let Claude/Codex/ChatGPT perform the final
+  explanation layer.
+- Added a backlog stream for LLM cost and host-app delegation.
+
+Decision:
+
+- Use the host app LLM for explanation, synthesis, confirmation questions,
+  setup guidance, and one-off wording from deterministic MCP outputs.
+- Keep server-side LLM usage for persistent structured data creation:
+  `add_interaction`, theme extraction/backfill, and explicit strategy
+  generation.
+- Future tools that call the server-side LLM must document cost/latency and
+  provide lower-cost alternatives where useful.
+- Do not merge the two current `add_interaction` LLM calls yet. GPT-5.4 mini
+  cost is low enough at the expected one-person/small-team BD usage level that
+  the quality and parsing risk is not justified. A busy day with roughly 20
+  emails and 5 meetings is expected to stay around a few hundred KRW; ordinary
+  usage should usually be lower, with monthly spend likely in the
+  low-thousands KRW range at this scale.
+- Keep batch/deferred interaction processing as long-term evidence of possible
+  compute optimization, not a near-term v1 task.
+
+Candidate implementation:
+
+- Keep `get_deal_review` as the default LLM-free deal review surface and treat
+  `analyze_deal` as an explicit optional strategy-generation tool.
+- Add a v1 polish usage tool for LLM call counts, token usage, and estimated
+  provider spend from the MCP surface.
+- Keep customer-theme backfill as an explicit maintenance/admin flow and
+  document that it may incur LLM cost over historical meetings.
+
+### MCP safe config update tool
+
+Implemented:
+
+- Added MCP `update_config` for Claude/Codex App users who need to change safe
+  non-secret settings without manually editing `~/.deal-intel/config.yaml`.
+- Supported allowlisted fields:
+  `llm.provider`, `llm.chatgpt_oauth_model`, `llm.openai_api_model`,
+  `reporting.output_dir`, `reporting.timezone`, and `tools.surface`.
+- Kept the tool dry-run-first. Actual writes require
+  `confirmed_by_user=true`.
+- Back up existing user config before writing.
+- Reject MongoDB URIs, API-key-shaped strings, multi-line path values, invalid
+  timezones, and invalid tool surfaces.
+- Keep `config_doctor` and `update_config` visible even when tool-surface
+  config is invalid, so setup can be diagnosed and repaired from the MCP
+  client.
+- Updated MCPB/package metadata to `0.1.13` and the tool-surface counts to:
+  `sample=20`, `standard=24`, `developer=27`.
+
+Reason:
+
+- Claude Desktop full-mode smoke showed that `config_doctor` could diagnose
+  setup, but the MCP surface had no way to change safe runtime settings such as
+  report output path or model/provider selection. That forced non-developer
+  users back into manual YAML editing.
+
+Validation:
+
+- Targeted regression:
+  `pytest tests/test_config_writer.py tests/test_config_doctor.py
+  tests/test_tool_surfaces.py tests/test_mcpb_manifest.py
+  tests/test_sample_data.py tests/test_export_report.py -q`:
+  `71 passed, 1 warning`.
+- Full regression:
+  `pytest -q`: `522 passed, 1 warning`.
+- `ruff check .`: passed.
+- `git diff --check`: no whitespace errors; only expected Windows line-ending
+  conversion warnings.
+
+### Report output default and MCPB secret-source note
+
+Implemented:
+
+- Changed the default report artifact directory from repo-local
+  `outputs/reports` to user-home `~/.deal-intel/reports`.
+- Updated editable and packaged defaults:
+  `config/defaults.yaml` and `src/deal_intel/resources/defaults.yaml`.
+- Kept explicit `output_dir` behavior unchanged.
+- Documented the developer-facing runtime secret model in
+  `docs/config-profiles.md`: MCPB sensitive fields are injected as environment
+  variables by Claude Desktop and are not written back to `.env`.
+
+Reason:
+
+- A Claude Desktop full-mode smoke found `export_report` could fail with
+  `WinError 5` on the repo-local default path. User-home output is a safer
+  non-developer default.
+
+Validation:
+
+- `pytest tests/test_export_report.py tests/test_config_profiles.py -q
+  --basetemp .pytest-temp\report-default`: `20 passed, 1 warning`.
+- `pytest -q --basetemp .pytest-temp\full-report-default`:
+  `517 passed, 1 warning`.
+- `ruff check .`: passed.
+
 ### v1.0 readiness sweep
 
 Automated gates:
@@ -68,9 +173,9 @@ Implemented:
   docs.
 - Updated the MVP readiness checklist with current v1.0-relevant surfaces:
   user-memory tools, industry metadata split, canonical `add_interaction`,
-  local personal mode, and MCPB `0.1.12`.
+  local personal mode, and MCPB `0.1.13`.
 - Updated the distribution plan with the current tool-surface counts:
-  `sample=19`, `standard=23`, `developer=26`.
+  `sample=20`, `standard=24`, `developer=27`.
 
 Validation:
 
@@ -100,7 +205,7 @@ Implemented:
 - Added MCP `record_user_memory` for append-only durable feedback capture.
 - Exposed both tools in sample, standard, and developer surfaces.
 - Updated the MCPB manifest and tool-surface contracts. Current counts:
-  `sample=19`, `standard=23`, `developer=26`.
+  `sample=20`, `standard=24`, `developer=27`.
 
 Validation:
 

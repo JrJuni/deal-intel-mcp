@@ -119,6 +119,25 @@ Result:
 - Secret values are never printed; env keys are reported as configured
   `true/false` only.
 
+## Runtime Secret Sources And Precedence
+
+MCPB user-config secrets are runtime inputs, not repo-file updates.
+
+- Sensitive MCPB fields such as `mongodb_uri`, `anthropic_api_key`, and
+  `openai_api_key` are mapped to process environment variables when Claude
+  Desktop starts the MCP server.
+- They are not written back to the repo `.env` file or to
+  `~/.deal-intel/config.yaml`.
+- Local CLI commands do not automatically receive Claude/MCPB secret values.
+  For CLI smoke tests, configure `.env` or shell environment variables
+  separately.
+- `deal_intel._env` loads the repo `.env` with `override=False`, so an
+  environment variable already injected by Claude/MCPB wins over `.env`.
+
+This means Claude MCP calls can work while a direct PowerShell CLI command
+reports missing `MONGODB_URI`. In that case, either run the check through
+`config_doctor` in Claude or configure CLI-local secrets explicitly.
+
 ### Z5.3 Config Init/Switch CLI
 
 Implemented commands:
@@ -239,7 +258,7 @@ Implemented behavior:
   `mongo`, while `local_sample` remains available for zero-config demos.
 - The MCP bundle metadata reflects the current 24-tool internal registration
   with profile-filtered surfaces.
-- The current bundle manifest version is `0.1.12`.
+- The current bundle manifest version is `0.1.13`.
 - `mcpb/README.md` now documents `tools_surface=auto`, mutable local personal
   sample data, and dry-run-first local-to-Mongo migration.
 - `tests/test_mcpb_manifest.py` validates the manifest against the tool-surface
@@ -299,8 +318,9 @@ Implemented:
 - `DEAL_INTEL_TOOLS_SURFACE` can override the configured surface for packaged
   installs and smoke tests.
 - The MCP server filters `list_tools()` and blocks hidden `call_tool()` calls.
-- Invalid `tools.surface` config leaves only `config_doctor` visible so the
-  server can explain the configuration problem.
+- Invalid `tools.surface` config leaves only `config_doctor` and
+  `update_config` visible so the server can explain and repair safe
+  non-secret configuration problems.
 
 Default mapping:
 
@@ -314,7 +334,7 @@ Default mapping:
 Result:
 
 - `build_tool_surface_matrix()` returns a serializable surface matrix.
-- Targeted tests verify that all 26 registered MCP tools are classified.
+- Targeted tests verify that all 27 registered MCP tools are classified.
 - Targeted tests verify that `sample` includes safe local personal write/admin
   tools while excluding LLM-heavy, semantic-search, legacy Mongo aggregation,
   and Mongo demo-database maintenance tools.

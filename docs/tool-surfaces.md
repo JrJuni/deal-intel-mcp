@@ -39,6 +39,7 @@ and future local personal path.
 without MongoDB today. It is not the full operating surface:
 
 - `config_doctor`
+- `update_config`
 - `create_deal`
 - `add_interaction`
 - `update_stage`
@@ -130,14 +131,15 @@ Behavior:
 - `sample` profile exposes the `sample` surface.
 - `full`, `pro`, and `custom` profiles expose the `standard` surface.
 - `developer` exposes every registered tool.
-- Invalid `tools.surface` config leaves only `config_doctor` visible so the
-  server can explain the configuration problem.
+- Invalid `tools.surface` config leaves only `config_doctor` and
+  `update_config` visible so the server can explain and repair safe
+  non-secret configuration problems.
 
 Current exposed counts:
 
-- `sample`: 19 tools
-- `standard`: 23 tools
-- `developer`: 26 tools
+- `sample`: 20 tools
+- `standard`: 24 tools
+- `developer`: 27 tools
 
 Implementation notes:
 

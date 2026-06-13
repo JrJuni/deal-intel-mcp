@@ -193,7 +193,7 @@ def test_config_doctor_invalid_tool_surface_fails(monkeypatch, tmp_path) -> None
     assert result["ok"] is False
     assert _status(result, "tool_surface") == "fail"
     assert result["summary"]["resolved_tool_surface"] is None
-    assert result["summary"]["mcp_tool_count"] == 1
+    assert result["summary"]["mcp_tool_count"] == 2
 
 
 def test_config_doctor_cli_json_and_text_are_secret_safe(monkeypatch, tmp_path) -> None:
@@ -267,5 +267,32 @@ def test_config_doctor_mcp_runtime_registers_tool(monkeypatch) -> None:
     tools = asyncio.run(mcp_server.app.list_tools())
     names = sorted(tool.name for tool in tools)
 
-    assert len(names) == 26
+    assert len(names) == 27
     assert "config_doctor" in names
+    assert "update_config" in names
+
+
+def test_update_config_mcp_wrapper_writes_safe_user_config(monkeypatch, tmp_path) -> None:
+    user_config = tmp_path / "config.yaml"
+    monkeypatch.setattr(_env, "_USER_CONFIG_PATH", user_config)
+
+    dry_run = mcp_server.update_config(
+        dry_run=True,
+        llm_provider="openai_api",
+        openai_api_model="gpt-5.4-mini",
+    )
+
+    assert dry_run["ok"] is True
+    assert dry_run["storage_written"] is False
+    assert user_config.exists() is False
+
+    applied = mcp_server.update_config(
+        dry_run=False,
+        confirmed_by_user=True,
+        llm_provider="openai_api",
+        openai_api_model="gpt-5.4-mini",
+    )
+
+    assert applied["ok"] is True
+    assert applied["storage_written"] is True
+    assert "openai_api" in user_config.read_text(encoding="utf-8")

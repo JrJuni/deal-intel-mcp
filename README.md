@@ -35,6 +35,17 @@ Active/Attention deal counts, pipeline value by stage, MEDDPICC health-band dist
 
 It takes the raw MCP tool output and renders win rate, the stage funnel, Won vs Lost MEDDPICC gaps, data-quality coverage, and attention items right inside the conversation. It all starts from pasting in a single meeting note - no extra app.
 
+### Cost-aware LLM boundary
+
+The MCP server should calculate, store, and retrieve structured deal data. The
+host app - Claude Desktop, Codex, or ChatGPT - should usually explain that data
+to the user.
+
+Server-side LLM calls are reserved for workflows that create persistent
+structured intelligence, especially `add_interaction`, `analyze_deal`, and
+theme backfills. Read-only BI/review/reporting tools are designed to be
+LLM-free so the host app can do the final narration without extra API cost.
+
 > Company names and figures in these screens are all fictional demo data.
 
 ---
@@ -84,9 +95,9 @@ You can still override `llm.openai_api_model` or switch `llm.provider` to
 
 MCP tools are profile-filtered by default:
 
-- `sample`: 19 zero-config/local personal tools
-- `standard`: 23 normal real-data tools
-- `developer`: all 26 tools, including demo seed/cleanup helpers
+- `sample`: 20 zero-config/local personal tools
+- `standard`: 24 normal real-data tools
+- `developer`: all 27 tools, including demo seed/cleanup helpers
 
 Use `tools.surface: developer` or `DEAL_INTEL_TOOLS_SURFACE=developer` only
 when you intentionally want the full maintainer/debug surface.
@@ -215,12 +226,12 @@ deal-intel login-chatgpt
 
 Then restart Claude Desktop.
 
-You're done when the MCP tool list loads. The server registers 26 internal
+You're done when the MCP tool list loads. The server registers 27 internal
 tools, then exposes a profile-filtered surface; `src/deal_intel/mcp_server.py`
 and `docs/baseline.md` are the source of truth.
 
 ```
-config_doctor
+config_doctor / update_config
 create_deal / add_interaction / get_deal / update_stage / update_deal
 archive_deal / restore_deal / delete_deal / migrate_local_data
 create_sample_data / delete_sample_data
@@ -395,7 +406,13 @@ of writes.
 
 ### 2. `add_interaction` - add a customer interaction
 
-**When to use**: Right after a customer meeting, email reply, user interview, call summary, or internal note. Paste the content as-is and the LLM extracts MEDDPICC/customer themes with source-aware scoring.
+**When to use**: Right after a customer meeting, email reply, user interview, call summary, or internal note. Paste the content as-is and the server-side LLM extracts MEDDPICC/customer themes with source-aware scoring.
+
+Cost note: this is intentionally one of the few places where the MCP server
+uses its own LLM provider, because the extracted result is persisted as product
+data. For explanation-only questions, prefer read tools such as
+`get_deal_review`, `get_deal_gaps`, and `get_metrics`; let Claude/Codex explain
+their deterministic output.
 
 Meeting notes are just `interaction_type: meeting`. Older `meetings` records
 are still read as legacy fallback, but new integrations should write canonical
@@ -636,7 +653,7 @@ The first version supports only `weekly_pipeline` and produces CSV and Markdown 
 | Parameter | Required | Description |
 |---|---|---|
 | `report_type` | optional | Currently only `weekly_pipeline` |
-| `output_dir` | optional | Save path. Omitted -> `reporting.output_dir` or `outputs/reports` |
+| `output_dir` | optional | Save path. Omitted -> `reporting.output_dir` or `~/.deal-intel/reports` |
 | `stage` | optional | Exact match against the stored stage |
 | `industry` | optional | Exact match against the stored industry |
 | `as_of` | optional | Base date for stuck/overdue calculation, `YYYY-MM-DD` |
@@ -801,7 +818,7 @@ Customer Themes dashboard setup, including the optional
 Current source of truth:
 
 - MCP server: `src/deal_intel/mcp_server.py`
-- Current tool count: 26
+- Current tool count: 27
 - Detailed contract: [`docs/baseline.md`](docs/baseline.md)
 - Documentation map: [`docs/README.md`](docs/README.md)
 - User memory samples: [`user_docs/README.md`](user_docs/README.md)
@@ -810,7 +827,7 @@ Current source of truth:
 [Claude Desktop / Codex - natural-language input]
          | stdio JSON-RPC
          v
-[deal-intel-mcp  FastMCP server  26 tools]
+[deal-intel-mcp  FastMCP server  27 tools]
          |
          |-- LLM Provider
          |     |-- ChatGPT OAuth (default, Plus/Pro subscription)

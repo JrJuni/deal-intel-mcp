@@ -57,19 +57,20 @@ available.
 
 ### MCP Tool Contracts
 
-The Python server keeps all 26 handler functions available internally, but MCP
+The Python server keeps all 27 handler functions available internally, but MCP
 clients see a config-filtered tool surface:
 
 - `tools.surface: auto` resolves from the effective profile.
-- `sample` exposes 19 tools for bundled/local personal sample mode.
-- `standard` exposes 23 tools for normal MongoDB-backed operation.
-- `developer` exposes all 26 tools, including demo database seed/cleanup.
-- Invalid `tools.surface` config exposes only `config_doctor` so setup can be
-  diagnosed.
+- `sample` exposes 20 tools for bundled/local personal sample mode.
+- `standard` exposes 24 tools for normal MongoDB-backed operation.
+- `developer` exposes all 27 tools, including demo database seed/cleanup.
+- Invalid `tools.surface` config exposes only `config_doctor` and
+  `update_config` so setup can be diagnosed and repaired.
 
 | Tool | Required inputs | Optional inputs | Success response | Persistence or external effects |
 |---|---|---|---|---|
 | `config_doctor` | None | `offline` | `ok`, `profile`, `generated_at`, `summary`, `checks`, `next_actions` | Read only; checks config, storage readiness, vector-search mode, and LLM provider readiness without LLM calls, embeddings, or writes. The default path may perform a bounded storage ping; `offline=true` skips it |
+| `update_config` | None | `dry_run`, `confirmed_by_user`, `llm_provider`, `chatgpt_oauth_model`, `openai_api_model`, `reporting_output_dir`, `reporting_timezone`, `tools_surface` | `ok`, `command`, `user_config_path`, `dry_run`, `changed_fields`, `doctor`, `storage_written`, `backup_path` | Dry-run-first local file write. Applies only allowlisted non-secret settings to `~/.deal-intel/config.yaml`; real writes require `confirmed_by_user=true`; rejects MongoDB URIs and API-key shaped values |
 | `create_deal` | `company` | `industry`, `industry_tags`, `customer_segment`, `deal_size_amount`, `deal_size_currency`, `deal_size_status`, `deal_size_low_amount`, `deal_size_high_amount`, `deal_size_note`, `expected_close_date` | `ok`, `deal_id`, `company`, `industry`, `industry_tags`, `customer_segment`, deal value fields, `expected_close_date`, `expected_close_date_source`, `taxonomy_warnings`, optional `analytics_snapshot` | Validates the initial deal-value classification, normalizes industry metadata, applies the configured close-date default when omitted, upserts one deal, initializes `discovery` stage history, and attempts a non-blocking analytics snapshot |
 | `add_meeting` | `deal_id`, `date`, `raw_notes` | None | `ok`, `interaction_id`, `meeting_id`, `summary`, `meddpicc`, `meddpicc_latest`, `customer_themes`, `stage_suggestion`, `embedding_stored`, `usage`, optional `analytics_snapshot` | Deprecated developer-surface compatibility alias over `add_interaction` with `interaction_type: meeting`. Calls LLM, writes an `interaction_type: meeting` record under `deal.interactions`, recalculates deal signals, optionally stores an embedding for MongoDB-backed data, upserts the deal, and attempts a non-blocking analytics snapshot. New clients should call `add_interaction` directly |
 | `add_interaction` | `deal_id`, `date`, `interaction_type`, `direction`, `content` | `participants`, `subject`, `source_confidence`, `custom_fields_json` | `ok`, `interaction_id`, `meeting_id`, `interaction_type`, `direction`, `source_confidence`, `source_policy`, `participants`, `subject`, `summary`, `meddpicc`, `unconfirmed_meddpicc`, `meddpicc_latest`, `customer_themes`, `unconfirmed_customer_themes`, `scoring_applied`, `stage_suggestion`, `embedding_stored`, `usage`, optional `analytics_snapshot` | Calls LLM, appends a canonical `deal.interactions` record, stores source metadata and `raw_content`, recalculates deal signals only when the source is scoring-eligible, optionally stores an embedding for MongoDB-backed data, upserts the deal, and attempts a non-blocking analytics snapshot. `source_policy` explains whether the input became confirmed scoring evidence or stored-unconfirmed context. `outbound_unconfirmed` and `internal` evidence is stored but does not update MEDDPICC health or customer-theme counts by default. Custom interaction types must be registered in config |
@@ -294,8 +295,8 @@ Before Milestone 1 started, all 28 findings were resolved. The current gate is:
 pytest -> 128 passed
 ruff check . -> All checks passed
 wheel build -> passed
-FastMCP runtime surface exposure -> sample 19 tools, standard 23 tools,
-developer 26 tools
+FastMCP runtime surface exposure -> sample 20 tools, standard 24 tools,
+developer 27 tools
 MongoDB Atlas read smoke -> passed
 ```
 

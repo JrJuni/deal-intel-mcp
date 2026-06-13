@@ -23,7 +23,7 @@ user_memory:
 
 reporting:
   timezone: Asia/Seoul
-  output_dir: outputs/reports
+  output_dir: ~/.deal-intel/reports
 
 deal_value:
   default_currency: KRW

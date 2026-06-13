@@ -5,6 +5,7 @@ from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import yaml
 
@@ -18,6 +19,16 @@ PROFILE_MANAGED_PATHS: tuple[tuple[str, str], ...] = (
     ("mongodb", "vector_search"),
     ("llm", "provider"),
 )
+CONFIG_UPDATE_PATHS: tuple[tuple[str, str], ...] = (
+    ("llm", "provider"),
+    ("llm", "chatgpt_oauth_model"),
+    ("llm", "openai_api_model"),
+    ("reporting", "output_dir"),
+    ("reporting", "timezone"),
+    ("tools", "surface"),
+)
+_VALID_LLM_PROVIDERS = {"chatgpt_oauth", "anthropic", "openai_api"}
+_VALID_TOOL_SURFACES = {"auto", "sample", "standard", "developer"}
 
 
 def init_config_profile(
@@ -206,6 +217,130 @@ def switch_config_profile(
     return payload
 
 
+def update_config_settings(
+    *,
+    config_path: Path | None = None,
+    dry_run: bool = True,
+    confirmed_by_user: bool = False,
+    timestamp: str | None = None,
+    llm_provider: str | None = None,
+    chatgpt_oauth_model: str | None = None,
+    openai_api_model: str | None = None,
+    reporting_output_dir: str | None = None,
+    reporting_timezone: str | None = None,
+    tools_surface: str | None = None,
+) -> dict[str, Any]:
+    """Update safe, non-secret user-config fields.
+
+    This intentionally does not accept MongoDB URIs or API keys. Those remain
+    in `.env`, shell env, or MCPB sensitive user-config fields.
+    """
+
+    path = config_path or _env.user_config_path()
+    exists = path.exists()
+    if exists:
+        existing = _read_yaml_config(path)
+        if not isinstance(existing, dict):
+            return {
+                "ok": False,
+                "command": "update",
+                "error_code": "CONFIG_INVALID",
+                "message": "User config must be a YAML mapping.",
+                "user_config_path": str(path),
+                "dry_run": dry_run,
+                "confirmed_by_user": confirmed_by_user,
+                "storage_written": False,
+                "backup_written": False,
+                "changed_fields": [],
+            }
+    else:
+        existing = {}
+
+    target_config = deepcopy(existing)
+    try:
+        requested = _validated_update_values(
+            llm_provider=llm_provider,
+            chatgpt_oauth_model=chatgpt_oauth_model,
+            openai_api_model=openai_api_model,
+            reporting_output_dir=reporting_output_dir,
+            reporting_timezone=reporting_timezone,
+            tools_surface=tools_surface,
+        )
+    except ValueError as exc:
+        return {
+            "ok": False,
+            "command": "update",
+            "error_code": "INVALID_INPUT",
+            "message": str(exc),
+            "user_config_path": str(path),
+            "dry_run": dry_run,
+            "confirmed_by_user": confirmed_by_user,
+            "storage_written": False,
+            "backup_written": False,
+            "changed_fields": [],
+        }
+
+    for field_path, value in requested.items():
+        _set_nested(target_config, field_path, value)
+
+    changes = _field_changes(existing, target_config, CONFIG_UPDATE_PATHS)
+    backup_path = _backup_path(path, timestamp=timestamp) if exists and changes else None
+    payload = {
+        "ok": True,
+        "command": "update",
+        "user_config_path": str(path),
+        "user_config_exists_before": exists,
+        "dry_run": dry_run,
+        "confirmed_by_user": confirmed_by_user,
+        "requires_confirmation": False,
+        "storage_written": False,
+        "backup_path": str(backup_path) if backup_path else None,
+        "backup_written": False,
+        "config_managed_fields": [_format_path(path) for path in CONFIG_UPDATE_PATHS],
+        "changed_fields": changes,
+        "doctor": build_config_doctor_report(
+            target_config,
+            offline=True,
+            storage_ping=None,
+        ),
+    }
+
+    if not requested:
+        payload["message"] = "No supported config changes were requested."
+        return payload
+    if not changes:
+        payload["message"] = "User config already matches the requested values."
+        return payload
+    if dry_run:
+        payload["message"] = "Dry run only; no config file was written."
+        return payload
+    if not confirmed_by_user:
+        payload.update(
+            {
+                "ok": False,
+                "error_code": "REQUIRES_CONFIRMATION",
+                "message": (
+                    "Writing user config requires confirmed_by_user=true. "
+                    "Run with dry_run=true first, then apply after user approval."
+                ),
+                "requires_confirmation": True,
+            }
+        )
+        return payload
+
+    if backup_path is not None:
+        _backup_existing_config(path, backup_path)
+        payload["backup_written"] = True
+    _write_yaml_config(path, target_config)
+    payload.update(
+        {
+            "storage_written": True,
+            "message": "User config updated.",
+        }
+    )
+    return payload
+
+
 def _base_payload(
     *,
     command: str,
@@ -293,6 +428,106 @@ def _profile_field_changes(
                 }
             )
     return changes
+
+
+def _field_changes(
+    before: dict[str, Any],
+    after: dict[str, Any],
+    paths: tuple[tuple[str, str], ...],
+) -> list[dict[str, Any]]:
+    changes: list[dict[str, Any]] = []
+    for path in paths:
+        old_value = _get_nested(before, path)
+        new_value = _get_nested(after, path)
+        if old_value != new_value:
+            changes.append(
+                {
+                    "field": _format_path(path),
+                    "old": old_value,
+                    "new": new_value,
+                }
+            )
+    return changes
+
+
+def _validated_update_values(
+    *,
+    llm_provider: str | None,
+    chatgpt_oauth_model: str | None,
+    openai_api_model: str | None,
+    reporting_output_dir: str | None,
+    reporting_timezone: str | None,
+    tools_surface: str | None,
+) -> dict[tuple[str, str], str]:
+    values: dict[tuple[str, str], str] = {}
+    provider = _optional_string(llm_provider)
+    if provider is not None:
+        if provider not in _VALID_LLM_PROVIDERS:
+            raise ValueError("llm_provider must be chatgpt_oauth, anthropic, or openai_api")
+        values[("llm", "provider")] = provider
+
+    oauth_model = _optional_string(chatgpt_oauth_model)
+    if oauth_model is not None:
+        values[("llm", "chatgpt_oauth_model")] = _validate_model_name(
+            oauth_model,
+            "chatgpt_oauth_model",
+        )
+
+    openai_model = _optional_string(openai_api_model)
+    if openai_model is not None:
+        values[("llm", "openai_api_model")] = _validate_model_name(
+            openai_model,
+            "openai_api_model",
+        )
+
+    output_dir = _optional_string(reporting_output_dir)
+    if output_dir is not None:
+        _reject_secret_like(output_dir, "reporting_output_dir")
+        if "\n" in output_dir or "\r" in output_dir or "\x00" in output_dir:
+            raise ValueError("reporting_output_dir must be a single path string")
+        values[("reporting", "output_dir")] = output_dir
+
+    timezone = _optional_string(reporting_timezone)
+    if timezone is not None:
+        try:
+            ZoneInfo(timezone)
+        except ZoneInfoNotFoundError as exc:
+            raise ValueError("reporting_timezone must be a valid IANA timezone") from exc
+        values[("reporting", "timezone")] = timezone
+
+    surface = _optional_string(tools_surface)
+    if surface is not None:
+        if surface not in _VALID_TOOL_SURFACES:
+            raise ValueError("tools_surface must be auto, sample, standard, or developer")
+        values[("tools", "surface")] = surface
+
+    return values
+
+
+def _optional_string(value: str | None) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError("config update values must be strings")
+    stripped = value.strip()
+    return stripped or None
+
+
+def _validate_model_name(value: str, field: str) -> str:
+    _reject_secret_like(value, field)
+    if any(char in value for char in ("\n", "\r", "\x00", "/", "\\")):
+        raise ValueError(f"{field} must be a single model identifier")
+    if len(value) > 120:
+        raise ValueError(f"{field} is too long")
+    return value
+
+
+def _reject_secret_like(value: str, field: str) -> None:
+    lowered = value.lower()
+    if "mongodb://" in lowered or "mongodb+srv://" in lowered:
+        raise ValueError(f"{field} must not contain a MongoDB URI")
+    if value.startswith(("sk-", "sk_", "xoxb-", "ghp_")):
+        raise ValueError(f"{field} must not contain an API key or token")
 
 
 def _profile_values(cfg: dict[str, Any]) -> dict[str, Any]:

@@ -3,6 +3,9 @@
 This is the shortest path for an AI agent helping a new user set up
 `deal-intel-mcp`.
 
+For a Korean step-by-step walkthrough for non-developer full-mode setup, read
+[`AI_FULL_INSTALL_GUIDE.ko.md`](AI_FULL_INSTALL_GUIDE.ko.md).
+
 ## Default Decision
 
 Start human users in **`full`** mode.

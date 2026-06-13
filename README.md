@@ -14,6 +14,8 @@ If an AI assistant is helping you set this up, point it at
 [`AI_START_HERE.md`](AI_START_HERE.md) first. That file is intentionally short
 and tells the assistant to start with `full`, use `sample` only for an explicit
 zero-config trial, and run `config_doctor` before deeper troubleshooting.
+For a Korean full-mode walkthrough aimed at non-developer users, use
+[`AI_FULL_INSTALL_GUIDE.ko.md`](AI_FULL_INSTALL_GUIDE.ko.md).
 
 ---
 

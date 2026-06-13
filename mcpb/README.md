@@ -10,8 +10,8 @@ This bundle does not include the Python package or dependencies. Install the
 project into Python first, then provide these fields:
 
 - **`python_path`** - select the Python interpreter that already ran `pip install -e ".[embedding]"`. The editable install makes `deal_intel` importable without `PYTHONPATH`.
-- **`storage_backend`** - choose `local_sample` for zero-config sample/local
-  personal mode, or `mongo` for real Atlas-backed data.
+- **`storage_backend`** - choose `mongo` for real Atlas-backed data. Use
+  `local_sample` only for zero-config sample/local personal mode.
 - **`tools_surface`** - choose `auto` for profile-based filtering. Advanced
   users can select `sample`, `standard`, or `developer` explicitly.
 - **`mongodb_uri`** - MongoDB Atlas connection string. Required only when
@@ -40,7 +40,7 @@ The `.mcpb` output is gitignored (build artifact, version-stamped in filename).
 2. Drag `deal-intel-mcp-{version}.mcpb` onto the Extensions pane (or click "Install from file")
 3. Fill the user_config form:
    - **Python interpreter path** - select the conda environment's `python.exe`
-   - **Storage backend** - `local_sample` for first-run sample mode; `mongo` for real Atlas data
+   - **Storage backend** - `mongo` for real Atlas data; `local_sample` only for zero-config sample mode
    - **MCP tool surface** - `auto` for normal installs; `sample`, `standard`,
      or `developer` only when intentionally overriding the profile default
    - **MongoDB Atlas URI** - required only when `Storage backend` is `mongo`
@@ -55,16 +55,21 @@ The `.mcpb` output is gitignored (build artifact, version-stamped in filename).
 
 Suggested first install:
 
+1. Set **Storage backend** to `mongo`.
+2. Set **MCP tool surface** to `auto`.
+3. Fill **MongoDB Atlas URI**. M0/free tier works for the `full` profile.
+4. Restart Claude Desktop and run `config_doctor(offline=true)`.
+5. Use the standard tool surface for real data.
+
+Zero-config demo install:
+
 1. Set **Storage backend** to `local_sample`.
 2. Set **MCP tool surface** to `auto`.
 3. Leave MongoDB/API-key fields blank.
 4. Restart Claude Desktop and run `config_doctor(offline=true)`.
-5. Try the bundled sample data first. You can also create small local personal
-   deals; once local personal data exists, active reads use that local dataset
-   instead of the immutable bundled fixture.
-6. When ready for shared/team operation, switch **Storage backend** to `mongo`,
-   provide `mongodb_uri`, and run `migrate_local_data` in dry-run mode before
-   applying any migration.
+5. Try the bundled sample data. You can also create small local personal deals;
+   once local personal data exists, active reads use that local dataset instead
+   of the immutable bundled fixture.
 
 ## Validation in this repository
 

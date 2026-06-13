@@ -11,6 +11,16 @@ class FakeCollection:
         self.indexes.append({"keys": keys, "kwargs": kwargs})
         return kwargs.get("name")
 
+    def list_indexes(self) -> list[dict]:
+        return [
+            {
+                "name": index["kwargs"].get("name"),
+                "key": dict(index["keys"]),
+                **({"unique": True} if index["kwargs"].get("unique") else {}),
+            }
+            for index in self.indexes
+        ]
+
 
 class FakeIndexDB:
     def __init__(self) -> None:
@@ -77,3 +87,32 @@ def test_ensure_indexes_preserves_existing_unique_and_lifecycle_indexes() -> Non
         ("is_sample", 1),
         ("sample_batch_id", 1),
     ]
+
+
+def test_check_indexes_reports_contract_ok_after_ensure_indexes() -> None:
+    db = FakeIndexDB()
+    client = MongoDBClient(uri="mongodb://example.invalid")
+    client._db = db
+
+    client.ensure_indexes()
+    report = client.check_indexes()
+
+    assert report["ok"] is True
+    assert report["missing_count"] == 0
+    assert report["mismatch_count"] == 0
+    assert (
+        report["collections"]["deals"][0]["name"]
+        == "deal_id_unique"
+    )
+
+
+def test_check_indexes_reports_missing_indexes() -> None:
+    db = FakeIndexDB()
+    client = MongoDBClient(uri="mongodb://example.invalid")
+    client._db = db
+
+    report = client.check_indexes()
+
+    assert report["ok"] is False
+    assert report["missing_count"] > 0
+    assert report["collections"]["deals"][0]["status"] == "missing"

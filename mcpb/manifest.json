@@ -53,8 +53,8 @@
     "storage_backend": {
       "type": "string",
       "title": "Storage backend",
-      "description": "Use local_sample for zero-config sample/local personal mode, or mongo for real Atlas-backed data.",
-      "default": "local_sample",
+      "description": "Use mongo for real Atlas-backed data (default), or local_sample only for zero-config sample/local personal mode.",
+      "default": "mongo",
       "required": false
     },
     "tools_surface": {

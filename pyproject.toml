@@ -34,7 +34,7 @@ deal-intel = "deal_intel.cli:app"
 where = ["src"]
 
 [tool.setuptools.package-data]
-"deal_intel.resources" = ["defaults.yaml", "atlas/charts/*.json", "atlas/vector_indexes/*.json"]
+"deal_intel.resources" = ["defaults.yaml", "atlas/charts/*.json", "atlas/vector_indexes/*.json", "mongo/*.json"]
 
 [tool.ruff]
 line-length = 100

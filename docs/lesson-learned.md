@@ -20,6 +20,30 @@ Related: files or docs
 
 ---
 
+## [2026-06-13] PyMongo command responses can contain non-JSON types
+
+Tried: Print the result of `deal-intel mongo apply-schema --apply --json`
+directly after applying the MongoDB collection validator.
+
+Result: The Atlas write succeeded, but CLI JSON output failed because PyMongo
+returned a BSON `Timestamp` in the command response.
+
+Lesson:
+
+- CLI commands that print raw MongoDB command responses should call
+  `json.dumps(..., default=str)`.
+- Prefer a safe response summary over printing raw MongoDB command responses;
+  `$clusterTime.signature` and similar internal metadata is not useful for
+  users.
+- Verify live DB state with a read-only doctor after a write command if the
+  output layer fails.
+- Add tests with non-JSON sentinel objects for admin commands that expose raw
+  MongoDB results.
+
+Related: `src/deal_intel/cli.py`, `tests/test_mongo_contracts.py`.
+
+---
+
 ## [2026-06-11] Secret scanner false positive from realistic placeholders
 
 Tried: Use realistic fake values in docs and CLI config tests, including

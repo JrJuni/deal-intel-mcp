@@ -18,7 +18,8 @@ Supported today:
   for a lightweight install.
 - Claude Desktop MCPB bundle that points at the user-selected Python
   interpreter.
-- `sample` profile for zero-config evaluation.
+- `full` profile for the default human install path.
+- `sample` profile for zero-config AI evaluation or demos.
 
 This is acceptable for the first MVP because the target user can ask an AI
 assistant to clone the repo, run setup commands, and configure Claude Desktop.
@@ -71,7 +72,48 @@ Why first:
 - This lowers risk for both `uvx` and `npx`.
 - It also makes future PyPI packaging cleaner.
 
-### D1. uvx/PyPI-style Python distribution
+### D1. External MVP trial readiness
+
+Goal: prove that the current git-clone plus editable-install path is clear
+enough for a first external evaluator before adding wrapper maintenance.
+
+Current status: first-pass checklist implemented; full sign-off still requires
+the gates in `docs/mvp-readiness.md`.
+
+Scope boundary: D1 is a first-run distribution gate, not deep MongoDB feature
+validation. The human-facing trial should start in `full`. `sample` is an
+optional zero-config path for AI evaluation or demos. MongoDB ecosystem work
+must be validated against the `full` profile, with `pro` added only for
+paid-infra paths such as Atlas Vector Search.
+
+Tasks:
+
+- Keep README, AI start guide, MCPB README, and this distribution plan aligned
+  on the same full-by-default install story.
+- Verify that `config doctor --offline` and
+  `smoke-profile --profile full --offline` are the first recommended human
+  setup checks.
+- Keep `sample` smoke documented as an optional zero-config evaluation path.
+- Keep tool surface counts aligned with the runtime contract:
+  `sample=17`, `standard=21`, `developer=24`.
+- Record any live MongoDB or MCPB reinstall checks that could not be completed
+  as non-blocking risks in `docs/status.md`.
+
+MongoDB-backed feature checks belong outside D1:
+
+- `smoke-profile --profile full --offline`
+- current-config `config doctor --offline`
+- targeted storage/index/schema tests
+- bounded Atlas read/write smoke when the change touches live persistence
+
+Why this comes before wrappers:
+
+- It tests the experience users have today.
+- It prevents npx/uvx work from covering over unclear product setup language.
+- It gives a concrete checklist for friend-review and AI-assisted setup without
+  turning the demo profile into the product default.
+
+### D2. uvx/PyPI-style Python distribution
 
 Goal: provide a Python-native no-repo command path.
 
@@ -95,7 +137,7 @@ Cons:
 - Claude Desktop MCPB still needs a configured Python command or launcher.
 - Needs package-data readiness first.
 
-### D2. npx wrapper
+### D3. npx wrapper
 
 Goal: provide a familiar "try this command" path for users who already have
 Node.js.
@@ -121,7 +163,7 @@ Cons:
 - Must be careful not to hide Python install failures behind Node errors.
 - Should not become a second implementation of the app.
 
-### D3. MCPB installer polish
+### D4. MCPB installer polish
 
 Goal: make Claude Desktop install less brittle.
 
@@ -134,17 +176,18 @@ Tasks:
 
 ## Which Distribution To Implement First?
 
-Recommendation: **D0 first, then D1 uvx**.
+Recommendation: **D1 external MVP readiness first, then D2 uvx**.
 
 Reason:
 
-- D0 fixes the underlying package portability problem.
-- D1 keeps the first no-git-clone path Python-native.
+- D0 already fixed the first package portability layer.
+- D1 validates the current external trial path before new wrappers are added.
+- D2 keeps the first no-git-clone path Python-native.
 - npx remains useful later as a convenience wrapper, but it should delegate to
   the same package-ready Python entry points instead of carrying product logic.
 
 If the product goal shifts toward a Claude Desktop-first non-developer audience,
-then D2 can move ahead of D1, but it should still remain a thin wrapper.
+then D3 can move ahead of D2, but it should still remain a thin wrapper.
 
 ## Acceptance Criteria
 

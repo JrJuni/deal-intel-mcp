@@ -14,6 +14,8 @@ config_app = typer.Typer(help="Inspect and prepare deal-intel config profiles.")
 app.add_typer(config_app, name="config")
 local_data_app = typer.Typer(help="Inspect, export, and reset local personal data.")
 app.add_typer(local_data_app, name="local-data")
+mongo_app = typer.Typer(help="Diagnose and apply MongoDB operational contracts.")
+app.add_typer(mongo_app, name="mongo")
 
 SENSITIVE_RESULT_KEYS = {"raw_notes", "raw_content", "contacts", "summary_embedding"}
 ALERT_RANK = {"alert": 3, "watch": 2, "info": 1, "none": 0}
@@ -68,7 +70,7 @@ def config_profiles(
         "profiles": [profile.to_dict() for profile in list_config_profiles()],
     }
     if json_output:
-        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
     else:
         typer.echo(_format_config_profiles(payload))
 
@@ -100,7 +102,7 @@ def config_show(
         "environment": _summarize_config_environment(),
     }
     if json_output:
-        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
     else:
         typer.echo(_format_config_show(payload))
 
@@ -143,7 +145,7 @@ def config_doctor(
         storage_ping=_storage_ping,
     )
     if json_output:
-        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
     else:
         typer.echo(_format_config_doctor(payload))
 
@@ -188,7 +190,7 @@ def config_init(
         payload = _config_write_error_payload("init", profile, str(exc))
 
     if json_output:
-        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
     else:
         typer.echo(_format_config_write_result(payload))
 
@@ -232,7 +234,7 @@ def config_switch(
         payload = _config_write_error_payload("switch", profile, str(exc))
 
     if json_output:
-        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
     else:
         typer.echo(_format_config_write_result(payload))
 
@@ -278,7 +280,7 @@ def smoke_profile(
         }
 
     if json_output:
-        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
     else:
         typer.echo(_format_profile_smoke(payload))
 
@@ -328,6 +330,223 @@ def storage_status(
         typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
     else:
         typer.echo(_format_storage_status(payload))
+
+    if not payload["ok"]:
+        raise typer.Exit(code=1)
+
+
+@mongo_app.command("doctor")
+def mongo_doctor(
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Print structured JSON instead of concise text.",
+    ),
+    offline: bool = typer.Option(
+        False,
+        "--offline",
+        help="Skip live MongoDB ping, index, and schema reads.",
+    ),
+) -> None:
+    """Diagnose MongoDB readiness for the full/pro profiles."""
+
+    from deal_intel import _env
+    from deal_intel.mongo_doctor import build_mongo_doctor_report
+
+    payload = build_mongo_doctor_report(_env.load_config(), offline=offline)
+    if json_output:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        typer.echo(_format_mongo_doctor(payload))
+
+    if not payload["ok"]:
+        raise typer.Exit(code=1)
+
+
+@mongo_app.command("apply-indexes")
+def mongo_apply_indexes(
+    apply: bool = typer.Option(
+        False,
+        "--apply",
+        help="Create missing MongoDB indexes. Without this flag, only print dry-run output.",
+    ),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Print structured JSON instead of concise text.",
+    ),
+) -> None:
+    """Create the versioned MongoDB index contract when --apply is set."""
+
+    from deal_intel import _env
+    from deal_intel.mongo_contracts import expected_mongo_indexes
+    from deal_intel.storage.mongodb import MongoDBClient
+
+    cfg = _env.load_config()
+    database = _mapping(_mapping(cfg).get("mongodb")).get("database", "deal_intel")
+    payload = {
+        "ok": True,
+        "dry_run": not apply,
+        "database": database,
+        "collections": {
+            collection: [
+                {
+                    "name": spec.name,
+                    "keys": list(spec.keys),
+                    "unique": spec.unique,
+                }
+                for spec in specs
+            ]
+            for collection, specs in expected_mongo_indexes().items()
+        },
+    }
+    if apply:
+        try:
+            client = MongoDBClient(database=database)
+            client.ensure_indexes()
+            payload["result"] = "applied"
+        except Exception as exc:
+            payload.update(
+                {
+                    "ok": False,
+                    "result": "error",
+                    "error": _redact_cli_error(exc),
+                }
+            )
+
+    if json_output:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+    else:
+        typer.echo(_format_mongo_apply_indexes(payload))
+
+    if not payload["ok"]:
+        raise typer.Exit(code=1)
+
+
+@mongo_app.command("apply-schema")
+def mongo_apply_schema(
+    apply: bool = typer.Option(
+        False,
+        "--apply",
+        help="Apply the deals collection validator. Without this flag, only print dry-run output.",
+    ),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Print structured JSON instead of concise text.",
+    ),
+) -> None:
+    """Apply the permissive v1 deals collection validator when --apply is set."""
+
+    from deal_intel import _env
+    from deal_intel.mongo_contracts import build_deals_schema_command
+    from deal_intel.storage.mongodb import MongoDBClient
+
+    cfg = _env.load_config()
+    database = _mapping(_mapping(cfg).get("mongodb")).get("database", "deal_intel")
+    command = build_deals_schema_command()
+    payload = {
+        "ok": True,
+        "dry_run": not apply,
+        "database": database,
+        "collection": command["collMod"],
+        "validation_action": command["validationAction"],
+        "validation_level": command["validationLevel"],
+        "command": command,
+    }
+    if apply:
+        try:
+            client = MongoDBClient(database=database)
+            payload["result"] = _safe_mongo_command_result(
+                client.apply_deals_schema_validation()
+            )
+        except Exception as exc:
+            payload.update(
+                {
+                    "ok": False,
+                    "result": "error",
+                    "error": _redact_cli_error(exc),
+                }
+            )
+
+    if json_output:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+    else:
+        typer.echo(_format_mongo_apply_schema(payload))
+
+    if not payload["ok"]:
+        raise typer.Exit(code=1)
+
+
+@mongo_app.command("apply-vector-index")
+def mongo_apply_vector_index(
+    apply: bool = typer.Option(
+        False,
+        "--apply",
+        help=(
+            "Create the Atlas Vector Search index. Requires M10+. Without this "
+            "flag, only print dry-run output."
+        ),
+    ),
+    dimensions: int = typer.Option(
+        384,
+        "--dimensions",
+        help="Embedding vector dimensions for the deal_summary_vector index.",
+    ),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Print structured JSON instead of concise text.",
+    ),
+) -> None:
+    """Create the Pro Atlas Vector Search index when --apply is set."""
+
+    from deal_intel import _env
+    from deal_intel.atlas_vector_indexes import (
+        build_create_search_index_command,
+        deal_summary_vector_index_name,
+        load_deal_summary_vector_index_spec,
+    )
+    from deal_intel.storage.mongodb import MongoDBClient
+
+    cfg = _env.load_config()
+    database = _mapping(_mapping(cfg).get("mongodb")).get("database", "deal_intel")
+    spec = load_deal_summary_vector_index_spec()
+    command = build_create_search_index_command(dimensions=dimensions)
+    payload = {
+        "ok": True,
+        "dry_run": not apply,
+        "database": database,
+        "collection": spec["collection"],
+        "index_name": deal_summary_vector_index_name(),
+        "minimum_cluster_tier": spec["minimum_cluster_tier"],
+        "dimensions": dimensions,
+        "command": command,
+        "policy": "Pro/atlas mode must not silently fall back to python_cosine.",
+    }
+    if apply:
+        try:
+            client = MongoDBClient(database=database)
+            payload["result"] = _safe_mongo_command_result(
+                client.ensure_vector_index(dimensions=dimensions)
+            )
+        except Exception as exc:
+            payload.update(
+                {
+                    "ok": False,
+                    "result": "error",
+                    "error": _redact_cli_error(exc),
+                    "hint": (
+                        "Atlas Vector Search requires M10+. Use full/python_cosine "
+                        "until the pro cluster and index are ready."
+                    ),
+                }
+            )
+
+    if json_output:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+    else:
+        typer.echo(_format_mongo_apply_vector_index(payload))
 
     if not payload["ok"]:
         raise typer.Exit(code=1)
@@ -974,6 +1193,97 @@ def _format_storage_status(payload: dict) -> str:
     return "\n".join(lines)
 
 
+def _format_mongo_doctor(payload: dict) -> str:
+    summary = payload["summary"]
+    lines = [
+        f"Mongo doctor: {'OK' if payload['ok'] else 'not ready'}",
+        f"Profile: {payload['profile']}",
+        (
+            "Runtime: "
+            f"storage={summary['storage_backend']}, "
+            f"database={summary['mongodb_database']}, "
+            f"vector_search={summary['vector_search']}, "
+            f"offline={summary['offline']}"
+        ),
+        (
+            "Checks: "
+            f"fail={summary['failed_checks']}, "
+            f"warn={summary['warning_checks']}, "
+            f"skipped={summary['skipped_checks']}"
+        ),
+        "",
+        "Details:",
+    ]
+    for check in payload["checks"]:
+        marker = {
+            "pass": "PASS",
+            "warn": "WARN",
+            "fail": "FAIL",
+            "skipped": "SKIP",
+        }.get(check.get("status"), str(check.get("status")).upper())
+        lines.append(f"- {marker} {check['label']}: {check['message']}")
+    if payload["next_actions"]:
+        lines.extend(["", "Next actions:"])
+        for action in payload["next_actions"]:
+            lines.append(f"- [{action['check_id']}] {action['hint']}")
+    return "\n".join(lines)
+
+
+def _format_mongo_apply_indexes(payload: dict) -> str:
+    status = "dry-run" if payload.get("dry_run") else payload.get("result", "applied")
+    lines = [
+        f"Mongo index contract: {status}",
+        f"Database: {payload.get('database')}",
+    ]
+    collections = _mapping(payload.get("collections"))
+    for collection, specs in collections.items():
+        lines.append(f"- {collection}: {len(specs)} index(es)")
+    if payload.get("dry_run"):
+        lines.append("Run again with --apply to create missing indexes.")
+    if payload.get("error"):
+        lines.append(f"Error: {payload['error']}")
+    return "\n".join(lines)
+
+
+def _format_mongo_apply_schema(payload: dict) -> str:
+    status = "dry-run" if payload.get("dry_run") else payload.get("result", "applied")
+    lines = [
+        f"Mongo deals schema: {status}",
+        f"Database: {payload.get('database')}",
+        f"Collection: {payload.get('collection')}",
+        (
+            "Validation: "
+            f"action={payload.get('validation_action')}, "
+            f"level={payload.get('validation_level')}"
+        ),
+    ]
+    if payload.get("dry_run"):
+        lines.append("Run again with --apply to apply this collection validator.")
+    if payload.get("error"):
+        lines.append(f"Error: {payload['error']}")
+    return "\n".join(lines)
+
+
+def _format_mongo_apply_vector_index(payload: dict) -> str:
+    status = "dry-run" if payload.get("dry_run") else payload.get("result", "applied")
+    lines = [
+        f"Mongo Atlas vector index: {status}",
+        f"Database: {payload.get('database')}",
+        f"Collection: {payload.get('collection')}",
+        f"Index: {payload.get('index_name')}",
+        f"Minimum cluster tier: {payload.get('minimum_cluster_tier')}",
+        f"Dimensions: {payload.get('dimensions')}",
+        f"Policy: {payload.get('policy')}",
+    ]
+    if payload.get("dry_run"):
+        lines.append("Run again with --apply only on a prepared M10+ Atlas cluster.")
+    if payload.get("error"):
+        lines.append(f"Error: {payload['error']}")
+    if payload.get("hint"):
+        lines.append(f"Hint: {payload['hint']}")
+    return "\n".join(lines)
+
+
 def _format_local_data_status(payload: dict) -> str:
     return "\n".join(
         [
@@ -1392,6 +1702,29 @@ def _config_write_error_payload(command: str, profile: str, message: str) -> dic
 
 def _mapping(value: Any) -> dict:
     return value if isinstance(value, dict) else {}
+
+
+def _redact_cli_error(exc: Exception) -> str:
+    message = f"{type(exc).__name__}: {exc}"
+    for key in ("MONGODB_URI", "ANTHROPIC_API_KEY", "OPENAI_API_KEY"):
+        secret = os.environ.get(key)
+        if secret:
+            message = message.replace(secret, f"<redacted:{key}>")
+    return message
+
+
+def _safe_mongo_command_result(result: Any) -> Any:
+    """Return a CLI-safe summary of a raw MongoDB command response."""
+
+    if not isinstance(result, dict):
+        return result
+    safe: dict[str, Any] = {}
+    for key in ("ok", "status", "message", "operationTime"):
+        if key in result:
+            safe[key] = result[key]
+    if "result" in result:
+        safe["result"] = _safe_mongo_command_result(result["result"])
+    return safe or {"summary": str(result)}
 
 
 def _local_personal_store_from_config() -> Any:

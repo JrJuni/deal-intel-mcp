@@ -141,12 +141,38 @@ Deferred:
 2. Keep Atlas Vector Search index creation in the pro path, not first-run
    sample/full defaults.
 
+## F-Mongo Outcome
+
+Completed:
+
+1. Moved ordinary MongoDB index definitions into
+   `src/deal_intel/mongo_contracts.py`.
+2. `MongoDBClient.ensure_indexes()` now applies that shared contract.
+3. Added `MongoDBClient.check_indexes()` for read-only index drift detection.
+4. Added a permissive v1 `deals` collection validator resource and
+   `MongoDBClient.check_deals_schema_validation()`.
+5. Added CLI admin surfaces:
+   - `deal-intel mongo doctor`
+   - `deal-intel mongo apply-indexes`
+   - `deal-intel mongo apply-schema`
+
+Notes:
+
+- `mongo doctor` is read-only.
+- `apply-indexes` and `apply-schema` are dry-run unless `--apply` is passed.
+- The v1 deals validator is `warn + moderate`, not hard `error`
+  enforcement, because the MVP document model is still changing.
+- No new read-path indexes were added in this slice; the goal was to make the
+  existing contract inspectable and safer to operate.
+
 ## Current Risk Summary
 
 - Fixed in O2: Weekly Pipeline Atlas Charts exclude archived deals.
 - Fixed in O2: `list_deals()` excludes contacts and vectors.
 - Fixed in O3: trend chart/snapshot range reads have a direct `as_of` index.
 - Fixed in O3: list views have a compound archived/stage/updated index.
+- Fixed in F-Mongo: ordinary index drift and deals schema validator drift can
+  be diagnosed through CLI without writing to MongoDB.
 - Low at current scale: legacy aggregation paths can scan the small `deals`
   collection.
 - Deferred: `list_deals_for_metrics()` remains blacklist-style until metric

@@ -41,13 +41,13 @@ def test_mcpb_manifest_tools_match_registered_surface_contracts() -> None:
     assert len(manifest_tool_names) == 24
 
 
-def test_mcpb_manifest_user_config_is_sample_first_and_secret_safe() -> None:
+def test_mcpb_manifest_user_config_defaults_to_full_and_is_secret_safe() -> None:
     manifest = _manifest()
     user_config = manifest["user_config"]
 
     assert manifest["version"] == "0.1.12"
     assert user_config["python_path"]["required"] is True
-    assert user_config["storage_backend"]["default"] == "local_sample"
+    assert user_config["storage_backend"]["default"] == "mongo"
     assert user_config["storage_backend"]["required"] is False
     assert user_config["tools_surface"]["default"] == "auto"
     assert user_config["mongodb_uri"]["required"] is False

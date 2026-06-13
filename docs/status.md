@@ -12,6 +12,109 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-12
 
+### F-Mongo operational contracts
+
+Implemented:
+
+- Extracted the MongoDB index contract into
+  `src/deal_intel/mongo_contracts.py`.
+- Updated `MongoDBClient.ensure_indexes()` to apply the shared index contract
+  instead of hard-coded inline index definitions.
+- Added read-only Mongo readiness checks:
+  `MongoDBClient.check_indexes()` and
+  `MongoDBClient.check_deals_schema_validation()`.
+- Added a permissive v1 deals collection validator resource:
+  `src/deal_intel/resources/mongo/deals.v1.json`.
+- Added CLI admin surfaces:
+  - `deal-intel mongo doctor`
+  - `deal-intel mongo doctor --json`
+  - `deal-intel mongo doctor --offline`
+  - `deal-intel mongo apply-indexes --json`
+  - `deal-intel mongo apply-indexes --apply`
+  - `deal-intel mongo apply-schema --json`
+  - `deal-intel mongo apply-schema --apply`
+- Added Pro vector-index CLI skeleton:
+  - `deal-intel mongo apply-vector-index --json`
+  - `deal-intel mongo apply-vector-index --apply`
+- Updated `MongoDBClient.ensure_vector_index()` so Atlas Vector Search setup
+  failures are not silently swallowed. Duplicate/already-existing indexes are
+  reported as OK.
+
+Behavior:
+
+- `mongo doctor` is read-only.
+- `apply-indexes` and `apply-schema` are dry-run by default.
+- `apply-vector-index` is dry-run by default and should be used only on M10+
+  Pro clusters when `--apply` is passed.
+- The deals schema validator starts with `validationAction: warn` and
+  `validationLevel: moderate` so it catches obvious drift without blocking the
+  fast-changing MVP schema.
+- No MCP tool surface was added; this is CLI/admin functionality first.
+
+Validation:
+
+- F-Mongo targeted tests: `12 passed`.
+- Targeted Ruff: `All checks passed`.
+- Full regression: `456 passed, 1 warning`.
+- Full Ruff: `All checks passed`.
+- CLI dry-runs passed:
+  - `deal-intel mongo doctor --offline --json`
+  - `deal-intel mongo apply-indexes --json`
+  - `deal-intel mongo apply-schema --json`
+- Live Atlas write smoke:
+  - `deal-intel mongo apply-schema --apply --json` applied the validator.
+  - The first JSON output failed because PyMongo returned a non-JSON
+    `Timestamp`; the command result was confirmed by `mongo doctor`, and the
+    CLI now serializes Mongo command responses with `default=str`.
+  - The live apply output was rerun after the fix and now returns a safe result
+    summary with `ok` and `operationTime`, without raw `$clusterTime.signature`
+    metadata.
+- Live Atlas read-only smoke passed after unsandboxed retry:
+  - ping succeeded,
+  - expected ordinary indexes are present,
+  - deals collection validator now matches the v1 contract.
+
+Not applied:
+
+- `deal-intel mongo apply-vector-index --apply` was not run because the current
+  full/M0 path should stay on Python cosine. Run it only on a prepared M10+
+  Pro cluster.
+
+### v1.0 distribution readiness D1 first pass
+
+Implemented:
+
+- Aligned README, Korean README, AI start guide, MVP readiness checklist, and
+  distribution plan on the full-by-default external trial flow.
+- Clarified that `sample` is an optional zero-config AI/demo evaluation path,
+  not the default human-facing install path.
+- Updated the MCPB install surface so `storage_backend` defaults to `mongo`;
+  users choose `local_sample` only for zero-config demos.
+- Corrected public tool-surface counts to the runtime contract:
+  `sample=17`, `standard=21`, `developer=24`.
+- Reframed distribution D1 as external MVP trial readiness before uvx/npx
+  wrapper work.
+
+Validation:
+
+- `config profiles`: passed.
+- `config doctor --offline`: passed, current effective profile `full`.
+- `smoke-profile --profile full --offline`: passed.
+- Tool surface and MCPB manifest targeted tests: `29 passed`.
+- Earlier optional zero-config sample checks in this slice also passed:
+  `config init --profile sample --dry-run`, `smoke-profile --profile sample`,
+  temporary local sample `storage-status`, and local sample natural-question
+  smoke `12/12`.
+
+Notes:
+
+- This was a first-run distribution readiness slice, not a deep MongoDB feature
+  validation slice. Human-facing setup should start with `full`; optional
+  `sample` checks protect only the no-MongoDB demo/evaluation path.
+- Live `storage-status`/Atlas ping was not rerun after the doc correction
+  because this environment previously hit MongoDB DNS/network resolution.
+- Claude Desktop MCPB reinstall smoke was not rerun in this slice.
+
 ### Pro profile skeleton planning and P-Pro.1/P-Pro.2 start
 
 Decisions:

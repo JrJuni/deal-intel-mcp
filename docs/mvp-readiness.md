@@ -5,17 +5,24 @@ This checklist answers one question:
 > Is the current package ready for a first external MVP trial without pretending
 > that every future feature is finished?
 
-The MVP target is a sample-first, AI-assisted sales/deal-intelligence workflow.
-Users should be able to install the package, run the zero-config sample mode,
-ask useful deal questions through MCP, create a small local personal dataset,
-and understand the path to MongoDB-backed full mode.
+The MVP target is a MongoDB-backed, AI-assisted sales/deal-intelligence
+workflow. Humans should start with the `full` profile by default. The
+zero-config `sample` mode remains available for AI agents, demos, and users who
+explicitly want to evaluate the workflow before configuring MongoDB.
+
+This checklist is not the validation gate for MongoDB-backed feature work. When
+changing MongoDB storage, indexes, schema validation, change streams, time
+series, Atlas Charts, or other Atlas-backed behavior, validate against `full`
+or `pro` as appropriate. `sample` checks only protect the first-run/no-MongoDB
+experience.
 
 ## Release Position
 
-Current position: **MVP candidate, sample-first**.
+Current position: **MVP candidate, full-by-default with optional zero-config sample**.
 
 Green:
 
+- `full` profile is the default real-data operating path.
 - Zero-config sample/local mode works without MongoDB.
 - MCP tool surfaces are filtered by profile.
 - Deal review v2 separates evidence coverage, uncertainty, confirmed risks,
@@ -66,21 +73,54 @@ Pass criteria:
 - `git diff --check` has no whitespace errors. Windows line-ending warnings are
   acceptable if no actual diff-check failure is reported.
 
-### 2. Sample Profile Smoke
+### 2. Full Profile Smoke
 
 ```powershell
 & "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli config profiles
-& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli config init --profile sample --dry-run
 & "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli config doctor --offline
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli smoke-profile --profile full --offline
+```
+
+Pass criteria:
+
+- The default human-facing path is `full`.
+- `config doctor --offline` reports whether the current machine is configured
+  for MongoDB-backed operation without leaking secrets.
+- `smoke-profile --profile full --offline` matches the `full` profile contract
+  without writes, LLM completions, embeddings, or Atlas admin calls.
+
+### 2b. Optional Zero-Config Sample Smoke
+
+Run this only for AI-first evaluation, demos, or no-MongoDB environments.
+
+```powershell
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli config init --profile sample --dry-run
 & "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli smoke-profile --profile sample
 ```
 
 Pass criteria:
 
 - The sample path does not ask for MongoDB, API keys, or Atlas Vector Search.
-- `config doctor` reports actionable next steps without leaking secrets.
 - `smoke-profile --profile sample` succeeds or reports only expected local
   environment warnings.
+
+### 2c. MongoDB-Backed Feature Gate
+
+Run this when the change touches MongoDB-backed behavior. Do not substitute the
+sample smoke for this gate.
+
+```powershell
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli smoke-profile --profile full --offline
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli config doctor --offline
+```
+
+Pass criteria:
+
+- `smoke-profile --profile full --offline` matches the `full` profile contract.
+- `config doctor --offline` reports whether the current machine is actually
+  configured for MongoDB-backed operation.
+- If the feature requires live reads or writes, run a bounded Atlas smoke in a
+  disposable database or record why it was deferred.
 
 ### 3. Natural Question Smoke
 
@@ -170,7 +210,7 @@ Pass criteria:
 
 Use this lightweight script for a friend or first external evaluator:
 
-1. Start with sample mode. Do not ask for MongoDB yet.
+1. Start with `full` and ask for/configure `MONGODB_URI`.
 2. Run `config doctor`.
 3. Ask: "What is the current pipeline health?"
 4. Ask: "Which deals need attention first?"
@@ -181,6 +221,14 @@ Use this lightweight script for a friend or first external evaluator:
 9. Confirm the result explains `source_policy` and does not silently change
    stage.
 10. Show `local-data export` and `local-data reset` dry-run behavior.
+
+Optional zero-config demo script:
+
+1. Set `DEAL_INTEL_STORAGE_BACKEND=local_sample`.
+2. Run `smoke-profile --profile sample`.
+3. Run `smoke-natural-questions --as-of 2026-06-10`.
+4. Explain that this is a demo/evaluation path, not the default team-storage
+   path.
 
 ## Deferred After MVP
 
@@ -219,5 +267,5 @@ Known non-blockers:
 - 
 
 Decision:
-- Ready for sample-first external MVP trial: yes/no
+- Ready for full-by-default external MVP trial: yes/no
 ```

@@ -36,7 +36,15 @@ Current positioning:
 
 Recommended implementation order:
 
-1. Pro profile skeleton and infrastructure path.
+1. Full-profile MongoDB operational hardening.
+   - Keep ordinary MongoDB features that work on Atlas Free/M0 in `full`, not
+     `pro`.
+   - First slice: version the normal index contract, add read-only Mongo
+     doctor checks, and add a permissive deals collection validator with
+     dry-run/apply CLI commands.
+   - Later slices can evaluate change streams and time-series collections only
+     after the core full/Mongo path is stable.
+2. Pro profile skeleton and infrastructure path.
    - Add the paid-infra upgrade path around MongoDB M10+, Atlas Vector Search,
      and related MongoDB ecosystem features where they provide real value.
    - Keep `sample` and `full` working without paid infrastructure.
@@ -44,17 +52,17 @@ Recommended implementation order:
      operation belong in `full`, not `pro`.
    - P-Pro.1/P-Pro.2 skeleton decisions: no silent Atlas fallback, version the
      `deal_summary_vector` index spec, default OpenAI API usage to
-     `gpt-5.4-mini`, and defer live OpenAI/Atlas smoke until paid infra is
-     available.
-2. v1.0 distribution decision.
+     `gpt-5.4-mini`, add a dry-run/apply vector-index CLI, and defer live
+     OpenAI/Atlas smoke until paid infra is available.
+3. v1.0 distribution decision.
    - Confirm the first external distribution path after the MVP package is
      stable enough: git-clone assisted install, MCPB, uvx/Python-native, or a
      thin npx wrapper.
-3. Review and CSV quality improvements.
+4. Review and CSV quality improvements.
    - Improve human-readable deal review and reporting artifacts using external
      feedback after the architecture is stable enough to trial.
-4. Other MVP polish and issue fixes.
-5. Qualification framework abstraction for v2.0.
+5. Other MVP polish and issue fixes.
+6. Qualification framework abstraction for v2.0.
    - Defer full MEDDPICC abstraction until after v1.0.
    - Do it on a dedicated branch or separate repository if needed, because it
      touches extraction prompts, score calculation, gap logic, reports,
@@ -156,6 +164,55 @@ Minimum future concept:
   without instructions becomes a dead metric because the LLM will not know what
   evidence to collect.
 
+### F-Mongo - Full-Profile MongoDB Hardening
+
+Goal: make the normal MongoDB-backed `full` path operationally diagnosable and
+safe on Atlas Free/M0 before spending effort on paid-infrastructure Pro paths.
+
+Implemented first slice:
+
+- Versioned ordinary MongoDB index contract in code.
+- `MongoDBClient.ensure_indexes()` now applies the shared contract.
+- Read-only index/schema readiness checks.
+- Permissive v1 `deals` collection validator resource.
+- CLI admin commands:
+
+```bash
+deal-intel mongo doctor
+deal-intel mongo doctor --offline --json
+deal-intel mongo apply-indexes --json
+deal-intel mongo apply-indexes --apply
+deal-intel mongo apply-schema --json
+deal-intel mongo apply-schema --apply
+```
+
+Rules:
+
+- `mongo doctor` is read-only.
+- `apply-indexes` and `apply-schema` are dry-run unless `--apply` is provided.
+- `apply-vector-index` is also dry-run unless `--apply` is provided and should
+  be used only for the Pro/M10+ Atlas Vector Search path.
+- Schema validation starts as `warn + moderate`; do not switch to hard
+  `error` enforcement until the document model is stable and existing Atlas
+  data has been audited.
+- Keep this CLI/admin first. Add an MCP developer-surface tool only if users
+  actually need to diagnose MongoDB from inside Claude/Codex chat.
+
+Next candidate units:
+
+1. Optional live Atlas smoke:
+   - `deal-intel mongo doctor --json`
+   - `deal-intel mongo apply-indexes --json`
+   - `deal-intel mongo apply-schema --json`
+   - `deal-intel mongo apply-schema --apply` only after manual confirmation.
+   - `deal-intel mongo apply-vector-index --apply` only on an M10+ Pro cluster.
+2. Add schema checks for `analytics_snapshots` and `delete_audit_logs` if those
+   collections show drift in real use.
+3. Evaluate whether `analytics_snapshots` should remain a normal collection or
+   get a separate time-series/event collection after v1.0.
+4. Evaluate bounded change-stream consumers only when there is a clear product
+   workflow that benefits from them.
+
 ### Z5 - Profile and Config Rollout
 
 Goal: keep one package while making first-run setup clear for `sample`, `full`,
@@ -170,8 +227,9 @@ Next candidate units:
    hardening patch.
 3. Decide whether release bundles need signing before external distribution.
 
-Principle: agents and new users should start in `sample` before being asked for
-MongoDB, paid APIs, or Atlas Vector Search.
+Principle: human-facing setup starts with `full`. `sample` remains an optional
+zero-config evaluation path for AI agents, demos, and users who explicitly do
+not want to configure MongoDB yet.
 
 ### Deal Review Quality
 
@@ -433,7 +491,8 @@ Goal: make the project easy for non-developers and fast evaluators.
 
 Current MVP stance:
 
-- `docs/mvp-readiness.md` is the sample-first external MVP gate.
+- `docs/mvp-readiness.md` is the full-by-default external MVP gate, with
+  optional zero-config sample checks for AI evaluation.
 - npx/uvx wrappers are useful, but not required before the first MVP trial.
 - Packaging work should not preempt sample/local UX completion unless it
   directly reduces first-run confusion.

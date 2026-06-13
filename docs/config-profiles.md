@@ -13,21 +13,22 @@ first-run guidance.
 - `pro`: paid-infrastructure upgrade path with Atlas Vector Search and API-key
   LLM providers.
 
-The default user journey should be sample-first:
+The default human-facing user journey should be `full`:
 
-1. Start in `sample`.
-2. Run `storage-status`.
-3. Run `smoke-natural-questions`.
-4. Confirm the tool experience works.
-5. Move to `full` when the user is ready to connect MongoDB-backed real data.
-6. Move to `pro` only when paid infrastructure is intentional.
+1. Configure MongoDB Atlas (`MONGODB_URI`). M0/free tier is sufficient for
+   normal `full` operation.
+2. Run `config doctor --offline`.
+3. Run `smoke-profile --profile full --offline`.
+4. Use `sample` only when the user explicitly wants zero-config evaluation, or
+   when an AI agent needs to quickly judge the project before setup.
+5. Move to `pro` only when paid infrastructure is intentional.
 
 The product is fundamentally designed for MongoDB-backed team operation.
-`sample` exists so users and AI agents can test the workflow before setup, and
-it can now support lightweight personal/local experiments. It starts with a
-bundled immutable fixture; once user-created local deals exist, the fixture is
-archived from active reads and `storage.local_data_dir/deals.json` becomes the
-working dataset.
+`sample` exists so users and AI agents can test the workflow without setup, and
+it can support lightweight personal/local experiments. It starts with a bundled
+immutable fixture; once user-created local deals exist, the fixture is archived
+from active reads and `storage.local_data_dir/deals.json` becomes the working
+dataset.
 
 ## Profile Contract
 
@@ -46,7 +47,8 @@ Notes:
   `local-data reset/export` gives users a recovery path for messy testing.
 - The default local personal data directory is `~/.deal-intel/local-data`, and
   users should be able to override it through config as `storage.local_data_dir`.
-- `full` should remain the operational default for real customer data.
+- `full` should remain the operational default for real customer data and the
+  default human-facing install path.
 - MongoDB features that work on Atlas Free/M0 and improve normal real-data
   operation belong in `full`, not `pro`. Examples include schema validation,
   ordinary indexes, bounded change-stream consumers, and time-series collections
@@ -73,13 +75,16 @@ Implemented now:
 - Versioned Atlas Vector Search index spec:
   `atlas/vector_indexes/deal_summary_vector.v1.json`.
 - No-silent-fallback policy for `search_deals` in `atlas` mode.
+- Dry-run/apply CLI for the versioned Atlas Vector Search index:
+  `deal-intel mongo apply-vector-index --json` and
+  `deal-intel mongo apply-vector-index --apply`.
 
 Deferred until disposable paid infra is available:
 
 - Live OpenAI API completion smoke.
 - Live Atlas Vector Search query smoke.
 - Atlas admin-level cluster-tier/index verification.
-- Automated vector index `check/apply` CLI.
+- Live `apply-vector-index --apply` smoke on an M10+ cluster.
 
 ## Z5 Implementation Units
 
@@ -165,6 +170,39 @@ Implemented behavior:
 - The default path allows bounded storage ping but does not call LLM completion
   APIs, embeddings, or write to MongoDB.
 
+### F-Mongo Mongo Doctor
+
+Implemented commands:
+
+```bash
+deal-intel mongo doctor
+deal-intel mongo doctor --json
+deal-intel mongo doctor --offline
+deal-intel mongo apply-indexes --json
+deal-intel mongo apply-indexes --apply
+deal-intel mongo apply-schema --json
+deal-intel mongo apply-schema --apply
+deal-intel mongo apply-vector-index --json
+deal-intel mongo apply-vector-index --apply
+```
+
+Implemented behavior:
+
+- `mongo doctor` is the full/pro MongoDB operational check. It verifies the
+  storage backend, Mongo URI readiness, bounded ping, expected ordinary
+  indexes, deals collection validator status, and vector-search mode.
+- `apply-indexes` applies the versioned ordinary index contract only when
+  `--apply` is passed.
+- `apply-schema` applies the v1 `deals` collection validator only when
+  `--apply` is passed.
+- `apply-vector-index` prints or applies the Pro Atlas Vector Search index
+  command. It requires an M10+ Atlas cluster when `--apply` is used.
+- The v1 validator is intentionally permissive: `validationAction: warn`,
+  `validationLevel: moderate`, and only `deal_id`, `company`, and
+  `deal_stage` are required.
+- These are CLI/admin surfaces first. They are not exposed as MCP tools in the
+  user-facing tool list.
+
 ### Z5.5 AI Start Here
 
 Implemented AI-readable first-run guide:
@@ -181,8 +219,9 @@ Implemented behavior:
   `smoke-natural-questions`.
 - The guide tells agents to preview `config init --profile sample --dry-run`
   before writing user config.
-- Existing config is protected: agents must preview `config switch sample
-  --dry-run` and use `--force` only after explicit user approval.
+- Existing config is protected: agents must preview any `config switch ...`
+  operation with `--dry-run` and use `--force` only after explicit user
+  approval.
 
 ### Z5.6 Packaging Surface
 
@@ -190,12 +229,14 @@ Implemented behavior:
 
 - README and MCP package docs describe sample/full/pro without implying three
   separate codebases.
-- Sample-first installation is the easiest path.
-- Full/pro requirements are clearly labeled as opt-in.
-- `mcpb/manifest.json` exposes `storage_backend` so Claude Desktop installs can
-  start in `local_sample` without a MongoDB URI.
-- The MCP bundle metadata now reflects the current 23-tool surface.
-- The current bundle manifest version is `0.1.10`.
+- Full is the default human-facing install path.
+- Sample is clearly labeled as a zero-config AI/demo evaluation option.
+- Pro requirements are clearly labeled as paid-infra opt-in.
+- `mcpb/manifest.json` exposes `storage_backend`; the installer default is
+  `mongo`, while `local_sample` remains available for zero-config demos.
+- The MCP bundle metadata reflects the current 24-tool internal registration
+  with profile-filtered surfaces.
+- The current bundle manifest version is `0.1.12`.
 - `mcpb/README.md` now documents `tools_surface=auto`, mutable local personal
   sample data, and dry-run-first local-to-Mongo migration.
 - `tests/test_mcpb_manifest.py` validates the manifest against the tool-surface

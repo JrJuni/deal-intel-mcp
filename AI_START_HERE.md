@@ -4,28 +4,31 @@ This guide is for AI agents helping a new user try `deal-intel-mcp`.
 
 ## First Rule
 
-Start in `sample` mode.
+Default to `full` for human-facing setup.
 
-Do not ask the user for MongoDB Atlas, API keys, Atlas Vector Search, or paid
-infrastructure until the bundled sample smoke path works.
+Use `sample` only when the user explicitly wants zero-config evaluation, has no
+MongoDB URI ready, or asks the AI to quickly judge whether the project is worth
+trying before setup.
 
 ## Mental Model
 
 The project has one package and three profiles:
 
-- `sample`: local bundled fictional data for feature testing, plus lightweight
-  local personal create/update/stage/lifecycle flows. LLM meeting ingestion,
-  semantic search, and demo-database maintenance are intentionally unavailable
-  in the default sample surface.
 - `full`: MongoDB Atlas-backed real team data.
+- `sample`: local bundled fictional data for zero-config evaluation, plus
+  lightweight local personal create/update/stage/lifecycle flows. Source-aware
+  `add_interaction` is available when the configured LLM provider is ready.
+  Semantic search and demo-database maintenance are intentionally unavailable
+  in the default sample surface.
 - `pro`: paid-infrastructure path with Atlas Vector Search and API-key LLM
   providers.
 
-Your first job is not to configure production. Your first job is to prove the
-tool experience works in `sample`. For team/shared operation, the real
-operating path assumes MongoDB-backed deal data. For solo experiments, sample
-mode can now persist small local personal datasets before the user graduates to
-`full`.
+Your first job is to identify the intended path:
+
+- For a person installing the product for real use, configure `full`.
+- For an AI-only quick check or no-MongoDB demo, use `sample`.
+- For paid Atlas Vector Search/API-key operation, use `pro` only after the user
+  explicitly chooses it.
 
 ## Step 1 - Inspect, Do Not Guess
 
@@ -39,69 +42,48 @@ Use the conda environment Python directly. On this machine the usual path is:
 If the environment path differs, locate the correct Python before continuing.
 Do not use bare `python` or `py` on Windows.
 
-## Step 2 - Preview Sample Setup
+## Step 2 - Configure Full By Default
 
-Always preview before writing user config:
+For normal setup, ask for `MONGODB_URI` or confirm it is already configured in
+the environment/MCPB form. Then run:
+
+```powershell
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli config doctor --offline
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli smoke-profile --profile full --offline
+```
+
+If the user wants an explicit user config file, preview before writing:
+
+```powershell
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli config init --profile full --dry-run
+```
+
+Apply `config init --profile full` only after the preview looks right.
+
+## Step 3 - Optional Zero-Config Sample
+
+Use this path only when the user asks to try without MongoDB or when an AI agent
+needs to evaluate the product shape before requesting setup:
 
 ```powershell
 & "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli config init --profile sample --dry-run
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli smoke-profile --profile sample
 ```
 
-If `~/.deal-intel/config.yaml` does not exist and the user wants a persistent
-sample setup, run:
+For a temporary shell-only sample check:
+
+```powershell
+$env:DEAL_INTEL_STORAGE_BACKEND='local_sample'
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli storage-status
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli smoke-natural-questions --as-of 2026-06-10
+```
+
+Persist sample mode only if the user explicitly wants zero-config/local personal
+operation:
 
 ```powershell
 & "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli config init --profile sample
 ```
-
-If a user config already exists, do not overwrite it automatically. Preview the
-switch instead:
-
-```powershell
-& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli config switch sample --dry-run
-```
-
-Apply `config switch ... --force` only after the user explicitly approves. The
-tool backs up the existing config before writing.
-
-## Step 3 - Run Readiness Checks
-
-Run the offline doctor first:
-
-```powershell
-& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli config doctor --offline
-```
-
-Then run the profile smoke and storage status:
-
-```powershell
-& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli smoke-profile --profile sample
-& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli storage-status
-```
-
-In `sample`, storage status should use `local_sample` and should not require
-MongoDB. Tell the user that this is a limited feature-test mode, not the full
-operating mode.
-
-## Step 4 - Run The Sample Smoke
-
-Use the deterministic sample smoke:
-
-```powershell
-& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli smoke-natural-questions --as-of 2026-06-10
-```
-
-Success means the AI-facing read/review/reporting flow works without asking for
-external infrastructure.
-
-## Step 5 - Only Then Discuss Full Or Pro
-
-After sample succeeds, ask what the user wants next:
-
-- Stay in `sample` for demos and evaluation.
-- Move to `full` for real MongoDB Atlas-backed team data.
-- Move to `pro` only when paid Atlas Vector Search and API-key LLM providers
-  are intentional.
 
 If the user wants to try their own temporary data, use sample mode's local
 personal storage. It defaults to `~/.deal-intel/local-data` and can be
@@ -139,14 +121,14 @@ customer-stated evidence can update MEDDPICC/customer themes. Outbound-only and
 internal-only content is retained as context but should be described as
 unconfirmed, not as improved deal health.
 
-Only request `MONGODB_URI`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or Atlas
-Vector Search setup after the user chooses `full` or `pro`.
+Only request `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or Atlas Vector Search setup
+after the user chooses that provider/path. `MONGODB_URI` is normal for `full`.
 
 ## Do Not
 
-- Do not ask for MongoDB before sample smoke succeeds.
 - Do not ask for API keys before the user chooses an API-key provider.
 - Do not run `config switch ... --force` without explicit user approval.
+- Do not present `sample` as the default human install path.
 - Do not use `pro` as the default first-run path.
 - Do not print secrets from `.env`, user config, or command output.
 
@@ -155,8 +137,8 @@ Vector Search setup after the user chooses `full` or `pro`.
 When a new user asks to try the project, say:
 
 ```text
-I will start with the zero-config sample path first, so we can verify the tool
-experience before asking for MongoDB or API keys. I will run config profiles,
-preview sample setup, run config doctor offline, then run the natural-question
-sample smoke.
+For normal use, I will start with the MongoDB-backed full profile. I will check
+the configured profile, run config doctor offline, then run the full profile
+smoke without writes. If you want a zero-config demo instead, I can switch to
+the sample path temporarily.
 ```

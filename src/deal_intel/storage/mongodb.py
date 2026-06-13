@@ -8,6 +8,12 @@ from deal_intel.atlas_vector_indexes import (
     deal_summary_vector_index_name,
     deal_summary_vector_search_settings,
 )
+from deal_intel.mongo_contracts import (
+    build_deals_schema_command,
+    compare_mongo_indexes,
+    deals_schema_contract_summary,
+    expected_mongo_indexes,
+)
 from deal_intel.storage.diagnostics import (
     missing_mongodb_uri_message,
     missing_mongodb_uri_ping,
@@ -24,6 +30,14 @@ def with_unarchived_deal_filter(query: dict | None = None) -> dict:
     merged = dict(query or {})
     merged.setdefault("archived", {"$ne": True})
     return merged
+
+
+def _get_collection(db: Any, name: str) -> Any:
+    """Return a Mongo collection from real PyMongo or a simple test fake."""
+
+    if hasattr(db, name):
+        return getattr(db, name)
+    return db[name]
 
 
 def preload_driver() -> None:
@@ -60,81 +74,70 @@ class MongoDBClient:
 
     def ensure_indexes(self) -> None:
         """Create indexes if missing. Idempotent and safe to call on every startup."""
-        from pymongo import ASCENDING, DESCENDING
-        col = self._get_db().deals
+        db = self._get_db()
+        for collection_name, specs in expected_mongo_indexes().items():
+            collection = _get_collection(db, collection_name)
+            for spec in specs:
+                collection.create_index(list(spec.keys), **spec.create_kwargs())
 
-        # Point lookups by deal_id (also enforces uniqueness).
-        col.create_index([("deal_id", ASCENDING)], unique=True, name="deal_id_unique")
+    def check_indexes(self) -> dict:
+        """Read-only check that the MongoDB index contract is present."""
 
-        # list_deals: stage filter + updated_at sort (most common query path).
-        col.create_index(
-            [("deal_stage", ASCENDING), ("updated_at", DESCENDING)],
-            name="stage_updated",
-        )
+        db = self._get_db()
+        actual_indexes: dict[str, list[dict[str, Any]]] = {}
+        for collection_name in expected_mongo_indexes():
+            collection = _get_collection(db, collection_name)
+            actual_indexes[collection_name] = list(collection.list_indexes())
+        return compare_mongo_indexes(actual_indexes)
 
-        # list_deals: no stage filter, updated_at sort only.
-        col.create_index([("updated_at", DESCENDING)], name="updated_desc")
+    def check_deals_schema_validation(self) -> dict:
+        """Read-only check for the deals collection validator contract."""
 
-        # Default read paths hide archived deals while preserving legacy docs
-        # where the field is absent.
-        col.create_index(
-            [("archived", ASCENDING), ("updated_at", DESCENDING)],
-            name="archived_updated",
-        )
-        col.create_index(
-            [
-                ("archived", ASCENDING),
-                ("deal_stage", ASCENDING),
-                ("updated_at", DESCENDING),
-            ],
-            name="archived_stage_updated",
-        )
+        db = self._get_db()
+        expected = deals_schema_contract_summary()
+        response = db.command("listCollections", filter={"name": expected["collection"]})
+        first_batch = response.get("cursor", {}).get("firstBatch", [])
+        if not first_batch:
+            return {
+                "ok": False,
+                "status": "missing_collection",
+                "collection": expected["collection"],
+                "expected": expected,
+                "current": None,
+            }
 
-        # BI / get_insights: sort by health score (used in Phase 2).
-        col.create_index(
-            [("meddpicc_latest.health_pct", DESCENDING)],
-            name="health_pct_desc",
-        )
+        options = first_batch[0].get("options", {})
+        current = {
+            "has_validator": bool(options.get("validator")),
+            "validation_action": options.get("validationAction"),
+            "validation_level": options.get("validationLevel"),
+        }
+        expected_command = build_deals_schema_command()
+        mismatches = []
+        if options.get("validator") != expected_command["validator"]:
+            mismatches.append("validator")
+        if options.get("validationAction") != expected_command["validationAction"]:
+            mismatches.append("validation_action")
+        if options.get("validationLevel") != expected_command["validationLevel"]:
+            mismatches.append("validation_level")
+        return {
+            "ok": not mismatches,
+            "status": "ok" if not mismatches else "mismatched",
+            "collection": expected["collection"],
+            "expected": expected,
+            "current": current,
+            "mismatches": mismatches,
+        }
 
-        # Customer-theme BI: stage filter + multikey theme grouping.
-        col.create_index(
-            [("deal_stage", ASCENDING), ("customer_themes.theme_key", ASCENDING)],
-            name="stage_customer_theme",
-        )
+    def deals_schema_command(self) -> dict:
+        """Return the versioned collMod command without executing it."""
 
-        audit_col = self._get_db().delete_audit_logs
-        audit_col.create_index(
-            [("deal_id", ASCENDING), ("deleted_at", DESCENDING)],
-            name="delete_audit_deal_deleted",
-        )
+        return build_deals_schema_command()
 
-        snapshot_col = self._get_db().analytics_snapshots
-        snapshot_col.create_index(
-            [("event_id", ASCENDING)],
-            unique=True,
-            name="analytics_snapshot_event_id_unique",
-        )
-        snapshot_col.create_index(
-            [("deal_id", ASCENDING), ("occurred_at", DESCENDING)],
-            name="analytics_snapshot_deal_occurred",
-        )
-        snapshot_col.create_index(
-            [("event_type", ASCENDING), ("occurred_at", DESCENDING)],
-            name="analytics_snapshot_event_occurred",
-        )
-        snapshot_col.create_index(
-            [
-                ("as_of", ASCENDING),
-                ("occurred_at", ASCENDING),
-                ("created_at", ASCENDING),
-            ],
-            name="analytics_snapshot_as_of_occurred_created",
-        )
+    def apply_deals_schema_validation(self) -> dict:
+        """Apply the deals collection validator. Caller must gate this behind --apply."""
 
-        col.create_index(
-            [("is_sample", ASCENDING), ("sample_batch_id", ASCENDING)],
-            name="sample_batch",
-        )
+        return self._get_db().command(build_deals_schema_command())
 
     def ping(self) -> dict:
         if not self._uri:
@@ -231,16 +234,22 @@ class MongoDBClient:
 
     # --- reserved for M10+ upgrade ---
 
-    def ensure_vector_index(self, dimensions: int = 384) -> None:
-        """Create Atlas Vector Search index. Requires M10+ cluster — no-op on M0."""
+    def ensure_vector_index(self, dimensions: int = 384) -> dict:
+        """Create Atlas Vector Search index. Requires M10+ cluster."""
+
         db = self._get_db()
         try:
-            db.command(build_create_search_index_command(dimensions=dimensions))
+            result = db.command(build_create_search_index_command(dimensions=dimensions))
+            return {"ok": True, "status": "applied", "result": result}
         except Exception as e:
             msg = str(e).lower()
             if "already exists" in msg or "duplicate" in msg:
-                pass
-            # M0 silently ignores — do not warn, not supported on free tier
+                return {
+                    "ok": True,
+                    "status": "already_exists",
+                    "message": str(e),
+                }
+            raise
 
     def search_by_embedding(self, embedding: list[float], *, limit: int = 5) -> list[dict]:
         """$vectorSearch aggregation — M10+ only. Use get_deals_for_search() on M0."""

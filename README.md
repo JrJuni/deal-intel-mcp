@@ -4,13 +4,11 @@
 
 A B2B sales-support MCP server: paste a meeting note and it scores the deal on MEDDPICC, then turns the result into pipeline metrics, reports, dashboards, and deal-review prompts.
 
-You can start with a bundled sample dataset and no MongoDB to test the product
-flow. In sample mode, you can also create and maintain a small local personal
-dataset in `~/.deal-intel/local-data`, then export or reset it when testing gets
-messy. The real team operating path assumes MongoDB-backed deal data: when you
-are ready for shared team use, switch the same package to MongoDB Atlas-backed
-full mode or to the paid-infra pro path. Drive it by talking - in Claude
-Desktop, or in Codex with the MCP connected. No separate CRM app.
+The default operating path is MongoDB Atlas-backed `full` mode, including the
+free/M0 tier. A bundled no-MongoDB `sample` mode exists for AI agents, quick
+evaluation, and demos, but real team use should start from `full`. Drive it by
+talking - in Claude Desktop, or in Codex with the MCP connected. No separate CRM
+app.
 
 ---
 
@@ -48,10 +46,10 @@ It takes the raw MCP tool output and renders win rate, the stage funnel, Won vs 
 | **C**hampion | Whether you have an internal advocate |
 | **C**ompetition | How you fight competitors and the status quo |
 
-Paste a meeting note and the LLM extracts these seven automatically. In sample
-mode, the same analysis surfaces run against bundled fictional data. In full
-mode, they persist real deal data in MongoDB Atlas and run pattern analysis on
-top.
+Paste a meeting note and the LLM extracts these seven automatically. In `full`
+mode, the result persists real deal data in MongoDB Atlas and powers pattern
+analysis. In optional `sample` mode, the same read/review surfaces run against
+bundled fictional data so AI agents can evaluate the tool without setup.
 
 ---
 
@@ -61,16 +59,17 @@ One repo, one package, three operating profiles:
 
 | Profile | Use it for | Requires |
 |---|---|---|
-| `sample` | Feature testing, friend review, agent smoke tests, and lightweight local personal use | Python package only |
 | `full` | Real team data on MongoDB Atlas | `MONGODB_URI`, plus ChatGPT OAuth or an API key for LLM tools |
+| `sample` | Zero-config AI evaluation, demos, and lightweight local personal use | Python package only |
 | `pro` | Paid-infra upgrade with Atlas Vector Search and API-key LLMs | Atlas M10+, `deal_summary_vector` index, `OPENAI_API_KEY` by default |
 
-Start in `sample` to verify the experience. It begins with bundled fictional
-data. Once you create your own local deal, the bundled fixture is archived from
-the working view and your local personal dataset becomes the active dataset.
-Some search and LLM-heavy paths remain limited in sample mode. Move to `full`
-when you are ready to connect real MongoDB-backed team storage. Move to `pro`
-only when paid infrastructure is intentional.
+Start humans in `full`. Use `sample` only when the user explicitly wants a
+zero-config trial, or when an AI agent needs to confirm the basic workflow
+before asking for MongoDB. It begins with bundled fictional data; once you
+create your own local deal, the bundled fixture is archived from the working
+view and your local personal dataset becomes the active dataset. Some search
+and LLM-heavy paths remain limited in sample mode. Move to `pro` only when paid
+infrastructure is intentional.
 
 `pro` defaults to `openai_api` with `gpt-5.4-mini` for lower API cost pressure.
 You can still override `llm.openai_api_model` or switch `llm.provider` to
@@ -78,8 +77,8 @@ You can still override `llm.openai_api_model` or switch `llm.provider` to
 
 MCP tools are profile-filtered by default:
 
-- `sample`: 18 zero-config/local personal tools
-- `standard`: 22 normal real-data tools
+- `sample`: 17 zero-config/local personal tools
+- `standard`: 21 normal real-data tools
 - `developer`: all 24 tools, including demo seed/cleanup helpers
 
 Use `tools.surface: developer` or `DEAL_INTEL_TOOLS_SURFACE=developer` only
@@ -108,63 +107,68 @@ when you intentionally want the full maintainer/debug surface.
 
 Adding `[embedding]` also installs `sentence-transformers` (for similar-deal search).
 
-**Step 2 - Inspect the profiles**
+**Step 2 - Configure the default full profile**
+
+For real use, configure MongoDB Atlas first. M0/free tier is enough for the
+`full` profile.
+
+Copy `.env.example` to `.env` or set the same values through your MCP bundle:
+
+```text
+MONGODB_URI=your-atlas-connection-string
+ANTHROPIC_API_KEY=optional-if-using-anthropic
+OPENAI_API_KEY=optional-if-using-openai-api
+```
+
+Then inspect the effective config:
 
 ```bash
 deal-intel config profiles
 deal-intel config show
 ```
 
-**Step 3 - Preview sample mode**
+If you want an explicit user config file, preview and write the `full` profile:
 
 ```bash
-deal-intel config init --profile sample --dry-run
+deal-intel config init --profile full --dry-run
+deal-intel config init --profile full
+```
+
+**Step 3 - Check full readiness**
+
+```bash
 deal-intel config doctor --offline
+deal-intel smoke-profile --profile full --offline
 ```
 
-If no user config exists and the preview looks right, persist sample mode:
+`config doctor --offline` diagnoses the current effective config. `smoke-profile
+--profile full --offline` verifies the target full-profile contract without
+running writes, LLM completions, embeddings, or Atlas admin calls.
+
+When network access to Atlas is available, run a live storage ping:
 
 ```bash
-deal-intel config init --profile sample
+deal-intel storage-status
 ```
 
-If `~/.deal-intel/config.yaml` already exists, preview a profile switch instead:
+**Step 4 - Optional: run the zero-config sample smoke**
 
 ```bash
-deal-intel config switch sample --dry-run
-```
-
-Only apply `config switch ... --force` after you intentionally approve changing
-the profile-managed keys.
-
-**Step 4 - Run a local sample smoke**
-
-```bash
+$env:DEAL_INTEL_STORAGE_BACKEND='local_sample'
 deal-intel smoke-profile --profile sample
 deal-intel storage-status
 deal-intel smoke-natural-questions --as-of 2026-06-10
 ```
 
-This path starts with bundled fictional data. It does not require MongoDB, paid
-APIs, or Atlas Vector Search. For lightweight personal testing, sample mode can
-persist user-created deals locally under `storage.local_data_dir`; real team
-usage assumes MongoDB-backed full mode.
+Use this only for zero-config evaluation. It starts with bundled fictional data
+and does not require MongoDB, paid APIs, or Atlas Vector Search.
 
 **Step 5 - Optional: connect Claude Desktop**
 
 Build or install the MCP bundle from [`mcpb/README.md`](mcpb/README.md). The
-bundle form lets you start with `local_sample` storage or connect `mongo`
-storage for real data. Use `deal-intel config switch pro` later if you want the
-Atlas Vector Search upgrade path.
-
-For real Atlas-backed operation, copy `.env.example` to `.env` or fill the MCP
-bundle form with:
-
-```
-MONGODB_URI=your-atlas-connection-string
-ANTHROPIC_API_KEY=optional-if-using-anthropic
-OPENAI_API_KEY=optional-if-using-openai-api
-```
+bundle form defaults to `mongo` storage for real data. Choose `local_sample`
+only for a zero-config demo. Use `deal-intel config switch pro` later if you
+want the Atlas Vector Search upgrade path.
 
 For ChatGPT subscribers, run OAuth login once:
 
@@ -174,8 +178,9 @@ deal-intel login-chatgpt
 
 Then restart Claude Desktop.
 
-You're done when the MCP tool list loads. The current server exposes 24 tools;
-`src/deal_intel/mcp_server.py` and `docs/baseline.md` are the source of truth.
+You're done when the MCP tool list loads. The server registers 24 internal
+tools, then exposes a profile-filtered surface; `src/deal_intel/mcp_server.py`
+and `docs/baseline.md` are the source of truth.
 
 ```
 config_doctor
@@ -873,9 +878,10 @@ Not for `sample`. You need MongoDB only when you want persistent real deal data
 or Atlas Charts against your own database.
 
 **Q. Do I need a paid MongoDB Atlas plan?**
-No for first-run sample mode. For real team data, the core features work on the
-free M0 plan today. `search_deals` computes with Python cosine on M0. As deal
-volume grows you can switch to Atlas Vector Search on M10+.
+No. The default `full` profile works on the free M0 plan today. `sample` does
+not need MongoDB at all, and `pro` is the paid-infra path. `search_deals`
+computes with Python cosine on M0. As deal volume grows you can switch to Atlas
+Vector Search on M10+.
 
 **Q. What does Pro add?**
 `pro` keeps the same MCP tools but switches semantic search to Atlas Vector

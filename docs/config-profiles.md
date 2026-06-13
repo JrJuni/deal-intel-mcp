@@ -314,7 +314,7 @@ Default mapping:
 Result:
 
 - `build_tool_surface_matrix()` returns a serializable surface matrix.
-- Targeted tests verify that all 24 registered MCP tools are classified.
+- Targeted tests verify that all 26 registered MCP tools are classified.
 - Targeted tests verify that `sample` includes safe local personal write/admin
   tools while excluding LLM-heavy, semantic-search, legacy Mongo aggregation,
   and Mongo demo-database maintenance tools.

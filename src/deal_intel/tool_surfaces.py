@@ -12,6 +12,7 @@ ToolCategory = Literal[
     "core_write",
     "admin",
     "local_artifact",
+    "user_memory",
     "llm_agent",
     "semantic_search",
     "demo_seed",
@@ -222,6 +223,28 @@ MCP_TOOL_SURFACE_CONTRACTS: tuple[MCPToolSurfaceContract, ...] = (
         llm_calls=False,
         local_file_writes=True,
         notes="Writes local CSV/Markdown artifacts, not database records.",
+    ),
+    MCPToolSurfaceContract(
+        name="get_user_memory",
+        category="user_memory",
+        surfaces=_SAMPLE,
+        user_facing=True,
+        db_writes=False,
+        llm_calls=False,
+        notes="Reads constrained user memory Markdown files for context loading.",
+    ),
+    MCPToolSurfaceContract(
+        name="record_user_memory",
+        category="user_memory",
+        surfaces=_SAMPLE,
+        user_facing=True,
+        db_writes=False,
+        llm_calls=False,
+        local_file_writes=True,
+        notes=(
+            "Appends durable user feedback to safe user memory Markdown files; "
+            "rejects secret-shaped content."
+        ),
     ),
     MCPToolSurfaceContract(
         name="get_customer_themes",

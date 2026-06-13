@@ -701,6 +701,65 @@ def export_report(
 
 
 @app.tool()
+def get_user_memory(
+    category: str = "",
+    custom_doc_slug: str = "",
+    limit: int = 5,
+) -> dict:
+    """Read user-memory Markdown docs for assistant context loading.
+
+    This reads constrained files from user_docs/ or the configured
+    user_memory.dir. It performs no DB reads, no DB writes, and no LLM calls.
+    """
+    try:
+        from deal_intel import _context
+        from deal_intel.tools import get_user_memory as _t
+
+        return _t.handle(
+            cfg=_context.config(),
+            category=category,
+            custom_doc_slug=custom_doc_slug,
+            limit=limit,
+        )
+    except Exception as exc:
+        return envelope_from_exception(exc, stage=Stage.PREFLIGHT)
+
+
+@app.tool()
+def record_user_memory(
+    content: str,
+    category: str = "general",
+    custom_doc_slug: str = "",
+    title: str = "",
+    source: str = "",
+    importance: str = "normal",
+    tags: str = "",
+) -> dict:
+    """Append durable user feedback to a safe user-memory Markdown document.
+
+    Use only when the user explicitly asks to remember, record, store, or
+    update durable operating feedback. This rejects secret-shaped content and
+    never writes outside user_docs/ or the configured user_memory.dir.
+    """
+    try:
+        from deal_intel import _context
+        from deal_intel.tools import record_user_memory as _t
+
+        return _t.handle(
+            cfg=_context.config(),
+            content=content,
+            category=category,
+            custom_doc_slug=custom_doc_slug,
+            title=title,
+            source=source,
+            importance=importance,
+            tags=tags,
+        )
+    except Exception as exc:
+        return envelope_from_exception(exc, stage=Stage.PREFLIGHT)
+
+
+@app.tool()
 def get_customer_themes(
     dimension: str = "all",
     stage: str = "active",

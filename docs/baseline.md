@@ -57,13 +57,13 @@ available.
 
 ### MCP Tool Contracts
 
-The Python server keeps all 24 handler functions available internally, but MCP
+The Python server keeps all 26 handler functions available internally, but MCP
 clients see a config-filtered tool surface:
 
 - `tools.surface: auto` resolves from the effective profile.
-- `sample` exposes 17 tools for bundled/local personal sample mode.
-- `standard` exposes 21 tools for normal MongoDB-backed operation.
-- `developer` exposes all 24 tools, including demo database seed/cleanup.
+- `sample` exposes 19 tools for bundled/local personal sample mode.
+- `standard` exposes 23 tools for normal MongoDB-backed operation.
+- `developer` exposes all 26 tools, including demo database seed/cleanup.
 - Invalid `tools.surface` config exposes only `config_doctor` so setup can be
   diagnosed.
 
@@ -87,6 +87,8 @@ clients see a config-filtered tool surface:
 | `get_deal_gaps` | None | `as_of`, `stage`, `industry`, `deal_id`, `min_priority`, `limit` | `ok`, `as_of`, `timezone`, `generated_at`, `filters`, `summary`, `deals`, `warnings` | Read only; uses the restricted metric projection, prioritizes sales follow-up gaps, annotates gaps with `actionability`/`cta_policy`, exposes `actionable_gaps` and `gap_observations`, and excludes raw notes, raw interaction content, contacts, and embeddings |
 | `get_deal_review` | `deal_id` | `as_of` | `ok`, `as_of`, `timezone`, `generated_at`, `review` | Read only; uses the restricted metric projection, separates health quality from evidence coverage, returns v2 `assessment`, `actionable_gaps`, and `gap_observations`, suppresses uncalibrated win probability numbers, and excludes raw notes, raw interaction content, contacts, and embeddings |
 | `export_report` | None | `report_type`, `output_dir`, `stage`, `industry`, `as_of`, `lookback_days` | `ok`, `report_type`, `as_of`, `timezone`, `generated_at`, `filters`, `row_count`, `warnings`, `metrics`, `output_dir`, `artifacts`, `csv_path`, `markdown_path` | Reads through the report-specific restricted projection and writes local CSV/Markdown report artifacts |
+| `get_user_memory` | None | `category`, `custom_doc_slug`, `limit` | `ok`, `memory_dir`, `filters`, `documents`, `summary`, `warnings` | Read only; reads safe Markdown files from `user_docs/` or configured `user_memory.dir` for assistant context loading. Excludes sample templates from broad reads |
+| `record_user_memory` | `content` | `category`, `custom_doc_slug`, `title`, `source`, `importance`, `tags` | `ok`, `entry_id`, `memory_dir`, `path`, `category`, `document`, `is_custom_document`, `bytes_written`, `secret_scan` | Appends durable user feedback to safe Markdown files under `user_docs/` or configured `user_memory.dir`; rejects unsafe paths, non-Markdown custom slugs, and secret-shaped content before writing |
 | `get_insights` | `query_type` | `as_of` | `ok`, `query_type`, `as_of`, `timezone`, `generated_at`, query-specific aggregate fields | Read only over the current collection snapshot |
 | `get_customer_themes` | None | `dimension`, `stage`, `industry`, `top_k` | `ok`, `filters`, `coverage`, `themes` | Read-only MongoDB counts and aggregation. The `industry` filter matches primary `industry` or `industry_tags` |
 | `get_customer_theme_breakdown` | None | `dimension`, `stage`, `industry`, `group_by`, `top_k` | `ok`, `filters`, `summary`, `groups`, `warnings` | Read only; compares curated customer themes by stage, primary industry, industry tag, or dimension using the restricted metric projection. The `industry` filter matches primary `industry` or `industry_tags` |
@@ -292,8 +294,8 @@ Before Milestone 1 started, all 28 findings were resolved. The current gate is:
 pytest -> 128 passed
 ruff check . -> All checks passed
 wheel build -> passed
-FastMCP runtime surface exposure -> sample 17 tools, standard 21 tools,
-developer 24 tools
+FastMCP runtime surface exposure -> sample 19 tools, standard 23 tools,
+developer 26 tools
 MongoDB Atlas read smoke -> passed
 ```
 

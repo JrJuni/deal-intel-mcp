@@ -37,6 +37,8 @@
     {"name": "get_deal_gaps", "description": "Return prioritized read-only sales follow-up gaps for deals."},
     {"name": "get_deal_review", "description": "Return evidence-aware deal review output for one deal without raw notes, contacts, or embeddings."},
     {"name": "export_report", "description": "Export weekly_pipeline or pipeline_trend CSV and Markdown reports."},
+    {"name": "get_user_memory", "description": "Read constrained user-memory Markdown files for assistant context loading."},
+    {"name": "record_user_memory", "description": "Append durable user feedback to safe user-memory Markdown files after secret/path checks."},
     {"name": "get_customer_themes", "description": "Rank recurring customer concerns by unique deal count, with coverage and evidence samples."},
     {"name": "get_customer_theme_breakdown", "description": "Compare customer themes by stage, industry, or dimension."},
     {"name": "get_customer_theme_evidence", "description": "Return theme evidence snippets with privacy-safe projections."},

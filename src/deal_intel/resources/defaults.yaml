@@ -18,6 +18,9 @@ storage:
 tools:
   surface: auto                   # auto | sample | standard | developer
 
+user_memory:
+  dir: user_docs                  # Relative paths resolve from the current workspace.
+
 reporting:
   timezone: Asia/Seoul
   output_dir: outputs/reports

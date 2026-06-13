@@ -51,14 +51,8 @@ Windows.
 
 ```powershell
 & "$HOME\miniconda3\envs\event-intel\python.exe" -m pip install -e ".[dev,embedding]"
-& "$HOME\miniconda3\envs\event-intel\python.exe" -m pytest -q --basetemp=.tmp\pytest-full
 & "$HOME\miniconda3\envs\event-intel\python.exe" -m ruff check .
 ```
-
-On Windows, always keep pytest temporary files inside the workspace with
-`--basetemp=.tmp\pytest-*`. The default `%TEMP%` location can be unreadable in
-sandboxed Codex/Claude sessions and can produce fixture setup failures that are
-not real test failures.
 
 Useful CLI checks:
 
@@ -85,8 +79,8 @@ Juni's preferred loop:
    verification criteria, and sensemaker summary before implementation.
 3. For small low-decision tasks, move directly into implement -> verify.
 4. Turn suspected edge cases into targeted tests first.
-5. Verify with targeted tests, relevant regressions, full pytest, Ruff, and any
-   required smoke test.
+5. Verify with targeted tests, relevant regressions, Ruff, and any required
+   smoke test.
 6. Record unverified risk in `docs/status.md` or `docs/backlog.md`.
 7. Update docs and commit only the intended scope. Push when requested.
 
@@ -94,7 +88,7 @@ Juni's preferred loop:
 
 Source of truth: `src/deal_intel/mcp_server.py`.
 
-Current tool count: 24.
+Current tool count: 26.
 
 - Config/readiness: `config_doctor`
 - Write/lifecycle: `create_deal`, `add_interaction`, `update_stage`,
@@ -106,6 +100,7 @@ Current tool count: 24.
 - Read/review: `get_deal`, `list_deals`, `get_deal_gaps`,
   `get_deal_review`
 - BI/reporting: `get_insights`, `get_metrics`, `export_report`
+- User memory: `get_user_memory`, `record_user_memory`
 - Customer themes: `get_customer_themes`, `get_customer_theme_breakdown`,
   `get_customer_theme_evidence`
 - Search/analysis: `search_deals`, `analyze_deal`

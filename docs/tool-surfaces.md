@@ -14,7 +14,8 @@ The source contract lives in `src/deal_intel/tool_surfaces.py`.
 
 - `sample`: a zero-config, bundled, limited feature-test surface with safe
   local personal write/admin tools and optional LLM-backed note intake for
-  user-created local deals.
+  user-created local deals. User-memory tools are included because they only
+  read/write constrained local Markdown files.
 - `standard`: the normal operator surface for real team data.
 - `developer`: everything, including demo seeding and internal QA helpers.
 
@@ -52,6 +53,8 @@ without MongoDB today. It is not the full operating surface:
 - `get_deal_gaps`
 - `get_deal_review`
 - `export_report`
+- `get_user_memory`
+- `record_user_memory`
 - `get_customer_theme_breakdown`
 - `get_customer_theme_evidence`
 
@@ -71,6 +74,9 @@ Why this matters:
 - `migrate_local_data` is visible in `sample` so a user can graduate local
   personal deals to MongoDB after connecting a URI. It is dry-run-first and
   never migrates bundled fixture records.
+- `get_user_memory` and `record_user_memory` support user-owned operating
+  notes under `user_docs/` or configured `user_memory.dir`; writes are
+  constrained to safe Markdown slugs and reject secret-shaped content.
 - `search_deals` currently needs Mongo-backed embeddings or Atlas Vector Search.
 - `analyze_deal` calls an LLM and may persist strategy output.
 - `create_sample_data` and `delete_sample_data` manage an Atlas demo database,
@@ -129,9 +135,9 @@ Behavior:
 
 Current exposed counts:
 
-- `sample`: 17 tools
-- `standard`: 21 tools
-- `developer`: 24 tools
+- `sample`: 19 tools
+- `standard`: 23 tools
+- `developer`: 26 tools
 
 Implementation notes:
 

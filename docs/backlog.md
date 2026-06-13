@@ -83,6 +83,60 @@ MongoDB feature placement rule:
   test and, when practical, a Free-cluster smoke note. If the feature creates
   paid-infra or cost risk, keep it in `pro`.
 
+### User Memory MCP Tools
+
+Goal: let non-developer users teach the assistant their sales motion, reporting
+preferences, taxonomy corrections, metric-tuning feedback, and evidence policy
+without manually editing files.
+
+Design stance:
+
+- `user_docs/` is the repo-local user memory area.
+- User-created documents are allowed, including documents the user explicitly
+  asks an AI assistant to create.
+- The MCP surface should be a narrow user-memory API, not a
+  general-purpose file editor.
+- Built-in categories are useful defaults, but custom Markdown documents should
+  be allowed through safe slugs so teams can create notes such as
+  `pricing-objections.md` or `public-sector-sales-notes.md`.
+
+Implemented tools:
+
+- `record_user_memory`
+  - Append durable feedback to a built-in category file or a user-requested
+    custom Markdown document.
+  - Use only when the user explicitly says to remember, record, store, or update
+    a durable preference.
+- `get_user_memory`
+  - Read relevant memory documents so the AI assistant can adapt responses,
+    reports, taxonomy suggestions, and metric-tuning proposals.
+
+Safety rules:
+
+- Restrict writes to `user_docs/` or a configured user-memory directory.
+- Allow only safe Markdown file slugs directly under that directory.
+- Reject path traversal, absolute paths, hidden files, executable extensions,
+  and nested paths unless a later policy explicitly allows them.
+- Append by default; full-document rewrites require an explicit cleanup or
+  consolidation request.
+- Never store API keys, OAuth tokens, MongoDB URIs, private keys, session
+  cookies, or other credential-like strings. Mask low-risk accidental snippets
+  when possible and reject high-risk secret-shaped values.
+
+Implemented:
+
+- Shared `user_memory` module with path resolution, slug validation,
+  category/custom-document routing, and secret scanning.
+- MCP `get_user_memory` read tool.
+- MCP `record_user_memory` append tool.
+- Docs, MCPB manifest, and MCP tool-surface updates.
+
+Deferred:
+
+- Optional CLI helpers only if packaging or smoke tests need them.
+- Future cleanup/consolidation tools for rewriting user-memory documents after
+  explicit user request.
+
 ### Currency Abstraction - Implemented 2026-06-12
 
 Goal: remove currency-specific field names from the core schema so the product

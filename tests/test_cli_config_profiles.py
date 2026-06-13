@@ -75,10 +75,10 @@ def test_config_show_cli_summarizes_effective_config_without_secrets(
         "~/.deal-intel/local-data"
     )
     assert payload["effective_config"]["tools"] == {
-        "surface": "auto",
-        "resolved_surface": "sample",
-        "mcp_tool_count": 17,
-    }
+            "surface": "auto",
+            "resolved_surface": "sample",
+            "mcp_tool_count": 19,
+        }
     assert payload["effective_config"]["llm"]["provider"] == "openai_api"
     assert payload["environment"]["MONGODB_URI"]["configured"] is True
     assert payload["environment"]["OPENAI_API_KEY"]["configured"] is True

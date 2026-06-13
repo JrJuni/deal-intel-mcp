@@ -10,6 +10,33 @@ Read the newest section first. Older sections are retained as an archive for
 traceability and should be searched by topic, milestone, or file path rather
 than loaded wholesale.
 
+## Latest Update - 2026-06-14
+
+### User memory MCP tools
+
+Implemented:
+
+- Clarified that user-created `user_docs` files can also be created by an AI
+  assistant when the user explicitly asks for a new memory document.
+- Added the MCP user-memory policy:
+  - use narrow memory tools instead of a general-purpose file editor,
+  - allow built-in categories and safe custom Markdown document slugs,
+  - restrict writes to `user_docs/` or a configured user-memory directory,
+  - append by default,
+  - reject unsafe paths and executable/non-Markdown targets,
+  - mask or reject secret-shaped values before writing.
+- Added shared `user_memory` path/slug/secret-scan logic.
+- Added MCP `get_user_memory` for read-only assistant context loading.
+- Added MCP `record_user_memory` for append-only durable feedback capture.
+- Exposed both tools in sample, standard, and developer surfaces.
+- Updated the MCPB manifest and tool-surface contracts. Current counts:
+  `sample=19`, `standard=23`, `developer=26`.
+
+Validation:
+
+- Targeted regression:
+  `41 passed, 1 warning` with `--basetemp .tmp-pytest`.
+
 ## Latest Update - 2026-06-13
 
 ### User memory samples

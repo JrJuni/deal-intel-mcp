@@ -30,7 +30,7 @@ def test_tool_surface_contract_covers_registered_mcp_tools(monkeypatch) -> None:
     contracted = {contract.name for contract in list_tool_surface_contracts()}
 
     assert registered == contracted
-    assert len(contracted) == 24
+    assert len(contracted) == 26
 
 
 def test_tool_surface_matrix_is_stable_and_serializable() -> None:
@@ -68,6 +68,8 @@ def test_sample_surface_is_zero_config_safe_local_personal() -> None:
         "get_deal_gaps",
         "get_deal_review",
         "export_report",
+        "get_user_memory",
+        "record_user_memory",
         "get_customer_theme_breakdown",
         "get_customer_theme_evidence",
     }

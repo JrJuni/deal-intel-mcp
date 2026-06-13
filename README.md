@@ -77,9 +77,9 @@ You can still override `llm.openai_api_model` or switch `llm.provider` to
 
 MCP tools are profile-filtered by default:
 
-- `sample`: 17 zero-config/local personal tools
-- `standard`: 21 normal real-data tools
-- `developer`: all 24 tools, including demo seed/cleanup helpers
+- `sample`: 19 zero-config/local personal tools
+- `standard`: 23 normal real-data tools
+- `developer`: all 26 tools, including demo seed/cleanup helpers
 
 Use `tools.surface: developer` or `DEAL_INTEL_TOOLS_SURFACE=developer` only
 when you intentionally want the full maintainer/debug surface.
@@ -178,7 +178,7 @@ deal-intel login-chatgpt
 
 Then restart Claude Desktop.
 
-You're done when the MCP tool list loads. The server registers 24 internal
+You're done when the MCP tool list loads. The server registers 26 internal
 tools, then exposes a profile-filtered surface; `src/deal_intel/mcp_server.py`
 and `docs/baseline.md` are the source of truth.
 
@@ -188,8 +188,9 @@ create_deal / add_interaction / get_deal / update_stage / update_deal
 archive_deal / restore_deal / delete_deal / migrate_local_data
 create_sample_data / delete_sample_data
 list_deals / get_insights / get_metrics / get_deal_gaps / get_deal_review
-export_report / get_customer_themes / get_customer_theme_breakdown
-get_customer_theme_evidence / search_deals / analyze_deal
+export_report / get_user_memory / record_user_memory
+get_customer_themes / get_customer_theme_breakdown / get_customer_theme_evidence
+search_deals / analyze_deal
 developer-only deprecated alias: add_meeting
 ```
 
@@ -763,7 +764,7 @@ Customer Themes dashboard setup, including the optional
 Current source of truth:
 
 - MCP server: `src/deal_intel/mcp_server.py`
-- Current tool count: 24
+- Current tool count: 26
 - Detailed contract: [`docs/baseline.md`](docs/baseline.md)
 - Documentation map: [`docs/README.md`](docs/README.md)
 - User memory samples: [`user_docs/README.md`](user_docs/README.md)
@@ -772,7 +773,7 @@ Current source of truth:
 [Claude Desktop / Codex - natural-language input]
          | stdio JSON-RPC
          v
-[deal-intel-mcp  FastMCP server  24 tools]
+[deal-intel-mcp  FastMCP server  26 tools]
          |
          |-- LLM Provider
          |     |-- ChatGPT OAuth (default, Plus/Pro subscription)
@@ -870,6 +871,9 @@ src/deal_intel/
     get_metrics.py      pipeline_health KPIs / stage aggregation / warnings
     get_deal_gaps.py    read-only prioritized sales follow-up gaps
     export_report.py    weekly_pipeline CSV/Markdown export
+    get_user_memory.py  constrained user-memory read context
+    record_user_memory.py
+                        constrained user-memory append tool
     get_insights.py     7 BI queries plus legacy insight query
     get_customer_themes.py
                         aggregates customer concerns by unique deal count

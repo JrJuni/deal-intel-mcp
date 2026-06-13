@@ -43,16 +43,12 @@ Fix made during sweep:
   `13 passed`.
 - Deal review audit smoke now passes with no quality rule failures.
 
-Remaining live Mongo warnings:
+Live Mongo warning closure:
 
-- `mongo doctor` reports schema validator mismatches for `deals` and
-  `analytics_snapshots`.
-- Dry-run `mongo apply-schema --collection deals --json` and
-  `mongo apply-schema --collection analytics_snapshots --json` both returned
-  valid `collMod` commands with `validationAction=warn` and
-  `validationLevel=moderate`.
-- Applying those validators is a live Atlas schema write and should be done
-  only after explicit operator approval.
+- Applied the `deals` and `analytics_snapshots` schema validators to live Atlas
+  after dry-run review.
+- Follow-up `mongo doctor --json` returned `ok=true`, `failed_checks=0`,
+  `warning_checks=0`, `skipped_checks=0`, and no `next_actions`.
 
 ### First-run documentation alignment
 

@@ -334,6 +334,20 @@ Backlog items:
   probability contract exists.
 - Use smoke packs to compare natural-language deal reviews across multiple
   companies.
+- Add a dedicated corner-case synthetic dataset for deal review quality:
+  - about 10 fictional accounts,
+  - each with 1-3 synthetic evidence items such as meeting notes, customer email
+    replies, user interviews, or internal notes,
+  - intentionally cover suspicious edge cases: high health but weak evidence,
+    low health with complete evidence, terminal won/lost postmortem gaps,
+    strategic-zero deals, unknown amount in early discovery, rough estimate in
+    negotiation, conflicting email vs meeting signals, internal-only optimism,
+    overdue but otherwise healthy deals, and judgment-sensitive competition or
+    champion gaps.
+  - Use this as a QA fixture for `get_deal_review`,
+    `smoke-deal-review-audit`, natural-language answer quality, and future
+    rendered report review. Keep it fictional and free of raw real customer
+    data.
 - Natural Smoke QA expanded to 12 deterministic questions covering pipeline
   health, specific deal review, riskiest deals, high-health uncertainty,
   closing gaps, postmortem gaps, decision criteria themes, evidence drill-down,

@@ -89,6 +89,7 @@ def lifecycle_summary(deal: dict) -> dict[str, Any]:
         "deal_id": deal.get("deal_id"),
         "company": deal.get("company"),
         "industry": deal.get("industry"),
+        "customer_segment": deal.get("customer_segment"),
         "deal_stage": deal.get("deal_stage"),
         "archived": deal.get("archived") is True,
         "archived_at": deal.get("archived_at"),

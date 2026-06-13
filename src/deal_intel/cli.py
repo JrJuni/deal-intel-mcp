@@ -2,6 +2,7 @@
 
 import json
 import os
+import sys
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
@@ -30,6 +31,19 @@ CONFIG_ENV_KEYS = (
     "DEAL_INTEL_STORAGE_BACKEND",
     "DEAL_INTEL_TOOLS_SURFACE",
 )
+
+
+def _configure_stdio_utf8() -> None:
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            try:
+                reconfigure(encoding="utf-8")
+            except (OSError, ValueError):
+                pass
+
+
+_configure_stdio_utf8()
 
 
 @app.command("login-chatgpt")
@@ -330,6 +344,189 @@ def storage_status(
         typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
     else:
         typer.echo(_format_storage_status(payload))
+
+    if not payload["ok"]:
+        raise typer.Exit(code=1)
+
+
+@app.command("audit-taxonomy")
+def audit_taxonomy(
+    include_all: bool = typer.Option(
+        False,
+        "--include-all",
+        help="Include clean rows as well as rows that need taxonomy cleanup.",
+    ),
+    limit: int = typer.Option(
+        50,
+        "--limit",
+        min=1,
+        max=500,
+        help="Maximum rows to return.",
+    ),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Print structured JSON instead of concise text.",
+    ),
+) -> None:
+    """Audit industry/customer_segment hygiene without writing to storage."""
+
+    from deal_intel import _context
+    from deal_intel.schema.taxonomy_audit import build_taxonomy_audit
+
+    deals = _context.mongo().list_deals_for_metrics()
+    payload = build_taxonomy_audit(
+        deals,
+        include_all=include_all,
+        limit=limit,
+    )
+    if json_output:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+    else:
+        typer.echo(_format_taxonomy_audit(payload))
+
+
+@app.command("apply-taxonomy-cleanup")
+def apply_taxonomy_cleanup(
+    limit: int = typer.Option(
+        50,
+        "--limit",
+        min=1,
+        max=500,
+        help="Maximum audit rows to consider.",
+    ),
+    min_confidence: str = typer.Option(
+        "high",
+        "--min-confidence",
+        help="Minimum confidence to include: high, medium, or low.",
+    ),
+    include_human_review: bool = typer.Option(
+        False,
+        "--include-human-review",
+        help=(
+            "Include rows that require human review. Intended for explicit, "
+            "deal-by-deal operator decisions."
+        ),
+    ),
+    apply: bool = typer.Option(
+        False,
+        "--apply",
+        help="Write updates. Without this flag, only print a dry-run plan.",
+    ),
+    confirmed_by_user: bool = typer.Option(
+        False,
+        "--confirmed-by-user",
+        help="Required with --apply to confirm the taxonomy cleanup should be written.",
+    ),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Print structured JSON instead of concise text.",
+    ),
+) -> None:
+    """Apply safe industry/customer_segment cleanup through update_deal."""
+
+    from deal_intel import _context
+    from deal_intel.schema.taxonomy_audit import build_taxonomy_audit
+    from deal_intel.tools import update_deal as _update_deal
+
+    confidence_order = {"high": 0, "medium": 1, "low": 2}
+    normalized_confidence = min_confidence.strip().lower()
+    if normalized_confidence not in confidence_order:
+        raise typer.BadParameter("min-confidence must be one of: high, medium, low")
+
+    if apply and not confirmed_by_user:
+        payload = {
+            "ok": False,
+            "dry_run": False,
+            "error_code": "CONFIRMATION_REQUIRED",
+            "message": (
+                "apply-taxonomy-cleanup requires --confirmed-by-user with --apply."
+            ),
+        }
+        if json_output:
+            typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+        else:
+            typer.echo(_format_taxonomy_cleanup_result(payload))
+        raise typer.Exit(code=1)
+
+    mongo = _context.mongo()
+    audit = build_taxonomy_audit(
+        mongo.list_deals_for_metrics(),
+        include_all=False,
+        limit=limit,
+    )
+    candidates, skipped = _taxonomy_cleanup_candidates(
+        audit.get("deals") or [],
+        min_confidence=normalized_confidence,
+        include_human_review=include_human_review,
+    )
+    results = []
+    errors = []
+    if apply:
+        for row in candidates:
+            payload = row.get("update_deal_payload") or {}
+            try:
+                result = _update_deal.handle(
+                    mongo=mongo,
+                    deal_id=payload["deal_id"],
+                    industry=payload.get("industry"),
+                    customer_segment=payload.get("customer_segment"),
+                    update_note=payload.get("update_note"),
+                    confirmed_by_user=True,
+                )
+                results.append(
+                    {
+                        "deal_id": result["deal_id"],
+                        "company": result["company"],
+                        "changed_fields": result["changed_metadata_fields"],
+                        "storage_written": result["storage_written"],
+                    }
+                )
+            except Exception as exc:  # pragma: no cover - defensive CLI envelope
+                errors.append(
+                    {
+                        "deal_id": row.get("deal_id"),
+                        "company": row.get("company"),
+                        "error": _redact_cli_error(exc),
+                    }
+                )
+
+    payload = {
+        "ok": not errors,
+        "dry_run": not apply,
+        "min_confidence": normalized_confidence,
+        "include_human_review": include_human_review,
+        "summary": {
+            "audited_count": audit["summary"]["deal_count"],
+            "issue_deal_count": audit["summary"]["issue_deal_count"],
+            "candidate_count": len(candidates),
+            "skipped_count": len(skipped),
+            "applied_count": len(results),
+            "error_count": len(errors),
+        },
+        "candidates": [
+            {
+                "deal_id": row.get("deal_id"),
+                "company": row.get("company"),
+                "current_industry": row.get("current_industry"),
+                "current_customer_segment": row.get("current_customer_segment"),
+                "suggested_industry": row.get("suggested_industry"),
+                "suggested_customer_segment": row.get("suggested_customer_segment"),
+                "confidence": row.get("confidence"),
+                "needs_human_review": row.get("needs_human_review"),
+                "review_explanation": row.get("review_explanation"),
+            }
+            for row in candidates
+        ],
+        "skipped": skipped,
+        "results": results,
+        "errors": errors,
+    }
+    if json_output:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+    else:
+        typer.echo(_format_taxonomy_cleanup_result(payload))
 
     if not payload["ok"]:
         raise typer.Exit(code=1)
@@ -1232,6 +1429,184 @@ def _format_storage_status(payload: dict) -> str:
                 "    backend: local_sample",
             ]
         )
+    return "\n".join(lines)
+
+
+def _format_taxonomy_audit(payload: dict) -> str:
+    summary = payload["summary"]
+    lines = [
+        "Taxonomy audit: read-only",
+        (
+            "Deals: "
+            f"{summary['deal_count']} scanned, "
+            f"{summary['issue_deal_count']} need review, "
+            f"{summary['returned_count']} shown"
+        ),
+    ]
+    if summary.get("issue_counts"):
+        issues = ", ".join(
+            f"{key}={value}" for key, value in summary["issue_counts"].items()
+        )
+        lines.append(f"Issues: {issues}")
+    if summary.get("needs_human_review_count"):
+        lines.append(
+            f"Human review required: {summary['needs_human_review_count']} rows"
+        )
+    warnings = payload.get("warnings") or []
+    for warning in warnings:
+        lines.append(f"Warning: {warning.get('code')} - {warning.get('message')}")
+
+    rows = payload.get("deals") or []
+    if not rows:
+        lines.append("")
+        lines.append("No taxonomy issues found.")
+        return "\n".join(lines)
+
+    lines.append("")
+    lines.append("Rows:")
+    for row in rows:
+        lines.append(
+            "- "
+            f"{row.get('company')} ({row.get('deal_id')}) "
+            f"[{row.get('confidence')}]"
+        )
+        lines.append(
+            "  current: "
+            f"industry={row.get('current_industry') or '-'}, "
+            f"segment={row.get('current_customer_segment') or '-'}"
+        )
+        lines.append(
+            "  suggested: "
+            f"industry={row.get('suggested_industry') or '-'}, "
+            f"segment={row.get('suggested_customer_segment') or '-'}"
+        )
+        lines.append(f"  issues: {', '.join(row.get('issues') or [])}")
+        if row.get("needs_human_review"):
+            explanation = row.get("review_explanation") or {}
+            lines.append("  review: confirm against full deal context before update_deal")
+            if explanation.get("why_human_review"):
+                lines.append(f"  why: {explanation['why_human_review']}")
+            checks = explanation.get("what_to_check") or []
+            if checks:
+                lines.append(f"  check: {' / '.join(str(item) for item in checks)}")
+    return "\n".join(lines)
+
+
+def _taxonomy_cleanup_candidates(
+    rows: list[dict],
+    *,
+    min_confidence: str,
+    include_human_review: bool,
+) -> tuple[list[dict], list[dict]]:
+    confidence_rank = {"high": 0, "medium": 1, "low": 2}
+    max_rank = confidence_rank[min_confidence]
+    candidates = []
+    skipped = []
+    for row in rows:
+        confidence = str(row.get("confidence") or "low")
+        rank = confidence_rank.get(confidence, 99)
+        reason = None
+        if rank > max_rank:
+            reason = f"confidence_below_{min_confidence}"
+        elif row.get("needs_human_review") and not include_human_review:
+            reason = "human_review_required"
+        elif not row.get("update_deal_payload"):
+            reason = "no_update_payload"
+        if reason is None:
+            candidates.append(row)
+        else:
+            skipped.append(
+                {
+                    "deal_id": row.get("deal_id"),
+                    "company": row.get("company"),
+                    "confidence": confidence,
+                    "reason": reason,
+                    "review_explanation": row.get("review_explanation"),
+                }
+            )
+    return candidates, skipped
+
+
+def _format_taxonomy_cleanup_result(payload: dict) -> str:
+    if not payload.get("ok") and payload.get("error_code"):
+        return (
+            "Taxonomy cleanup: not applied\n"
+            f"Error: {payload.get('error_code')} - {payload.get('message')}"
+        )
+
+    summary = payload["summary"]
+    mode = "dry-run" if payload.get("dry_run") else "apply"
+    lines = [
+        f"Taxonomy cleanup: {mode}",
+        (
+            "Deals: "
+            f"{summary['audited_count']} audited, "
+            f"{summary['issue_deal_count']} issue rows, "
+            f"{summary['candidate_count']} candidate(s), "
+            f"{summary['skipped_count']} skipped"
+        ),
+    ]
+    if payload.get("dry_run"):
+        lines.append(
+            "No storage writes were made. Re-run with --apply --confirmed-by-user "
+            "to write the candidate rows."
+        )
+    else:
+        lines.append(
+            f"Applied: {summary['applied_count']} row(s), "
+            f"errors: {summary['error_count']}"
+        )
+
+    candidates = payload.get("candidates") or []
+    if candidates:
+        lines.append("")
+        lines.append("Candidates:")
+        for row in candidates:
+            lines.append(
+                "- "
+                f"{row.get('company')} ({row.get('deal_id')}) "
+                f"[{row.get('confidence')}]"
+            )
+            lines.append(
+                "  current: "
+                f"industry={row.get('current_industry') or '-'}, "
+                f"segment={row.get('current_customer_segment') or '-'}"
+            )
+            lines.append(
+                "  update: "
+                f"industry={row.get('suggested_industry') or '-'}, "
+                f"segment={row.get('suggested_customer_segment') or '-'}"
+            )
+            explanation = row.get("review_explanation") or {}
+            if explanation.get("reason"):
+                lines.append(f"  why safe: {explanation['reason']}")
+
+    skipped = payload.get("skipped") or []
+    if skipped:
+        lines.append("")
+        lines.append("Skipped:")
+        for row in skipped[:10]:
+            lines.append(
+                "- "
+                f"{row.get('company')} ({row.get('deal_id')}) "
+                f"[{row.get('confidence')}] {row.get('reason')}"
+            )
+            explanation = row.get("review_explanation") or {}
+            why = explanation.get("why_human_review") or explanation.get("reason")
+            if why:
+                lines.append(f"  why: {why}")
+        if len(skipped) > 10:
+            lines.append(f"... +{len(skipped) - 10} more skipped row(s)")
+
+    errors = payload.get("errors") or []
+    if errors:
+        lines.append("")
+        lines.append("Errors:")
+        for error in errors:
+            lines.append(
+                f"- {error.get('company')} ({error.get('deal_id')}): "
+                f"{error.get('error')}"
+            )
     return "\n".join(lines)
 
 

@@ -67,6 +67,8 @@ def test_deals_schema_command_is_warn_moderate_and_permissive() -> None:
     assert command["validationLevel"] == "moderate"
     assert summary["required_fields"] == ["deal_id", "company", "deal_stage"]
     assert command["validator"]["$jsonSchema"]["additionalProperties"] is True
+    properties = command["validator"]["$jsonSchema"]["properties"]
+    assert properties["customer_segment"]["bsonType"] == ["string", "null"]
 
 
 def test_managed_schema_commands_are_warn_moderate_and_permissive() -> None:
@@ -83,6 +85,9 @@ def test_managed_schema_commands_are_warn_moderate_and_permissive() -> None:
         assert summary["collection"] == collection
         assert summary["required_fields"]
         assert command["validator"]["$jsonSchema"]["additionalProperties"] is True
+        if collection == "analytics_snapshots":
+            properties = command["validator"]["$jsonSchema"]["properties"]
+            assert properties["customer_segment"]["bsonType"] == ["string", "null"]
 
 
 class FakeSchemaDB:

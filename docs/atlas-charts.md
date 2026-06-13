@@ -158,7 +158,7 @@ Charts do not automatically update from repository JSON files.
 | `pipeline_kpis` | Pipeline KPIs | Table | `deal_count`, `active_deal_count`, `open_deal_count`, `active_pipeline_value_amount`, `open_pipeline_value_amount`, `avg_health_pct`, `health_coverage_pct`, `stuck_deal_count`, `overdue_deal_count`, `attention_deal_count` |
 | `stage_breakdown` | Stage Breakdown | Bar or Table | `stage`, `count`, `pipeline_value_amount`, `avg_health_pct`, `health_coverage_pct`, `stuck_count`, `overdue_count` |
 | `health_bands` | Health Bands | Donut | `health_band`, `count` |
-| `attention_deals` | Stuck / Overdue / At Risk Deals | Table | `company`, `industry`, `deal_stage`, `deal_size_amount`, `deal_size_currency`, `expected_close_date`, `days_in_stage`, `is_stuck`, `is_overdue`, `health_pct`, `health_band`, `attention_reasons` |
+| `attention_deals` | Stuck / Overdue / At Risk Deals | Table | `company`, `industry`, `customer_segment`, `deal_stage`, `deal_size_amount`, `deal_size_currency`, `expected_close_date`, `days_in_stage`, `is_stuck`, `is_overdue`, `health_pct`, `health_band`, `attention_reasons` |
 | `meddpicc_gap_distribution` | MEDDPICC Gap Distribution | Bar | `gap`, `count` |
 
 The v1 Atlas dashboard is intended for a single reporting currency per
@@ -180,7 +180,7 @@ when operating with more than one currency.
 | `theme_overview` | Top Customer Themes | Bar or Table | `theme_key`, `label`, `deal_count`, `avg_importance` |
 | `decision_criteria_by_stage` | Decision Criteria By Stage | Grouped Bar or Table | `stage`, `theme_key`, `label`, `count`, `avg_importance` |
 | `pain_by_industry` | Pain By Industry | Grouped Bar or Table | `industry`, `theme_key`, `label`, `count`, `avg_importance` |
-| `theme_evidence_drilldown` | Theme Evidence Drill-down | Table | `company`, `industry`, `deal_stage`, `theme_key`, `label`, `dimension`, `importance`, `evidence`, `interaction_type`, `source_confidence`, `source_label`, `subject`, `interaction_date` |
+| `theme_evidence_drilldown` | Theme Evidence Drill-down | Table | `company`, `industry`, `customer_segment`, `deal_stage`, `theme_key`, `label`, `dimension`, `importance`, `evidence`, `interaction_type`, `source_confidence`, `source_label`, `subject`, `interaction_date` |
 
 Suggested customer themes layout:
 

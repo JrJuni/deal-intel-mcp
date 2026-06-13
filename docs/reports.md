@@ -46,6 +46,7 @@ Terminal deals, `won` and `lost`, are excluded from weekly pipeline rows.
 - `deal_id`
 - `company`
 - `industry`
+- `customer_segment`
 - `deal_stage`
 - `deal_size_amount`
 - `deal_size_currency`

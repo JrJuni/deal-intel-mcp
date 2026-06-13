@@ -51,8 +51,11 @@ pipeline:
   # Used only when the user does not provide an expected close date.
   expected_close:
     default_days: 7
-    # Exact industry string match, case-insensitive.
-    # Example: public_sector: 60, enterprise: 28
+    # Exact customer_segment string match, case-insensitive. Checked before
+    # industry overrides. Example: public_sector: 60, enterprise: 28
+    days_by_segment: {}
+    # Exact industry string match, case-insensitive. Use only true verticals.
+    # Example: Government: 60, Manufacturing: 28
     days_by_industry: {}
   stuck_threshold_days: 14
   stuck_threshold_days_by_stage:

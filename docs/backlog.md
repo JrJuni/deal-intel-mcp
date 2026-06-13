@@ -130,6 +130,38 @@ Follow-up:
   dashboard. Python metrics and reports already detect mixed currencies and
   expose per-currency breakdowns.
 
+### Industry And Customer Segment Taxonomy Cleanup
+
+Status: field support, read-only audit, and confirmed cleanup CLI are
+implemented; existing live data cleanup is still an operator action because
+medium-confidence rows require judgment.
+
+Goal: keep `industry` useful for real vertical analysis while still preserving
+account-stage and account-segment labels that matter for BD strategy.
+
+Rules:
+
+- `industry` should be a true business vertical, such as Finance, Retail,
+  Healthcare, Logistics, Manufacturing, Education, Government, Insurance,
+  Gaming, or Energy.
+- `customer_segment` should hold maturity, ownership, market segment, or
+  funding-stage labels such as startup, enterprise, mid_market,
+  public_sector, Series B, or Pre-IPO.
+- Expected-close defaults should prefer `days_by_segment`, then
+  `days_by_industry`, then `default_days`.
+
+Deferred work:
+
+- Run `deal-intel apply-taxonomy-cleanup` against live Atlas and inspect the
+  dry-run plan.
+- Apply only high-confidence rows with
+  `deal-intel apply-taxonomy-cleanup --apply --confirmed-by-user`.
+- Review medium-confidence rows manually. These rows include sensemaking
+  explanations because choosing between two plausible industries can change
+  charts, reporting groups, and future search behavior.
+- Add optional `customer_segment` filters/grouping to Customer Themes and Atlas
+  Charts after the existing dashboard is stable.
+
 ### Qualification Framework Abstraction v2.0
 
 Goal: eventually allow teams to replace or extend the default MEDDPICC

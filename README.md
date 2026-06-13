@@ -271,7 +271,8 @@ Create a new deal for Hyundai Precision. Manufacturing industry, deal size 200M 
 | Parameter | Required | Description |
 |---|---|---|
 | `company` | required | Customer company name |
-| `industry` | optional | Industry (e.g., "Manufacturing", "IT SaaS") |
+| `industry` | optional | True business vertical (e.g., "Manufacturing", "Finance", "Retail") |
+| `customer_segment` | optional | Customer segment or maturity label (e.g., "startup", "enterprise", "public_sector", "Series B", "Pre-IPO") |
 | `deal_size_amount` | optional | Median expected contract size in `deal_size_currency` units (e.g., 200000000) |
 | `deal_size_currency` | optional | ISO-style 3-letter currency code. Defaults to `deal_value.default_currency` (`KRW` by default) |
 | `deal_size_status` | required when an amount is given | Amount status: `unknown`, `rough_estimate`, `customer_budget`, `quoted`, `strategic_zero` |
@@ -285,6 +286,8 @@ Create a new deal for Hyundai Precision. Manufacturing industry, deal size 200M 
   "ok": true,
   "deal_id": "a3f9...",
   "company": "Hyundai Precision",
+  "industry": "Manufacturing",
+  "customer_segment": "enterprise",
   "deal_size_amount": 200000000,
   "deal_size_currency": "KRW",
   "deal_size_status": "rough_estimate",
@@ -306,15 +309,33 @@ deal_value:
 pipeline:
   expected_close:
     default_days: 7
-    days_by_industry:
+    days_by_segment:
       public_sector: 60
       enterprise: 28
+    days_by_industry:
+      Government: 60
+      Manufacturing: 28
 
 reporting:
   timezone: Asia/Seoul
 ```
 
-Industry overrides apply on a case-insensitive exact match against the free-form `industry` value. Auto-dates use the business date in the reporting timezone, while stored audit timestamps stay in UTC.
+Keep `industry` as the actual business vertical. Put account maturity, ownership, buying segment, or funding stage in `customer_segment` instead. Segment overrides apply first; industry overrides apply second, both on a case-insensitive exact match. Auto-dates use the business date in the reporting timezone, while stored audit timestamps stay in UTC.
+
+For existing data, use the taxonomy cleanup CLIs:
+
+```bash
+deal-intel audit-taxonomy
+deal-intel apply-taxonomy-cleanup
+deal-intel apply-taxonomy-cleanup --apply --confirmed-by-user
+```
+
+`audit-taxonomy` is read-only. `apply-taxonomy-cleanup` is dry-run by default
+and only writes high-confidence splits unless you explicitly include rows that
+need human review. Human-review rows explain why the system stopped: for
+example, `Insurance / Finance` changes industry charts depending on which label
+you choose as the primary vertical, so the tool should surface the ambiguity
+instead of silently guessing.
 
 ---
 

@@ -52,9 +52,14 @@ Windows.
 
 ```powershell
 & "$HOME\miniconda3\envs\event-intel\python.exe" -m pip install -e ".[dev,embedding]"
-& "$HOME\miniconda3\envs\event-intel\python.exe" -m pytest
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m pytest -q --basetemp=.tmp\pytest-full
 & "$HOME\miniconda3\envs\event-intel\python.exe" -m ruff check .
 ```
+
+On Windows, always keep pytest temporary files inside the workspace with
+`--basetemp=.tmp\pytest-*`. The default `%TEMP%` location can be unreadable in
+sandboxed Codex/Claude sessions and can produce fixture setup failures that are
+not real test failures.
 
 Useful CLI checks:
 

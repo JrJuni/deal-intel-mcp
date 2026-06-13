@@ -14,6 +14,7 @@ _PROMPT = """\
 Analyze this deal's MEDDPICC qualification status and provide a concrete BD strategy.
 
 Deal: {company} | Stage: {stage} | Interactions: {interaction_count}
+Industry: {industry} | Customer segment: {customer_segment}
 {size_line}
 MEDDPICC scores (avg across scoring-eligible interactions, 0=no data / 5=confirmed):
 {meddpicc_summary}
@@ -76,6 +77,8 @@ def handle(mongo: MongoDBClient, llm: LLMProvider, *, deal_id: str) -> dict:
     prompt = _PROMPT.format(
         company=deal["company"],
         stage=deal.get("deal_stage", "unknown"),
+        industry=deal.get("industry") or "unknown",
+        customer_segment=deal.get("customer_segment") or "unknown",
         interaction_count=len(interactions),
         size_line=size_line,
         meddpicc_summary=_meddpicc_summary(interactions),

@@ -63,6 +63,9 @@ def test_expected_close_defaults_to_seven_days_and_supports_industry_override() 
             "pipeline": {
                 "expected_close": {
                     "default_days": 7,
+                    "days_by_segment": {
+                        "enterprise": 21,
+                    },
                     "days_by_industry": {
                         "공공": 60,
                         "대기업": 28,
@@ -75,21 +78,47 @@ def test_expected_close_defaults_to_seven_days_and_supports_industry_override() 
     assert resolve_expected_close_date(
         provided=None,
         industry="스타트업",
+        customer_segment=None,
         created_on=date(2026, 6, 8),
         settings=settings,
     ) == ("2026-06-15", "config_default")
     assert resolve_expected_close_date(
         provided=None,
         industry=" 공공 ",
+        customer_segment=None,
         created_on=date(2026, 6, 8),
         settings=settings,
     ) == ("2026-08-07", "config_industry")
     assert resolve_expected_close_date(
         provided="2026-09-30",
         industry="공공",
+        customer_segment="enterprise",
         created_on=date(2026, 6, 8),
         settings=settings,
     ) == ("2026-09-30", "user_provided")
+    assert resolve_expected_close_date(
+        provided=None,
+        industry="대기업",
+        customer_segment=" Enterprise ",
+        created_on=date(2026, 6, 8),
+        settings=settings,
+    ) == ("2026-06-29", "config_segment")
+    assert resolve_expected_close_date(
+        provided=None,
+        industry="스타트업",
+        customer_segment="startup; Series B",
+        created_on=date(2026, 6, 8),
+        settings=ExpectedCloseSettings.from_config(
+            {
+                "pipeline": {
+                    "expected_close": {
+                        "default_days": 7,
+                        "days_by_segment": {"startup": 14},
+                    }
+                }
+            }
+        ),
+    ) == ("2026-06-22", "config_segment")
 
 
 @pytest.mark.parametrize(
@@ -97,6 +126,8 @@ def test_expected_close_defaults_to_seven_days_and_supports_industry_override() 
     [
         {"pipeline": {"expected_close": {"default_days": -1}}},
         {"pipeline": {"expected_close": {"default_days": True}}},
+        {"pipeline": {"expected_close": {"days_by_segment": []}}},
+        {"pipeline": {"expected_close": {"days_by_segment": {"enterprise": "21"}}}},
         {"pipeline": {"expected_close": {"days_by_industry": []}}},
         {"pipeline": {"expected_close": {"days_by_industry": {"공공": "60"}}}},
     ],
@@ -550,6 +581,39 @@ def test_mcp_create_deal_uses_industry_override(monkeypatch) -> None:
     assert result["ok"] is True
     assert result["expected_close_date"] == (before + timedelta(days=60)).isoformat()
     assert result["expected_close_date_source"] == "config_industry"
+
+
+def test_mcp_create_deal_prefers_segment_override(monkeypatch) -> None:
+    mongo = FakeMongo()
+    monkeypatch.setattr(_context, "mongo", lambda: mongo)
+    monkeypatch.setattr(
+        _context,
+        "config",
+        lambda: {
+            "pipeline": {
+                "expected_close": {
+                    "default_days": 7,
+                    "days_by_segment": {"enterprise": 21},
+                    "days_by_industry": {"Finance": 60},
+                }
+            }
+        },
+    )
+    before = datetime.now(ZoneInfo("Asia/Seoul")).date()
+
+    result = mcp_server.create_deal(
+        "Enterprise Fintech Co",
+        industry="Finance",
+        customer_segment="Enterprise",
+    )
+
+    assert result["ok"] is True
+    assert result["industry"] == "Finance"
+    assert result["customer_segment"] == "Enterprise"
+    assert result["expected_close_date"] == (before + timedelta(days=21)).isoformat()
+    assert result["expected_close_date_source"] == "config_segment"
+    assert mongo.saved is not None
+    assert mongo.saved["customer_segment"] == "Enterprise"
 
 
 def test_mcp_create_deal_forwards_value_classification(monkeypatch) -> None:

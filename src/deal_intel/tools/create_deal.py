@@ -26,6 +26,7 @@ def handle(
     company: str,
     industry: str | None,
     deal_size_amount: int | None,
+    customer_segment: str | None = None,
     deal_size_status: str | None = None,
     deal_size_low_amount: int | None = None,
     deal_size_high_amount: int | None = None,
@@ -57,6 +58,7 @@ def handle(
         resolved_close_date, close_date_source = resolve_expected_close_date(
             provided=expected_close_date,
             industry=industry,
+            customer_segment=customer_segment,
             created_on=reporting.as_of,
             settings=expected_close_settings,
         )
@@ -79,7 +81,8 @@ def handle(
     deal = {
         "deal_id": str(uuid.uuid4()),
         "company": company.strip(),
-        "industry": industry,
+        "industry": _clean_optional_text(industry),
+        "customer_segment": _clean_optional_text(customer_segment),
         **deal_value,
         "contacts": [],
         "interactions": [],
@@ -125,6 +128,8 @@ def handle(
         "ok": True,
         "deal_id": deal["deal_id"],
         "company": deal["company"],
+        "industry": deal["industry"],
+        "customer_segment": deal["customer_segment"],
         "deal_size_amount": deal["deal_size_amount"],
         "deal_size_status": deal["deal_size_status"],
         "deal_size_low_amount": deal["deal_size_low_amount"],

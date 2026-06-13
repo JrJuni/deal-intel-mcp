@@ -83,6 +83,7 @@ def config_doctor(offline: bool = False) -> dict:
 def create_deal(
     company: str,
     industry: str = "",
+    customer_segment: str = "",
     deal_size_amount: int | None = None,
     deal_size_status: str = "",
     deal_size_low_amount: int | None = None,
@@ -97,8 +98,12 @@ def create_deal(
     quoted, or strategic_zero. A zero amount is valid only with
     strategic_zero; omit deal_size_amount when the amount is unknown.
 
+    Keep industry as the actual business vertical. Use customer_segment for
+    maturity/market/ownership labels such as startup, enterprise, public_sector,
+    Series B, or Pre-IPO.
+
     When expected_close_date is omitted, config supplies a default date with
-    optional exact industry overrides.
+    optional exact customer segment overrides before industry overrides.
     """
     try:
         from deal_intel import _context
@@ -109,6 +114,7 @@ def create_deal(
             cfg=_context.config(),
             company=company,
             industry=industry or None,
+            customer_segment=customer_segment or None,
             deal_size_amount=deal_size_amount,
             deal_size_status=deal_size_status or None,
             deal_size_low_amount=deal_size_low_amount,
@@ -247,6 +253,7 @@ def update_deal(
     deal_size_currency: str = "",
     company: str = "",
     industry: str = "",
+    customer_segment: str = "",
     expected_close_date: str = "",
     actual_close_date: str = "",
     close_reason: str = "",
@@ -274,6 +281,7 @@ def update_deal(
             deal_size_currency=deal_size_currency or None,
             company=company or None,
             industry=industry or None,
+            customer_segment=customer_segment or None,
             expected_close_date=expected_close_date or None,
             actual_close_date=actual_close_date or None,
             close_reason=close_reason or None,

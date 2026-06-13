@@ -26,6 +26,7 @@ def handle(
     deal_size_currency: str | None = None,
     company: str | None = None,
     industry: str | None = None,
+    customer_segment: str | None = None,
     expected_close_date: str | None = None,
     actual_close_date: str | None = None,
     close_reason: str | None = None,
@@ -60,6 +61,7 @@ def handle(
     metadata_update_requested = _metadata_update_requested(
         company=company,
         industry=industry,
+        customer_segment=customer_segment,
         expected_close_date=expected_close_date,
         actual_close_date=actual_close_date,
         close_reason=close_reason,
@@ -80,6 +82,7 @@ def handle(
                 "metadata_fields": [
                     "company",
                     "industry",
+                    "customer_segment",
                     "expected_close_date",
                     "actual_close_date",
                     "close_reason",
@@ -136,6 +139,7 @@ def handle(
             current=old_metadata,
             company=company,
             industry=industry,
+            customer_segment=customer_segment,
             expected_close_date=expected_close_date,
             actual_close_date=actual_close_date,
             close_reason=close_reason,
@@ -229,6 +233,7 @@ def _metadata_update_requested(
     *,
     company: str | None,
     industry: str | None,
+    customer_segment: str | None,
     expected_close_date: str | None,
     actual_close_date: str | None,
     close_reason: str | None,
@@ -238,6 +243,7 @@ def _metadata_update_requested(
         for value in (
             company,
             industry,
+            customer_segment,
             expected_close_date,
             actual_close_date,
             close_reason,
@@ -310,6 +316,7 @@ def _deal_metadata_snapshot(deal: dict) -> dict:
     return {
         "company": deal.get("company"),
         "industry": deal.get("industry"),
+        "customer_segment": deal.get("customer_segment"),
         "expected_close_date": deal.get("expected_close_date"),
         "expected_close_date_source": deal.get("expected_close_date_source"),
         "actual_close_date": deal.get("actual_close_date"),
@@ -385,6 +392,7 @@ def _build_updated_metadata(
     current: dict,
     company: str | None,
     industry: str | None,
+    customer_segment: str | None,
     expected_close_date: str | None,
     actual_close_date: str | None,
     close_reason: str | None,
@@ -395,6 +403,11 @@ def _build_updated_metadata(
         updated["company"] = _clean_text(company, "company")
     if _has_text(industry):
         updated["industry"] = _clean_text(industry, "industry")
+    if _has_text(customer_segment):
+        updated["customer_segment"] = _clean_text(
+            customer_segment,
+            "customer_segment",
+        )
     if _has_text(expected_close_date):
         if stage not in OPEN_STAGES:
             raise MCPError(

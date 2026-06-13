@@ -61,7 +61,7 @@ Run these before calling a build "MVP-ready".
 ### 1. Source And Tests
 
 ```powershell
-& "$HOME\miniconda3\envs\event-intel\python.exe" -m pytest -q -p no:cacheprovider
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m pytest -q -p no:cacheprovider --basetemp=.tmp\pytest-full
 & "$HOME\miniconda3\envs\event-intel\python.exe" -m ruff check .
 git diff --check
 ```
@@ -160,7 +160,7 @@ Pass criteria:
 Run the relevant tests:
 
 ```powershell
-& "$HOME\miniconda3\envs\event-intel\python.exe" -m pytest tests\test_tool_surfaces.py tests\test_mcpb_manifest.py -q -p no:cacheprovider
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m pytest tests\test_tool_surfaces.py tests\test_mcpb_manifest.py -q -p no:cacheprovider --basetemp=.tmp\pytest-tool-surface
 ```
 
 Pass criteria:

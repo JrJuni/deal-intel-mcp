@@ -105,6 +105,7 @@ def _search_python_cosine(
             "company": deal["company"],
             "deal_stage": deal.get("deal_stage"),
             "industry": deal.get("industry"),
+            "customer_segment": deal.get("customer_segment"),
             "deal_size_amount": deal.get("deal_size_amount"),
             "deal_size_currency": deal.get("deal_size_currency") or "KRW",
             "score": round(score, 4),

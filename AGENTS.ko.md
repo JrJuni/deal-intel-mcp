@@ -52,6 +52,15 @@ Juni가 선호하는 루프:
 6. 검증하지 못한 위험은 `docs/status.md` 또는 `docs/backlog.md`에 남긴다.
 7. docs를 업데이트하고 의도한 범위만 커밋한다. push는 요청받았을 때 진행한다.
 
+Windows에서 pytest를 돌릴 때는 기본 `%TEMP%`를 쓰지 말고 레포 내부 temp를 쓴다.
+
+```powershell
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m pytest -q --basetemp=.tmp\pytest-full
+```
+
+Codex/Claude sandbox에서는 `%TEMP%` 아래 `pytest-of-*` 경로가 읽기 불가일 수
+있고, 이 경우 테스트 자체가 실패한 게 아니라 fixture setup 단계에서 막힌다.
+
 ## 현재 MCP 도구
 
 현재 tool count는 21개다. 정확한 기준은 `src/deal_intel/mcp_server.py`다.

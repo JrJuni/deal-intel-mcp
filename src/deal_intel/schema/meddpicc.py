@@ -151,6 +151,7 @@ class Deal(BaseModel):
     deal_id: str
     company: str
     industry: str | None = None
+    customer_segment: str | None = None
     deal_size_amount: int | None = None
     deal_size_low_amount: int | None = None
     deal_size_high_amount: int | None = None

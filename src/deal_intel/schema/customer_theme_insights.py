@@ -229,6 +229,7 @@ def build_customer_theme_evidence(
                     "deal_id": deal.get("deal_id"),
                     "company": deal.get("company"),
                     "industry": deal.get("industry"),
+                    "customer_segment": deal.get("customer_segment"),
                     "deal_stage": deal.get("deal_stage"),
                     "theme_key": record["theme_key"],
                     "label": record["label"],

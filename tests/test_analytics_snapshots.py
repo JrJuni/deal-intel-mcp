@@ -95,6 +95,7 @@ def _deal(**overrides) -> dict:
         "deal_id": "deal-1",
         "company": "Test Co",
         "industry": "IT",
+        "customer_segment": "enterprise",
         "deal_stage": "proposal",
         "deal_size_amount": 25_000_000,
         "deal_size_low_amount": None,
@@ -133,6 +134,7 @@ def test_build_analytics_snapshot_is_safe_and_metric_shaped() -> None:
     assert snapshot["source"] == "deal_intel_mcp"
     assert snapshot["event_id"] == "event-1"
     assert snapshot["deal_id"] == "deal-1"
+    assert snapshot["customer_segment"] == "enterprise"
     assert snapshot["deal_size_currency"] == "KRW"
     assert snapshot["health_band"] == "healthy"
     assert snapshot["meddpicc_gap_count"] == 1
@@ -177,6 +179,7 @@ def test_mongodb_lists_analytics_snapshots_with_safe_projection() -> None:
     }
     projection = mongo._db.analytics_snapshots.projection
     assert projection["_id"] == 0
+    assert projection["customer_segment"] == 1
     assert projection["deal_size_currency"] == 1
     assert "raw_notes" not in projection
     assert "contacts" not in projection

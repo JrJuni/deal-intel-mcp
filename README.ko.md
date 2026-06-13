@@ -232,7 +232,8 @@ semantic `search_deals`, Atlas Charts는 MongoDB가 연결된 `full` 또는 `pro
 | 파라미터 | 필수 | 설명 |
 |---|---|---|
 | `company` | 필수 | 고객사 이름 |
-| `industry` | 선택 | 업종 (예: "제조", "IT SaaS") |
+| `industry` | 선택 | 순수 업종 (예: "제조", "금융", "리테일") |
+| `customer_segment` | 선택 | 고객군/성숙도/사업단계 (예: "startup", "enterprise", "public_sector", "Series B", "Pre-IPO") |
 | `deal_size_amount` | 선택 | `deal_size_currency` 기준 예상 계약 규모의 중앙값 (예: 200000000) |
 | `deal_size_currency` | 선택 | 3글자 통화 코드. 생략 시 `deal_value.default_currency` 사용 (`KRW` 기본값) |
 | `deal_size_status` | 금액 입력 시 필수 | 금액 상태: `unknown`, `rough_estimate`, `customer_budget`, `quoted`, `strategic_zero` |
@@ -246,6 +247,8 @@ semantic `search_deals`, Atlas Charts는 MongoDB가 연결된 `full` 또는 `pro
   "ok": true,
   "deal_id": "a3f9...",
   "company": "현대정밀",
+  "industry": "제조",
+  "customer_segment": "enterprise",
   "deal_size_amount": 200000000,
   "deal_size_currency": "KRW",
   "deal_size_status": "rough_estimate",
@@ -279,17 +282,35 @@ deal_value:
 pipeline:
   expected_close:
     default_days: 7
+    days_by_segment:
+      public_sector: 60
+      enterprise: 28
     days_by_industry:
-      공공: 60
-      대기업: 28
+      정부: 60
+      제조: 28
 
 reporting:
   timezone: Asia/Seoul
 ```
 
-업종 override는 자유 형식 `industry` 값과 대소문자를 무시하고 정확히 일치할
-때 적용된다. 자동 날짜는 reporting timezone의 업무 날짜를 사용하며, 저장되는
-감사 timestamp는 UTC를 유지한다.
+`industry`에는 실제 업종만 넣고, 스타트업/대기업/공공기관/Series B/Pre-IPO처럼
+고객군이나 사업단계에 가까운 값은 `customer_segment`에 넣는다. 예상 종료일은
+segment override가 먼저 적용되고, 없으면 industry override, 그것도 없으면 기본값을
+쓴다. 자동 날짜는 reporting timezone의 업무 날짜를 사용하며, 저장되는 감사 timestamp는
+UTC를 유지한다.
+
+기존 데이터는 taxonomy 정리 CLI로 점검한다.
+
+```bash
+deal-intel audit-taxonomy
+deal-intel apply-taxonomy-cleanup
+deal-intel apply-taxonomy-cleanup --apply --confirmed-by-user
+```
+
+`audit-taxonomy`는 읽기 전용이다. `apply-taxonomy-cleanup`은 기본이 dry-run이고,
+확신도가 높은 분리 후보만 쓴다. 사람이 판단해야 하는 행은 왜 멈췄는지도 같이
+설명한다. 예를 들어 `보험/금융`은 보험을 주 업종으로 볼지, 금융을 상위 업종으로
+볼지에 따라 차트와 보고서 그룹이 달라지므로 시스템이 조용히 찍어 맞추면 안 된다.
 
 ---
 

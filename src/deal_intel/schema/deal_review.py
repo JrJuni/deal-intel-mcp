@@ -205,6 +205,7 @@ def build_deal_review(
         "deal_id": deal.get("deal_id"),
         "company": deal.get("company"),
         "industry": deal.get("industry"),
+        "customer_segment": deal.get("customer_segment"),
         "deal_stage": stage,
         "deal_size_amount": deal.get("deal_size_amount"),
         "deal_size_currency": deal.get("deal_size_currency") or "KRW",

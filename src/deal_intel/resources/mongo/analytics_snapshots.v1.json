@@ -58,6 +58,9 @@
         "industry": {
           "bsonType": ["string", "null"]
         },
+        "customer_segment": {
+          "bsonType": ["string", "null"]
+        },
         "deal_stage": {
           "enum": [
             "discovery",

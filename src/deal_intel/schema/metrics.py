@@ -1,6 +1,7 @@
 ﻿from __future__ import annotations
 
 import math
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
@@ -171,6 +172,7 @@ class WinRateSettings:
 @dataclass(frozen=True)
 class ExpectedCloseSettings:
     default_days: int = 7
+    days_by_segment: dict[str, int] | None = None
     days_by_industry: dict[str, int] | None = None
 
     @classmethod
@@ -180,10 +182,22 @@ class ExpectedCloseSettings:
             pipeline.get("expected_close", {}),
             "pipeline.expected_close",
         )
+        raw_by_segment = _as_mapping(
+            raw.get("days_by_segment", {}),
+            "pipeline.expected_close.days_by_segment",
+        )
         raw_by_industry = _as_mapping(
             raw.get("days_by_industry", {}),
             "pipeline.expected_close.days_by_industry",
         )
+        days_by_segment = {
+            str(segment).strip().casefold(): _as_non_negative_int(
+                days,
+                "pipeline.expected_close.days_by_segment values",
+            )
+            for segment, days in raw_by_segment.items()
+            if str(segment).strip()
+        }
         days_by_industry = {
             str(industry).strip().casefold(): _as_non_negative_int(
                 days,
@@ -197,14 +211,39 @@ class ExpectedCloseSettings:
                 raw.get("default_days", cls.default_days),
                 "pipeline.expected_close.default_days",
             ),
+            days_by_segment=days_by_segment,
             days_by_industry=days_by_industry,
         )
 
-    def days_for(self, industry: str | None) -> tuple[int, str]:
+    def days_for(
+        self,
+        industry: str | None,
+        *,
+        customer_segment: str | None = None,
+    ) -> tuple[int, str]:
+        for segment_key in _segment_keys(customer_segment):
+            if segment_key in (self.days_by_segment or {}):
+                return (self.days_by_segment or {})[segment_key], "config_segment"
         industry_key = (industry or "").strip().casefold()
         if industry_key and industry_key in (self.days_by_industry or {}):
             return (self.days_by_industry or {})[industry_key], "config_industry"
         return self.default_days, "config_default"
+
+
+def _segment_keys(customer_segment: str | None) -> list[str]:
+    raw = (customer_segment or "").strip().casefold()
+    if not raw:
+        return []
+    keys = [raw]
+    for part in re.split(r"[;,/|·]+", raw):
+        cleaned = part.strip()
+        if cleaned:
+            keys.append(cleaned)
+    deduped: list[str] = []
+    for key in keys:
+        if key not in deduped:
+            deduped.append(key)
+    return deduped
 
 
 @dataclass(frozen=True)
@@ -650,6 +689,7 @@ def resolve_expected_close_date(
     *,
     provided: str | None,
     industry: str | None,
+    customer_segment: str | None = None,
     created_on: date,
     settings: ExpectedCloseSettings,
 ) -> tuple[str, str]:
@@ -660,7 +700,7 @@ def resolve_expected_close_date(
         except (TypeError, ValueError) as exc:
             raise ValueError("expected_close_date must use ISO format YYYY-MM-DD") from exc
 
-    days, source = settings.days_for(industry)
+    days, source = settings.days_for(industry, customer_segment=customer_segment)
     return (created_on + timedelta(days=days)).isoformat(), source
 
 
@@ -988,7 +1028,7 @@ def _expected_close_quality_status(deal: dict) -> DataQualityStatus:
     except ValueError:
         return DataQualityStatus.INVALID
     source = deal.get("expected_close_date_source")
-    if source in {"config_default", "config_industry"}:
+    if source in {"config_default", "config_segment", "config_industry"}:
         return DataQualityStatus.ESTIMATED
     if source not in {None, "", "user_provided"}:
         return DataQualityStatus.INVALID

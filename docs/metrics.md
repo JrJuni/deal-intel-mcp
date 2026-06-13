@@ -150,17 +150,28 @@ configuration:
 pipeline:
   expected_close:
     default_days: 7
-    days_by_industry:
+    days_by_segment:
       public_sector: 60
       enterprise: 28
+    days_by_industry:
+      Government: 60
+      Manufacturing: 28
 ```
 
 - A user-provided ISO date always wins and records
   `expected_close_date_source: user_provided`.
+- An exact case-insensitive customer-segment match records `config_segment`.
 - An exact case-insensitive industry match records `config_industry`.
 - Otherwise `default_days` is used and records `config_default`.
-- Default and industry day values must be non-negative integers.
+- Segment overrides are checked before industry overrides.
+- Default, segment, and industry day values must be non-negative integers.
 - These defaults are operating assumptions, not customer-confirmed dates.
+
+`industry` should stay a true business vertical such as Finance, Retail,
+Healthcare, Logistics, or Government. Use `customer_segment` for maturity,
+market, ownership, or lifecycle labels such as startup, Series B, enterprise,
+public_sector, or Pre-IPO. This keeps industry BI charts from mixing verticals
+with company stage or account segment.
 
 ### User approval before persistence
 

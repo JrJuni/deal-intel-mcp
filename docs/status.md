@@ -12,6 +12,78 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-13
 
+### Industry / customer segment split
+
+Implemented:
+
+- Added optional `customer_segment` support across create/update/read/report
+  paths:
+  - `create_deal`
+  - `update_deal`
+  - `list_deals`
+  - `search_deals`
+  - `get_deal_review`
+  - `get_deal_gaps`
+  - weekly pipeline rows/CSV
+  - analytics snapshots
+  - customer-theme evidence rows
+- Kept `industry` as the true business vertical and documented
+  `customer_segment` for maturity, account segment, ownership, funding stage,
+  and similar labels.
+- Added expected-close config support for `days_by_segment`, checked before
+  `days_by_industry`.
+- Added `config_segment` as a valid estimated close-date source.
+- Updated Mongo validator resources for `deals` and `analytics_snapshots`.
+- Updated zero-config and demo sample data so industry and segment values are
+  no longer mixed.
+- Added read-only CLI audit support:
+  `deal-intel audit-taxonomy`.
+  - The audit detects suspicious mixed industry values.
+  - It suggests `industry` and `customer_segment` cleanup payloads.
+  - It does not write to storage.
+  - Human-review rows include a sensemaking explanation: why the system stopped,
+    what to check, and why an automatic split could distort reporting.
+- Added confirmed cleanup CLI support:
+  `deal-intel apply-taxonomy-cleanup`.
+  - Dry-run by default.
+  - Uses `update_deal` for writes so metadata history and confirmation rules are
+    preserved.
+  - Requires `--apply --confirmed-by-user` for storage writes.
+  - Excludes human-review rows by default; high-confidence rows are the default
+    apply set.
+- Documented live data taxonomy cleanup/backfill as an explicit operator step.
+
+Validation:
+
+- Targeted tests:
+  `107 passed, 1 warning`.
+- Taxonomy audit targeted tests:
+  `6 passed`.
+- Taxonomy cleanup/update targeted tests:
+  `22 passed, 1 warning`.
+- Failed full regression on the first run because packaged defaults and demo
+  sample rows were not fully synchronized; both were corrected.
+- Fix-targeted tests:
+  `12 passed, 1 warning`.
+- Full regression:
+  first run failed because the default Windows pytest temp directory was not
+  readable; rerun with `--basetemp=.tmp\pytest-full` passed:
+  `473 passed, 1 warning`.
+- Ruff:
+  `All checks passed`.
+- Local sample CLI smoke:
+  `deal-intel audit-taxonomy --limit 5` scanned 12 deals and found 0 taxonomy
+  issues, as expected after fixture cleanup.
+- Live Atlas smoke:
+  - `deal-intel apply-taxonomy-cleanup --limit 50` found 22 issue rows:
+    12 high-confidence candidates and 10 human-review rows.
+  - `deal-intel apply-taxonomy-cleanup --limit 50 --apply --confirmed-by-user`
+    applied 12 high-confidence rows through `update_deal` with 0 errors.
+  - Post-apply dry-run found 10 remaining issue rows, all skipped because they
+    require human review.
+
+## Previous Update - 2026-06-13
+
 ### Auxiliary Mongo collection validators
 
 Implemented:

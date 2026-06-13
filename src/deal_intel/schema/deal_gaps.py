@@ -273,6 +273,7 @@ def _build_deal_gap_row(
         "deal_id": deal.get("deal_id"),
         "company": deal.get("company"),
         "industry": deal.get("industry"),
+        "customer_segment": deal.get("customer_segment"),
         "deal_stage": deal.get("deal_stage"),
         "deal_size_amount": deal.get("deal_size_amount"),
         "deal_size_currency": deal.get("deal_size_currency") or "KRW",

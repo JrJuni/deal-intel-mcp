@@ -10,6 +10,11 @@ evaluation, and demos, but real team use should start from `full`. Drive it by
 talking - in Claude Desktop, or in Codex with the MCP connected. No separate CRM
 app.
 
+If an AI assistant is helping you set this up, point it at
+[`AI_START_HERE.md`](AI_START_HERE.md) first. That file is intentionally short
+and tells the assistant to start with `full`, use `sample` only for an explicit
+zero-config trial, and run `config_doctor` before deeper troubleshooting.
+
 ---
 
 ## Live demo
@@ -88,13 +93,30 @@ when you intentionally want the full maintainer/debug surface.
 
 ## Install (5 minutes)
 
+Default first-run path:
+
+1. Install the package in Python.
+2. Configure `full` with MongoDB Atlas (`MONGODB_URI`).
+3. Run `config doctor --offline`.
+4. Connect Claude Desktop through the MCPB bundle.
+
+Use `sample` only for a no-MongoDB demo or AI-only workflow check.
+
 ### Prerequisites
 
 - Python 3.11+ in a conda environment
-- Optional: Claude Desktop, when you want the MCP chat experience
-- Optional for `full`: MongoDB Atlas URI
-- Optional for LLM tools: ChatGPT Plus/Pro OAuth, `ANTHROPIC_API_KEY`, or
-  `OPENAI_API_KEY`
+- One MCP chat client: Claude Desktop, or Codex/ChatGPT with MCP support
+- For `full`: MongoDB Atlas account, Free/M0 cluster, and `MONGODB_URI`
+- For LLM extraction/scoring: ChatGPT OAuth from a compatible subscription,
+  `ANTHROPIC_API_KEY`, or `OPENAI_API_KEY`
+
+For a non-developer setup, the shortest explanation is:
+
+```text
+Prepare MongoDB Atlas for storage, Claude Desktop or Codex/ChatGPT for the
+chat surface, and one LLM credential path for extraction. MongoDB Atlas M0/free
+tier is enough for the default full profile.
+```
 
 ### Steps
 
@@ -111,6 +133,19 @@ Adding `[embedding]` also installs `sentence-transformers` (for similar-deal sea
 
 For real use, configure MongoDB Atlas first. M0/free tier is enough for the
 `full` profile.
+
+MongoDB Atlas setup:
+
+1. Sign up for MongoDB Atlas:
+   <https://www.mongodb.com/cloud/atlas/register>
+2. Create a Free/M0 cluster:
+   <https://www.mongodb.com/docs/atlas/tutorial/deploy-free-tier-cluster/>
+3. In Atlas, create a database user and allow your current IP address.
+4. Copy the driver connection string for the cluster.
+5. Save that string as `MONGODB_URI`.
+
+Do not paste the connection string into chat logs or user-memory files. Put it
+in `.env`, the MCPB install form, or your local shell environment.
 
 Copy `.env.example` to `.env` or set the same values through your MCP bundle:
 

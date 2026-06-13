@@ -21,6 +21,20 @@ API keys are optional in the form - the server also loads them from the repo's
 `.env` as a fallback. ChatGPT OAuth is the default and does not require an API
 key.
 
+For the normal `full` install, prepare:
+
+1. MongoDB Atlas account.
+2. Free/M0 cluster and driver connection string.
+3. Claude Desktop as the MCP client.
+4. ChatGPT OAuth, Anthropic API key, or OpenAI API key for LLM-backed
+   extraction/scoring.
+
+MongoDB Atlas links:
+
+- Sign up: <https://www.mongodb.com/cloud/atlas/register>
+- Free cluster guide:
+  <https://www.mongodb.com/docs/atlas/tutorial/deploy-free-tier-cluster/>
+
 ## Build
 
 ```bash

@@ -12,6 +12,38 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-14
 
+### First-run documentation alignment
+
+Implemented:
+
+- Rewrote `AI_START_HERE.md` as a shorter first-run card for AI assistants.
+- Made the setup posture explicit:
+  - human-facing default is `full`,
+  - `sample` is an optional zero-config trial/demo path,
+  - `pro` is a paid-infra upgrade path.
+- Added a README pointer telling users and AI assistants to start from
+  `AI_START_HERE.md`.
+- Added a full-mode setup preparation prompt covering MongoDB Atlas signup,
+  Free/M0 cluster setup, `MONGODB_URI`, MCP client choice, and LLM credential
+  options.
+- Added MongoDB Atlas signup/free-cluster links to README and MCPB install
+  docs.
+- Updated the MVP readiness checklist with current v1.0-relevant surfaces:
+  user-memory tools, industry metadata split, canonical `add_interaction`,
+  local personal mode, and MCPB `0.1.12`.
+- Updated the distribution plan with the current tool-surface counts:
+  `sample=19`, `standard=23`, `developer=26`.
+
+Validation:
+
+- Documentation scan confirmed no stale first-run `sample-first` wording or
+  old `sample=17`, `standard=21`, `developer=24` counts in the active
+  first-run docs.
+- Natural question smoke passed:
+  `OK: True`, `questions=12`, `direct=6`, `derived=6`, no sensitive failures,
+  no blocked questions. Output:
+  `C:\Users\JuniBecky\Downloads\outputs\smoke\natural-question-pack-20260614_010543`.
+
 ### User memory MCP tools
 
 Implemented:

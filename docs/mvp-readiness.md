@@ -25,14 +25,20 @@ Green:
 - `full` profile is the default real-data operating path.
 - Zero-config sample/local mode works without MongoDB.
 - MCP tool surfaces are filtered by profile.
+- User-memory tools are available for safe repo-local operating preferences,
+  scoring feedback, taxonomy notes, report feedback, and evidence-policy notes.
+- Industry metadata now separates primary industry, industry tags, and customer
+  segment instead of overloading one mixed `industry` string.
 - Deal review v2 separates evidence coverage, uncertainty, confirmed risks,
   objective actions, and judgment-sensitive observations.
 - Customer interaction intake supports meeting notes, email threads, user
   interviews, call summaries, and internal notes through one public tool:
   `add_interaction`.
+- Local mode can create/update/stage/archive/delete local personal deals, then
+  export, reset, or migrate them to MongoDB through dry-run-first commands.
 - Natural-question smoke has a deterministic 12-question pack.
-- Local personal data can be exported, reset, and migrated to MongoDB by
-  dry-run-first commands.
+- Claude Desktop MCPB `0.1.12` packs successfully and reflects the current
+  installer fields.
 
 Yellow:
 
@@ -40,11 +46,14 @@ Yellow:
   Python metrics and CSV/Markdown reports detect mixed currencies, but Atlas
   dashboard values should be cross-checked when operating with more than one
   currency.
-- Claude Desktop MCPB reinstall should be smoked once more after any manifest
-  or bundle hardening change.
+- Claude Desktop MCPB reinstall should be smoked after manifest or bundle
+  changes. Current package build is available, but each external evaluator's
+  install still needs a quick `config_doctor` check.
 - Full MongoDB mode works in development, but a disposable live migration smoke
   is still recommended before a broader external release.
 - Pro mode is a skeleton upgrade path, not a fully validated paid-infra product.
+- The first-run copy is now full-by-default, but Korean companion docs may need
+  a final pass before a non-English external trial.
 
 Not MVP-blocking:
 
@@ -61,7 +70,7 @@ Run these before calling a build "MVP-ready".
 ### 1. Source And Tests
 
 ```powershell
-& "$HOME\miniconda3\envs\event-intel\python.exe" -m pytest -q -p no:cacheprovider --basetemp=.tmp\pytest-full
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m pytest -q
 & "$HOME\miniconda3\envs\event-intel\python.exe" -m ruff check .
 git diff --check
 ```
@@ -160,13 +169,13 @@ Pass criteria:
 Run the relevant tests:
 
 ```powershell
-& "$HOME\miniconda3\envs\event-intel\python.exe" -m pytest tests\test_tool_surfaces.py tests\test_mcpb_manifest.py -q -p no:cacheprovider --basetemp=.tmp\pytest-tool-surface
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m pytest tests\test_tool_surfaces.py tests\test_mcpb_manifest.py -q
 ```
 
 Pass criteria:
 
 - `sample`, `standard`, and `developer` tool counts match the documented
-  contract.
+  contract: `sample=19`, `standard=23`, `developer=26`.
 - `add_interaction` is visible on sample/standard.
 - Deprecated `add_meeting` is hidden from sample/standard and only visible on
   developer.
@@ -205,29 +214,35 @@ Pass criteria:
 - The bundle remains unsigned unless a signing decision has been made.
 - Reinstall smoke in Claude Desktop should show the expected sample or standard
   surface based on selected config.
+- For the current package, the latest known build is
+  `deal-intel-mcp-0.1.12.mcpb` with an unsigned-package warning only.
 
 ## User Trial Script
 
 Use this lightweight script for a friend or first external evaluator:
 
 1. Start with `full` and ask for/configure `MONGODB_URI`.
-2. Run `config doctor`.
-3. Ask: "What is the current pipeline health?"
-4. Ask: "Which deals need attention first?"
-5. Ask: "Tell me the status of Orion Insurance."
-6. Ask: "What themes are backed by email or interview evidence?"
-7. Create one local personal deal.
-8. Add one meeting or email reply through `add_interaction`.
-9. Confirm the result explains `source_policy` and does not silently change
+2. Install or reconnect the MCPB with `storage_backend=mongo` and
+   `tools_surface=auto`.
+3. Run `config_doctor`.
+4. Ask: "What is the current pipeline health?"
+5. Ask: "Which deals need attention first?"
+6. Ask: "Tell me the status of one specific deal."
+7. Ask: "What themes are backed by email or interview evidence?"
+8. Create one real or test deal in the configured MongoDB database.
+9. Add one meeting or email reply through `add_interaction`.
+10. Confirm the result explains `source_policy` and does not silently change
    stage.
-10. Show `local-data export` and `local-data reset` dry-run behavior.
+11. Record one reporting/scoring preference through `record_user_memory`, then
+    read it back with `get_user_memory`.
 
 Optional zero-config demo script:
 
 1. Set `DEAL_INTEL_STORAGE_BACKEND=local_sample`.
 2. Run `smoke-profile --profile sample`.
 3. Run `smoke-natural-questions --as-of 2026-06-10`.
-4. Explain that this is a demo/evaluation path, not the default team-storage
+4. Show `local-data export` and `local-data reset` dry-run behavior.
+5. Explain that this is a demo/evaluation path, not the default team-storage
    path.
 
 ## Deferred After MVP

@@ -3,8 +3,8 @@
 This plan keeps MVP priorities straight:
 
 1. The first external MVP can ship with an AI-assisted git-clone path.
-2. No-git-clone wrappers are useful, but they should not block sample/local MVP
-   readiness.
+2. No-git-clone wrappers are useful, but they should not block the current
+   full-by-default MVP readiness path.
 3. Wrapper work should be mechanical only after the Python package is safe to
    run outside a repo checkout.
 
@@ -20,9 +20,11 @@ Supported today:
   interpreter.
 - `full` profile for the default human install path.
 - `sample` profile for zero-config AI evaluation or demos.
+- Safe user-memory tools for repo-local operating preferences and feedback.
 
 This is acceptable for the first MVP because the target user can ask an AI
 assistant to clone the repo, run setup commands, and configure Claude Desktop.
+Point that assistant at `AI_START_HERE.md` first.
 
 ## Packaging Constraint
 
@@ -95,7 +97,9 @@ Tasks:
   setup checks.
 - Keep `sample` smoke documented as an optional zero-config evaluation path.
 - Keep tool surface counts aligned with the runtime contract:
-  `sample=17`, `standard=21`, `developer=24`.
+  `sample=19`, `standard=23`, `developer=26`.
+- Keep user-memory, canonical interaction intake, industry metadata, and local
+  personal data commands represented in the MVP checklist.
 - Record any live MongoDB or MCPB reinstall checks that could not be completed
   as non-blocking risks in `docs/status.md`.
 

@@ -1,144 +1,149 @@
 # AI Start Here
 
-This guide is for AI agents helping a new user try `deal-intel-mcp`.
+This is the shortest path for an AI agent helping a new user set up
+`deal-intel-mcp`.
 
-## First Rule
+## Default Decision
 
-Default to `full` for human-facing setup.
+Start human users in **`full`** mode.
 
-Use `sample` only when the user explicitly wants zero-config evaluation, has no
-MongoDB URI ready, or asks the AI to quickly judge whether the project is worth
-trying before setup.
+- `full` = normal product path, MongoDB Atlas-backed real deal data. Atlas M0
+  is enough.
+- `sample` = optional zero-config trial for AI evaluation, demos, or users who
+  explicitly do not want MongoDB yet.
+- `pro` = paid-infra upgrade path for Atlas Vector Search and API-key LLM
+  operation.
 
-## Mental Model
+Do not present `sample` as the normal install path. It is useful, but it is not
+the main product posture.
 
-The project has one package and three profiles:
+## First Run For A Human User
 
-- `full`: MongoDB Atlas-backed real team data.
-- `sample`: local bundled fictional data for zero-config evaluation, plus
-  lightweight local personal create/update/stage/lifecycle flows. Source-aware
-  `add_interaction` is available when the configured LLM provider is ready.
-  Semantic search and demo-database maintenance are intentionally unavailable
-  in the default sample surface.
-- `pro`: paid-infrastructure path with Atlas Vector Search and API-key LLM
-  providers.
+Before asking the user to run commands, explain the required pieces in plain
+language:
 
-Your first job is to identify the intended path:
+- MongoDB Atlas account and a Free/M0 cluster for real deal storage.
+- A MongoDB connection string (`MONGODB_URI`) from that cluster.
+- One chat surface:
+  - Claude Desktop with the MCPB extension, or
+  - Codex/ChatGPT with MCP support.
+- One LLM path for extraction/scoring:
+  - ChatGPT OAuth if the user has a compatible ChatGPT/Codex subscription, or
+  - Anthropic API key, or
+  - OpenAI API key.
 
-- For a person installing the product for real use, configure `full`.
-- For an AI-only quick check or no-MongoDB demo, use `sample`.
-- For paid Atlas Vector Search/API-key operation, use `pro` only after the user
-  explicitly chooses it.
+Use this short prompt if the user asks what to prepare:
 
-## Step 1 - Inspect, Do Not Guess
+```text
+For the normal full setup, prepare four things:
+1. a MongoDB Atlas account,
+2. a free Atlas cluster and connection string,
+3. Claude Desktop or Codex/ChatGPT as the MCP client,
+4. either ChatGPT OAuth from your subscription or an Anthropic/OpenAI API key.
 
-Use the conda environment Python directly. On this machine the usual path is:
+If you do not want to set up MongoDB yet, we can run the sample mode first, but
+that is a trial path, not the default real-data setup.
+```
+
+Use the conda environment Python directly. On Juni's machine this is usually:
 
 ```powershell
 & "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli config profiles
 & "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli config show
 ```
 
-If the environment path differs, locate the correct Python before continuing.
-Do not use bare `python` or `py` on Windows.
+Then guide the user through the `full` path:
 
-## Step 2 - Configure Full By Default
-
-For normal setup, ask for `MONGODB_URI` or confirm it is already configured in
-the environment/MCPB form. Then run:
+1. Confirm the package is installed in the selected Python environment.
+2. Help the user create or locate a MongoDB Atlas Free/M0 cluster.
+3. Help the user copy the driver connection string and save it as
+   `MONGODB_URI`.
+4. Keep `tools.surface=auto`.
+5. Keep `llm.provider=chatgpt_oauth` unless the user chose API keys.
+6. Run:
 
 ```powershell
 & "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli config doctor --offline
 & "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli smoke-profile --profile full --offline
 ```
 
-If the user wants an explicit user config file, preview before writing:
+If Atlas is reachable and the user wants a live storage check:
 
 ```powershell
-& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli config init --profile full --dry-run
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli storage-status
 ```
 
-Apply `config init --profile full` only after the preview looks right.
+## Optional Zero-Config Trial
 
-## Step 3 - Optional Zero-Config Sample
-
-Use this path only when the user asks to try without MongoDB or when an AI agent
-needs to evaluate the product shape before requesting setup:
-
-```powershell
-& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli config init --profile sample --dry-run
-& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli smoke-profile --profile sample
-```
-
-For a temporary shell-only sample check:
+Use this only when the user asks to try without MongoDB, or when an AI agent
+needs a fast product-shape check before asking the user to configure Atlas.
 
 ```powershell
 $env:DEAL_INTEL_STORAGE_BACKEND='local_sample'
-& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli storage-status
+& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli smoke-profile --profile sample
 & "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli smoke-natural-questions --as-of 2026-06-10
 ```
 
-Persist sample mode only if the user explicitly wants zero-config/local personal
-operation:
+Sample mode starts with immutable fictional data. If the user creates their own
+local deals, the fixture is hidden from the active working view and the local
+personal dataset becomes active.
 
-```powershell
-& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli config init --profile sample
+## Claude Desktop / MCPB Install
+
+When installing the MCPB, recommend:
+
+- Python interpreter path: the env where `deal-intel-mcp` is installed.
+- Storage backend: `mongo` for real use; `local_sample` only for zero-config
+  trial.
+- MCP tool surface: `auto`.
+- MongoDB Atlas URI: required for `mongo`.
+- LLM provider: `chatgpt_oauth` by default.
+
+Expected visible tool counts:
+
+- `sample`: 19 tools
+- `standard` / `full`: 23 tools
+- `developer`: 26 tools
+
+After restart, ask Claude/Codex to run `config_doctor` first.
+
+## First Useful Questions
+
+After setup succeeds, ask:
+
+```text
+현재 파이프라인 건강도 보여줘.
+딜 목록 보여줘.
+가장 위험한 딜 하나 리뷰해줘.
+고객들이 가장 많이 고민한 주제는 뭐야?
 ```
 
-If the user wants to try their own temporary data, use sample mode's local
-personal storage. It defaults to `~/.deal-intel/local-data` and can be
-overridden with `storage.local_data_dir`.
+For new evidence, use `add_interaction` as the single public intake:
 
-Useful local personal commands:
+- meeting notes: `interaction_type=meeting`
+- customer email replies: `interaction_type=email_thread`
+- user interviews: `interaction_type=user_interview`
+- internal notes: `interaction_type=internal_note`
 
-```powershell
-& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli local-data status
-& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli local-data export
-& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli local-data reset
-& "$HOME\miniconda3\envs\event-intel\python.exe" -m deal_intel.cli local-data migrate-to-mongo
-```
+Check the returned `source_policy`. Customer-stated inbound evidence can update
+MEDDPICC/customer themes. Outbound-only or internal-only content is retained as
+context but should not be described as confirmed deal health.
 
-Tell the user that `local-data reset` is dry-run by default and
-`local-data reset --force` clears only local personal deals while preserving
-delete audit logs. Help the user migrate to `full` only after local/sample smoke
-succeeds and they want shared MongoDB-backed operation. Migration is also
-dry-run by default; use `local-data migrate-to-mongo --apply` only after the
-target database and skipped/overwrite counts look right.
+## User Memory
 
-When adding user-provided evidence, use `add_interaction` as the single public
-intake tool:
+If the user gives durable preferences about reporting style, scoring behavior,
+taxonomy, or evidence policy, use `record_user_memory`. To inspect those notes,
+use `get_user_memory`.
 
-- meeting notes: `interaction_type=meeting`, usually `direction=inbound`
-- customer email replies: `interaction_type=email_thread`, use `direction=mixed`
-  for a thread with both seller and customer messages
-- user interviews: `interaction_type=user_interview`, usually
-  `direction=inbound`
-- internal account notes: `interaction_type=internal_note`,
-  `direction=internal`
-
-Check the returned `source_policy` before summarizing the result. Inbound
-customer-stated evidence can update MEDDPICC/customer themes. Outbound-only and
-internal-only content is retained as context but should be described as
-unconfirmed, not as improved deal health.
-
-Only request `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or Atlas Vector Search setup
-after the user chooses that provider/path. `MONGODB_URI` is normal for `full`.
+Never store secrets, raw transcripts, full emails, contacts, API keys, OAuth
+tokens, or MongoDB connection strings in user memory.
 
 ## Do Not
 
+- Do not use bare `python` or `py` on Windows.
 - Do not ask for API keys before the user chooses an API-key provider.
 - Do not run `config switch ... --force` without explicit user approval.
-- Do not present `sample` as the default human install path.
-- Do not use `pro` as the default first-run path.
 - Do not print secrets from `.env`, user config, or command output.
-
-## Good First Response Pattern
-
-When a new user asks to try the project, say:
-
-```text
-For normal use, I will start with the MongoDB-backed full profile. I will check
-the configured profile, run config doctor offline, then run the full profile
-smoke without writes. If you want a zero-config demo instead, I can switch to
-the sample path temporarily.
-```
+- Do not auto-change deal stage from interaction content. `add_interaction`
+  can suggest; `update_stage` performs the actual stage change after user
+  confirmation.

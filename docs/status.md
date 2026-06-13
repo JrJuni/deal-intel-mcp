@@ -46,8 +46,8 @@ Behavior:
 - The new validators are intentionally permissive and keep
   `additionalProperties: true` so MVP field evolution is not blocked.
 - `apply-schema` remains dry-run by default.
-- No live Atlas write was performed in this slice; applying auxiliary
-  validators requires an explicit future `--apply`.
+- Live Atlas apply was performed after user confirmation with
+  `deal-intel mongo apply-schema --collection all --apply --json`.
 
 Validation:
 
@@ -64,12 +64,13 @@ Validation:
   - `deal-intel mongo apply-schema --collection delete_audit_logs --json`
   - `deal-intel mongo apply-schema --collection all --json`
 - Live Atlas read-only smoke:
-  - `deal-intel mongo doctor --json` returned `ok=true`.
-  - Ping and ordinary index checks passed.
-  - `deals_schema` passed.
-  - `analytics_snapshots_schema` and `delete_audit_logs_schema` returned
-    expected warnings because the new auxiliary validators have not been
-    applied to Atlas yet.
+  - Before apply, `deal-intel mongo doctor --json` returned `ok=true` with
+    expected warnings for missing auxiliary validators.
+  - The first apply attempt failed with DNS timeout before completion.
+  - The unsandboxed retry applied all three validators successfully:
+    `deals`, `analytics_snapshots`, and `delete_audit_logs`.
+  - Post-apply `deal-intel mongo doctor --json` returned `ok=true`,
+    `failed_checks=0`, `warning_checks=0`, and all three schema checks passed.
 
 ## Previous Update - 2026-06-12
 

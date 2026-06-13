@@ -766,6 +766,7 @@ Current source of truth:
 - Current tool count: 24
 - Detailed contract: [`docs/baseline.md`](docs/baseline.md)
 - Documentation map: [`docs/README.md`](docs/README.md)
+- User memory samples: [`user_docs/README.md`](user_docs/README.md)
 
 ```
 [Claude Desktop / Codex - natural-language input]

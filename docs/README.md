@@ -51,6 +51,19 @@ These files are useful but should be searched, not loaded wholesale.
 | `backlog.md` | Read the top current backlog index first; older milestone notes are archive |
 | `status.md` | Read latest sections first; older sections are archive |
 | `lesson-learned.md` | Search by failure symptom, date, or file path |
+| `../user_docs/samples/*.sample.md` | Copy as user-owned operating notes, then adapt with the user's AI assistant |
+
+## User Memory Boundary
+
+`docs/` is the developer reference area. It helps an AI agent understand the
+codebase, contracts, architecture, tests, and implementation history when
+building or modifying custom tools.
+
+`../user_docs/` is the user memory area. It helps a non-developer user and
+their AI assistant capture preferences, repeated feedback, metric-tuning notes,
+taxonomy corrections, report-review comments, and evidence-policy choices. Do
+not treat `user_docs/` as source code truth; treat it as operating context that
+can inspire config, taxonomy, report, or product changes after review.
 
 ## Archive Boundary
 

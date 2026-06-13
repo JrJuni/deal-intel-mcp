@@ -12,6 +12,35 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-13
 
+### User memory samples
+
+Implemented:
+
+- Added `user_docs/` as repo-local memory for non-developer users who want an
+  AI assistant to tune Deal Intelligence to their sales motion over time.
+- Clarified the identity split:
+  - `docs/` is developer reference for building and maintaining custom tools.
+  - `user_docs/` is user memory for preferences, feedback, and operating
+    context.
+- Added sample templates for:
+  - operating preferences,
+  - metric tuning feedback,
+  - taxonomy feedback,
+  - report review feedback,
+  - evidence policy.
+- Updated the documentation map so agents can find `user_docs` without reading
+  the entire implementation history.
+
+Validation:
+
+- Documentation-only change.
+
+Next:
+
+- When a real user gives repeated feedback, copy the relevant sample to a
+  non-sample file under `user_docs/` and let the AI assistant propose
+  config, taxonomy, report, or scoring changes from that accumulated context.
+
 ### Industry metadata backfill I4
 
 Implemented:

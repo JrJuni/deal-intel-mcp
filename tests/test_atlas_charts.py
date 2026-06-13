@@ -34,6 +34,7 @@ CUSTOMER_THEME_CHART_IDS = {
     "theme_overview",
     "decision_criteria_by_stage",
     "pain_by_industry",
+    "pain_by_industry_tag",
     "theme_evidence_drilldown",
 }
 
@@ -232,6 +233,27 @@ def test_customer_theme_evidence_chart_projects_source_labels() -> None:
     project_stage = next(stage["$project"] for stage in pipeline if "$project" in stage)
     assert project_stage["source_label"] == "$_theme_source_label"
     assert project_stage["interaction_type"] == "$_theme_interaction_type"
+
+
+def test_customer_theme_industry_tag_chart_unwinds_tags() -> None:
+    pipeline = render_chart_pipeline(
+        "pain_by_industry_tag",
+        {},
+        dashboard="customer_themes",
+        as_of="2026-06-10",
+    )
+
+    payload = json.dumps(pipeline, ensure_ascii=False)
+    assert "$industry_tags" in payload
+    assert {"$unwind": "$_industry_tags_for_chart"} in pipeline
+    project_stage = next(
+        stage["$project"]
+        for stage in pipeline
+        if "$project" in stage and "industry_tag" in stage["$project"]
+    )
+    assert project_stage["industry_tag"] == {
+        "$ifNull": ["$_id.industry_tag", "unknown"]
+    }
 
 
 def test_weekly_pipeline_chart_pipelines_exclude_archived_deals_first() -> None:

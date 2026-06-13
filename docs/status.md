@@ -12,6 +12,36 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-13
 
+### Industry tags Atlas chart I3
+
+Implemented:
+
+- Added `pain_by_industry_tag` to the versioned Customer Themes Atlas Charts
+  spec.
+- Kept the existing `pain_by_industry` chart as the primary-industry view.
+- Made `pain_by_industry_tag` unwind `industry_tags`, so a cross-industry deal
+  can appear in multiple semantic tag groups.
+- Synced the packaged dashboard resource copy with the repo spec.
+- Updated Atlas Charts docs, README, and Korean README to point users to the
+  versioned Customer Themes spec and optional tag chart.
+
+Validation:
+
+- Atlas chart targeted regression:
+  `21 passed`.
+- Full regression:
+  `489 passed, 1 warning`.
+- Ruff:
+  `All checks passed`.
+
+Next:
+
+- Manual Atlas UI step: render
+  `render-atlas-dashboard --dashboard customer_themes --chart-id pain_by_industry_tag`
+  and paste the pipeline into a new optional Customer Themes chart if the
+  dashboard needs tag-level comparison.
+- Older-row `industry_tags` backfill remains a future operator task.
+
 ### Industry tags read behavior I2
 
 Implemented:

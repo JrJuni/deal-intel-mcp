@@ -338,6 +338,153 @@
       ]
     },
     {
+      "id": "pain_by_industry_tag",
+      "title": "Pain By Industry Tag",
+      "chart_type": "grouped bar or table",
+      "description": "Identify-pain themes by industry_tags. Cross-industry accounts can appear under multiple tags.",
+      "pipeline": [
+        {
+          "$match": {
+            "archived": {
+              "$ne": true
+            },
+            "deal_stage": {
+              "$nin": [
+                "won",
+                "lost"
+              ]
+            },
+            "customer_themes.0": {
+              "$exists": true
+            }
+          }
+        },
+        {
+          "$unwind": "$customer_themes"
+        },
+        {
+          "$match": {
+            "customer_themes.dimension": "identify_pain",
+            "customer_themes.evidence": {
+              "$type": "string",
+              "$ne": ""
+            }
+          }
+        },
+        {
+          "$addFields": {
+            "_industry_tags_for_chart": {
+              "$let": {
+                "vars": {
+                  "tags": {
+                    "$cond": [
+                      {
+                        "$isArray": "$industry_tags"
+                      },
+                      "$industry_tags",
+                      []
+                    ]
+                  }
+                },
+                "in": {
+                  "$cond": [
+                    {
+                      "$gt": [
+                        {
+                          "$size": "$$tags"
+                        },
+                        0
+                      ]
+                    },
+                    "$$tags",
+                    [
+                      {
+                        "$ifNull": [
+                          "$industry",
+                          "unknown"
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "$unwind": "$_industry_tags_for_chart"
+        },
+        {
+          "$match": {
+            "_industry_tags_for_chart": {
+              "$type": "string",
+              "$ne": ""
+            }
+          }
+        },
+        {
+          "$group": {
+            "_id": {
+              "industry_tag": "$_industry_tags_for_chart",
+              "theme_key": "$customer_themes.theme_key",
+              "deal_id": "$deal_id"
+            },
+            "label": {
+              "$first": "$customer_themes.label"
+            },
+            "importance": {
+              "$max": "$customer_themes.importance"
+            }
+          }
+        },
+        {
+          "$group": {
+            "_id": {
+              "industry_tag": "$_id.industry_tag",
+              "theme_key": "$_id.theme_key"
+            },
+            "label": {
+              "$first": "$label"
+            },
+            "count": {
+              "$sum": 1
+            },
+            "avg_importance": {
+              "$avg": "$importance"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "_id.industry_tag": 1,
+            "count": -1,
+            "avg_importance": -1,
+            "_id.theme_key": 1
+          }
+        },
+        {
+          "$project": {
+            "_id": 0,
+            "industry_tag": {
+              "$ifNull": [
+                "$_id.industry_tag",
+                "unknown"
+              ]
+            },
+            "theme_key": "$_id.theme_key",
+            "label": 1,
+            "count": 1,
+            "avg_importance": {
+              "$round": [
+                "$avg_importance",
+                1
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
       "id": "theme_evidence_drilldown",
       "title": "Theme Evidence Drill-down",
       "chart_type": "table",

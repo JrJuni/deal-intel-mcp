@@ -139,6 +139,7 @@ This dashboard is intentionally exploratory. It should help answer:
 - Which customer pains are most common across active deals?
 - Which decision criteria dominate each stage?
 - Which industries have different pain patterns?
+- Which cross-industry tags have different pain patterns?
 - Which curated evidence snippets justify the theme ranking?
 
 ## Chart Contract
@@ -180,13 +181,20 @@ when operating with more than one currency.
 | `theme_overview` | Top Customer Themes | Bar or Table | `theme_key`, `label`, `deal_count`, `avg_importance` |
 | `decision_criteria_by_stage` | Decision Criteria By Stage | Grouped Bar or Table | `stage`, `theme_key`, `label`, `count`, `avg_importance` |
 | `pain_by_industry` | Pain By Industry | Grouped Bar or Table | `industry`, `theme_key`, `label`, `count`, `avg_importance` |
+| `pain_by_industry_tag` | Pain By Industry Tag | Grouped Bar or Table | `industry_tag`, `theme_key`, `label`, `count`, `avg_importance` |
 | `theme_evidence_drilldown` | Theme Evidence Drill-down | Table | `company`, `industry`, `customer_segment`, `deal_stage`, `theme_key`, `label`, `dimension`, `importance`, `evidence`, `interaction_type`, `source_confidence`, `source_label`, `subject`, `interaction_date` |
+
+`pain_by_industry` groups by the single primary `industry`. Use it when you want
+the same vertical boundary as pipeline and forecast metrics. `pain_by_industry_tag`
+unwinds `industry_tags`, so one cross-industry account can appear in multiple
+semantic tag groups.
 
 Suggested customer themes layout:
 
 1. Top row: `theme_overview`
 2. Middle row: `decision_criteria_by_stage`, `pain_by_industry`
-3. Bottom row: `theme_evidence_drilldown`
+3. Optional middle/bottom card: `pain_by_industry_tag`
+4. Bottom row: `theme_evidence_drilldown`
 
 Suggested trend layout:
 
@@ -221,6 +229,8 @@ After creating the dashboard:
 - `Customer Themes Review` uses `deal_intel.deals` and only selected
   `customer_themes.evidence`, not raw meeting notes or raw interaction
   content.
+- `pain_by_industry` uses primary `industry`; `pain_by_industry_tag` uses
+  `industry_tags` and may count one deal in multiple tag groups.
 - `theme_evidence_drilldown` contains no contacts, embeddings, raw meeting
   notes, or raw interaction content.
 

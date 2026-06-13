@@ -90,6 +90,28 @@ def test_render_atlas_dashboard_cli_supports_pipeline_trend_dashboard(tmp_path) 
     assert "{{" not in output.read_text(encoding="utf-8")
 
 
+def test_render_atlas_dashboard_cli_supports_customer_themes_industry_tag() -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "render-atlas-dashboard",
+            "--dashboard",
+            "customer_themes",
+            "--as-of",
+            "2026-06-10",
+            "--chart-id",
+            "pain_by_industry_tag",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert {"$unwind": "$_industry_tags_for_chart"} in payload
+    assert "{{" not in result.stdout
+
+
 def test_render_atlas_dashboard_cli_rejects_unknown_chart_id() -> None:
     runner = CliRunner()
 

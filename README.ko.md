@@ -675,7 +675,9 @@ Decision Criteria에서 가장 자주 나온 주제와 근거를 알려줘.
 ~/miniconda3/envs/event-intel/python.exe -m deal_intel.cli backfill-customer-themes --apply
 ```
 
-Atlas Charts용 aggregation은 `scripts/atlas_charts_customer_themes.json`에 있다.
+Atlas Charts용 versioned spec은 `atlas/charts/customer_themes.v1.json`에 있다.
+Customer Themes 대시보드 구성과 선택형 `pain_by_industry_tag` 차트는
+`docs/atlas-charts.md`를 참고한다.
 
 ---
 

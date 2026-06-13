@@ -719,7 +719,10 @@ To backfill themes onto existing data, run this first:
 ~/miniconda3/envs/event-intel/python.exe -m deal_intel.cli backfill-customer-themes --apply
 ```
 
-The Atlas Charts aggregation is in `scripts/atlas_charts_customer_themes.json`.
+The versioned Atlas Charts spec is in
+`atlas/charts/customer_themes.v1.json`. See `docs/atlas-charts.md` for the
+Customer Themes dashboard setup, including the optional
+`pain_by_industry_tag` chart.
 
 ---
 

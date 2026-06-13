@@ -12,6 +12,48 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-14
 
+### v1.0 readiness sweep
+
+Automated gates:
+
+- `config doctor --offline`: passed for `full`
+  (`storage=mongo`, `tools=standard`, `llm=chatgpt_oauth`, `MONGODB_URI`
+  configured).
+- `smoke-profile --profile full --offline`: passed.
+- Tool surface/MCPB manifest targeted regression:
+  `29 passed, 1 warning`.
+- `ruff check .`: passed.
+- Natural question smoke:
+  `OK: True`, `questions=12`, `direct=6`, `derived=6`, no sensitive failures,
+  no blocked questions. Output:
+  `outputs\smoke\natural-question-pack-20260614_011011`.
+- Weekly report export smoke in local sample mode: passed, `row_count=8`,
+  generated CSV/Markdown under `outputs\readiness-sweep`.
+- Live Atlas storage ping: passed after running outside the sandbox.
+- `mongo doctor --json`: `ok=true`, indexes present, storage ping pass.
+
+Fix made during sweep:
+
+- Deal review audit originally flagged a lost deal with confirmed risks as
+  `confirmed_risks_without_actions`.
+- Adjusted the audit rule so confirmed risks require recommended actions only
+  on open deals. Terminal `won`/`lost` risks can remain postmortem/context
+  evidence without forcing a next action.
+- Targeted deal review regression:
+  `13 passed`.
+- Deal review audit smoke now passes with no quality rule failures.
+
+Remaining live Mongo warnings:
+
+- `mongo doctor` reports schema validator mismatches for `deals` and
+  `analytics_snapshots`.
+- Dry-run `mongo apply-schema --collection deals --json` and
+  `mongo apply-schema --collection analytics_snapshots --json` both returned
+  valid `collMod` commands with `validationAction=warn` and
+  `validationLevel=moderate`.
+- Applying those validators is a live Atlas schema write and should be done
+  only after explicit operator approval.
+
 ### First-run documentation alignment
 
 Implemented:

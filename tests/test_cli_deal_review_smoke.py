@@ -354,6 +354,35 @@ def test_deal_review_audit_quality_rules_require_closed_gap_reporting() -> None:
     assert "lost_close_reason_gap_not_reported" in issue_ids
 
 
+def test_deal_review_audit_allows_terminal_risks_without_next_actions() -> None:
+    review = {
+        "deal_stage": "lost",
+        "review_version": "v2",
+        "assessment": {},
+        "health_interpretation": {
+            "health_band": "watch",
+            "evidence_coverage_pct": 80.0,
+            "review_band": "watch_with_evidence",
+            "alert_level": "watch",
+            "uncertainty_level": "medium",
+        },
+        "warnings": ["win_probability_suppressed", "confirmed_risk_present"],
+        "missing_information": [],
+        "confirmed_risks": [
+            {"risk_id": "platform_fit", "severity": "watch"},
+        ],
+        "recommended_questions": [],
+        "recommended_actions": [],
+        "data_quality": {"is_confirmed_complete": True},
+    }
+
+    issue_ids = {
+        issue["issue_id"] for issue in _audit_deal_review_quality(review)
+    }
+
+    assert "confirmed_risks_without_actions" not in issue_ids
+
+
 def test_smoke_natural_questions_writes_pack(monkeypatch, tmp_path) -> None:
     mongo = FakeMongo(
         [

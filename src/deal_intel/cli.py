@@ -3441,12 +3441,12 @@ def _audit_deal_review_quality(review: dict) -> list[dict]:
             )
         )
 
-    if risks and not actions:
+    if risks and not actions and stage not in {"won", "lost"}:
         issues.append(
             _quality_issue(
                 "confirmed_risks_without_actions",
                 "medium",
-                "Confirmed risks must produce recommended actions.",
+                "Confirmed risks on open deals must produce recommended actions.",
             )
         )
 

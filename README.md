@@ -234,12 +234,17 @@ and `docs/baseline.md` are the source of truth.
 config_doctor / update_config
 create_deal / add_interaction / get_deal / update_stage / update_deal
 archive_deal / restore_deal / delete_deal / migrate_local_data
-create_sample_data / delete_sample_data
 list_deals / get_insights / get_metrics / get_deal_gaps / get_deal_review
 export_report / get_user_memory / record_user_memory
 get_customer_themes / get_customer_theme_breakdown / get_customer_theme_evidence
 search_deals / analyze_deal
-developer-only deprecated alias: add_meeting
+```
+
+Developer-only maintenance tools:
+
+```text
+create_sample_data / delete_sample_data
+deprecated compatibility alias: add_meeting
 ```
 
 ---

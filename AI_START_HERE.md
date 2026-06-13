@@ -115,10 +115,10 @@ After restart, ask Claude/Codex to run `config_doctor` first.
 After setup succeeds, ask:
 
 ```text
-현재 파이프라인 건강도 보여줘.
-딜 목록 보여줘.
-가장 위험한 딜 하나 리뷰해줘.
-고객들이 가장 많이 고민한 주제는 뭐야?
+How healthy is the current pipeline?
+Show me the current deal list.
+Which deal needs attention first?
+What are customers most often concerned about?
 ```
 
 For new evidence, use `add_interaction` as the single public intake:

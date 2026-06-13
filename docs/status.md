@@ -45,16 +45,20 @@ Validation:
   `503 passed, 1 warning`.
 - Ruff:
   `All checks passed`.
+- Live Atlas dry-run before apply:
+  `22` candidates, `0` research rows, `0` skipped rows, `0` errors.
+- Live Atlas apply:
+  `22` rows applied through `update_deal`, `0` errors.
+- Live Atlas post-apply dry-run:
+  `0` candidates, `22` clean rows.
+- Customer Themes Atlas aggregation smoke:
+  `pain_by_industry=41` rows and `pain_by_industry_tag=46` rows.
 
 Next:
 
-- Operator dry-run on live Atlas:
-  `deal-intel backfill-industry-tags --json`.
-- If the candidate list looks right, apply with:
-  `deal-intel backfill-industry-tags --apply --confirmed-by-user`.
-- Research rows should be resolved by the AI client with web lookup followed by
-  `update_deal`. If this becomes common enough, add a dedicated web-enrichment
-  MCP tool later.
+- I4 is complete. If future rows have missing industry, the dry-run will return
+  research rows to resolve with web lookup followed by `update_deal`. If that
+  becomes common enough, add a dedicated web-enrichment MCP tool later.
 
 ### Industry tags Atlas chart I3
 

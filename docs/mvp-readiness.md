@@ -69,10 +69,30 @@ V1 polish candidates before broader public release:
 
 - Add an MCP usage tool focused on LLM call counts, token usage, and estimated
   provider spend.
+- Improve MCP tool descriptions and first-run docs so AI hosts can clearly
+  choose between adjacent tools. Each high-traffic tool should say when to use
+  it, when not to use it, and which neighboring tool to prefer for adjacent
+  tasks.
 - Improve CSV/Markdown report readability so exported artifacts have a clearer
   role than Atlas Charts or chat-rendered dashboards.
 - Reposition `analyze_deal` as optional generated strategy text, with
   `get_deal_review` as the default LLM-free review.
+
+Post-v1 tool design cleanup:
+
+- Consolidate customer-theme analysis after real host usage is observed.
+  Ranking, breakdown, and evidence are one user workflow today, but this is not
+  an MVP blocker because current natural-question smoke already passes.
+- Audit `update_deal` field groups. Keep the current wide schema while it
+  remains one coherent "confirmed metadata correction" workflow; split only if
+  unrelated decision types enter the tool.
+
+Post-v2 tool design candidates:
+
+- Add response verbosity controls such as `response_format=concise|detailed`
+  only if real traces show meaningful token pressure.
+- Consider broad tool namespace changes only as a breaking-version cleanup, not
+  as v1 polish.
 
 ## Required Gates
 
@@ -92,6 +112,29 @@ Pass criteria:
 - Ruff passes.
 - `git diff --check` has no whitespace errors. Windows line-ending warnings are
   acceptable if no actual diff-check failure is reported.
+
+### 1b. Public Launch Hygiene
+
+Use the Codex `launch-hygiene` skill before any public release candidate,
+package handoff, MCPB rebuild, or major install-doc update.
+
+Minimum checks:
+
+```powershell
+rg "<known-local-username>|<machine-local-path-pattern>|<old-project-name>|<old-env-name>|API_KEY|TOKEN|SECRET|BEGIN .*PRIVATE KEY" . --glob "!mcpb/outputs/**" --glob "!.git/**"
+git status --short --ignored
+```
+
+Pass criteria:
+
+- No tracked personal usernames, machine-local paths, old project/env names,
+  private generated-output paths, secrets, tokens, or API keys.
+- `.env`, local override YAML, generated bundles, caches, smoke outputs, and
+  local DB/output directories are ignored unless intentionally tracked.
+- Public docs explain how to discover the user's own Python interpreter path
+  instead of copying a maintainer path.
+- Public docs avoid hardcoded tool counts where a doctor/smoke command can
+  report the current surface more reliably.
 
 ### 2. Full Profile Smoke
 

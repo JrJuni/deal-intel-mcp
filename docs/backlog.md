@@ -160,6 +160,121 @@ Acceptance principles:
 - Natural-language smoke tests should still answer common read-only questions
   without server-side LLM calls.
 
+### Public Launch Hygiene
+
+Goal: make every public release/fresh-clone handoff safe, reproducible, and not
+tied to the maintainer's local machine.
+
+Trigger:
+
+- Before publishing a public repo update, package artifact, MCPB bundle, install
+  guide, README onboarding flow, or external evaluator handoff.
+- Whenever a reviewer reports personal paths, stale environment names, tool
+  count drift, secret risk, or fresh-clone setup ambiguity.
+
+Reusable workflow:
+
+- Use the Codex `launch-hygiene` skill for the full audit. It is intentionally
+  repo-agnostic so the same checklist can be reused for future tools.
+
+Required v1 launch hygiene checks:
+
+1. Personal/local leakage scan.
+   - Scan public docs, package manifests, source comments, config examples,
+     scripts, and tests for local usernames, machine paths, old sibling project
+     names, old environment names, absolute generated-output paths, and copied
+     private context.
+   - Legitimate public GitHub owner/package metadata can remain.
+   - Replace local examples with placeholders or "run `sys.executable` and use
+     the printed path."
+2. Secret and local config handling.
+   - Verify `.env`, local override YAML, generated outputs, packaged archives,
+     caches, and smoke artifacts are ignored unless intentionally tracked.
+   - Keep safe templates such as `.env.example`.
+   - Never store API keys, OAuth tokens, MongoDB URIs, or user-local absolute
+     paths in tracked files.
+3. Fresh-clone reproducibility.
+   - Confirm install docs start from a clean clone mental model, not from the
+     maintainer's existing conda environment.
+   - Confirm full mode remains the recommended real-data path, while sample
+     mode is clearly framed as zero-config trial/local personal mode.
+4. Documentation/code alignment.
+   - Compare documented commands, profile names, tool surfaces, config keys,
+     package names, and manifest fields with actual CLI help, tests, and source.
+   - Avoid hardcoding tool counts in user-facing docs when a doctor/smoke
+     command can report them more reliably.
+5. Generated artifact hygiene.
+   - Confirm generated reports, smoke outputs, Atlas renders, bundle outputs,
+     caches, and local DB files are either ignored or intentionally included.
+   - Do not delete local/generated artifacts without user approval.
+
+Near-term action:
+
+- Run this hygiene gate once before v1.0 tagging and again after any packaging
+  or install-guide change.
+- Keep the result in `docs/status.md` with exact scans and validation commands.
+
+### MCP Tool Design Cleanup
+
+Goal: make the tool surface easier for AI hosts to choose from without slowing
+down v1.0.
+
+Reference principles:
+
+- Design tools around agent workflows, not internal API endpoints.
+- Keep tool purposes distinct and explicit.
+- Return high-signal context and avoid unnecessary token load.
+- Improve tools through realistic evaluation prompts and smoke traces, not just
+  by guessing from schema shape.
+
+Current assessment:
+
+- The current profile-filtered surfaces already solve the biggest context-load
+  issue: `sample`, `standard`, and `developer` hide demo/maintenance tools from
+  ordinary users.
+- `update_deal` has many parameters, but it is still one coherent intent:
+  confirmed value and selected metadata correction. Do not split it just because
+  the schema is wide. Revisit only if unrelated decision types start entering
+  the tool.
+- Customer theme analysis is the strongest post-v1 consolidation candidate
+  because ranking, breakdown, and evidence are one user intent split across
+  several tools.
+
+v1 polish:
+
+1. Improve MCP tool descriptions and user docs with explicit selection
+   guidance:
+   - "Use this when..."
+   - "Do not use this for..."
+   - "For this adjacent task, use `<other_tool>` instead."
+2. Clarify README/AI_START_HERE tool-surface guidance so AI hosts understand
+   that ordinary users should mostly see the `standard` surface, while
+   `developer` is for maintainers and fixture/debug work.
+3. Keep natural-question smoke traces as the main evaluation signal for whether
+   tool descriptions are steering the host correctly.
+
+Post-v1:
+
+1. Consolidate customer theme tools after observing real host usage:
+   - Keep `get_customer_themes` as the workflow-oriented entry point.
+   - Add optional depth controls such as `include_breakdown` /
+     `include_evidence` or a small `detail_level` enum.
+   - Preserve current lower-level tools temporarily as compatibility aliases
+     only if needed.
+2. Audit `update_deal` field groups:
+   - Keep it if all fields remain "confirmed deal metadata correction."
+   - Split only if future fields introduce distinct workflows such as
+     ownership/contact graph management, approval policies, forecast overrides,
+     or framework configuration.
+
+Post-v2 or later:
+
+1. Add response verbosity controls such as `response_format=concise|detailed`
+   only after tool outputs show meaningful token pressure in real traces.
+2. Consider broader tool namespace changes only as a breaking-version cleanup.
+   Renaming public tools before real usage feedback would create more migration
+   burden than value.
+
 ### User Memory MCP Tools
 
 Goal: let non-developer users teach the assistant their sales motion, reporting

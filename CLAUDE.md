@@ -33,6 +33,10 @@ Append-only or historical docs such as `docs/lesson-learned.md` and old
 sections of `docs/backlog.md` are archive material. Search them for a specific
 failure or decision; do not load them wholesale for ordinary tasks.
 
+Before public release, package handoff, MCPB rebuild, or major install-doc
+changes, run the `launch-hygiene` skill if available and follow the public
+launch hygiene gate in `docs/mvp-readiness.md`.
+
 ## Documentation Language Policy
 
 - English is the source language for repository docs, contracts, status,

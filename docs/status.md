@@ -12,6 +12,49 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-14
 
+### Public launch hygiene stream
+
+Documented:
+
+- Created a reusable Codex `launch-hygiene` skill for public-release hygiene
+  audits.
+- Added `Public Launch Hygiene` to `docs/backlog.md`.
+- Added a public launch hygiene gate to `docs/mvp-readiness.md`.
+
+Decision:
+
+- Treat launch hygiene as a v1 release gate, not as packaging polish.
+- Run it before v1.0 tagging, package handoff, MCPB rebuilds, or major install
+  guide changes.
+- Use explicit scans for personal/local leakage, secret/config handling,
+  fresh-clone reproducibility, doc/code alignment, and generated artifact
+  hygiene.
+- Avoid reintroducing exact private local identifiers into tracked docs. Use
+  placeholder scan terms and keep concrete local values in ignored local config
+  only.
+
+### MCP tool design roadmap triage
+
+Documented:
+
+- Added `MCP Tool Design Cleanup` to `docs/backlog.md`.
+- Updated `docs/mvp-readiness.md` so v1 polish focuses on tool-description and
+  first-run guidance, not disruptive tool renaming.
+
+Decision:
+
+- Treat tool-description guidance as v1 polish because it directly reduces AI
+  host confusion when choosing between adjacent tools.
+- Treat customer-theme consolidation as post-v1. It is a real design cleanup,
+  but current natural-question smoke already passes and the workflow should be
+  shaped with real host usage traces.
+- Keep `update_deal` as-is for v1 while it remains one coherent confirmed
+  metadata-correction workflow. Revisit only if unrelated decision types enter
+  the tool.
+- Defer response verbosity controls and broad tool namespace changes to
+  post-v2 or later. They are useful only after real traces show token pressure
+  or a breaking-version cleanup is already planned.
+
 ### Cost-aware host LLM boundary
 
 Documented:

@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 
 from deal_intel.errors import ErrorCode, MCPError, Stage
 from deal_intel.schema.industry_taxonomy import (
+    IndustryProfile,
     IndustryTaxonomyError,
     normalize_industry_profile,
 )
@@ -16,6 +17,7 @@ from deal_intel.schema.metrics import (
     default_deal_currency,
     resolve_expected_close_date,
 )
+from deal_intel.schema.taxonomy_audit import infer_industry_metadata
 from deal_intel.storage.mongodb import MongoDBClient
 from deal_intel.tools.analytics_snapshot import (
     record_analytics_snapshot,
@@ -59,15 +61,17 @@ def handle(
             message=str(exc),
             retryable=False,
         ) from exc
-    taxonomy = _normalize_industry_or_raise(
+    taxonomy, resolved_customer_segment = _normalize_industry_or_raise(
+        company=company,
         industry=industry,
         industry_tags=industry_tags,
+        customer_segment=customer_segment,
     )
     try:
         resolved_close_date, close_date_source = resolve_expected_close_date(
             provided=expected_close_date,
             industry=taxonomy.industry,
-            customer_segment=customer_segment,
+            customer_segment=resolved_customer_segment,
             created_on=reporting.as_of,
             settings=expected_close_settings,
         )
@@ -92,7 +96,7 @@ def handle(
         "company": company.strip(),
         "industry": taxonomy.industry,
         "industry_tags": taxonomy.industry_tags,
-        "customer_segment": _clean_optional_text(customer_segment),
+        "customer_segment": resolved_customer_segment,
         **deal_value,
         "contacts": [],
         "interactions": [],
@@ -158,14 +162,49 @@ def handle(
 
 def _normalize_industry_or_raise(
     *,
+    company: str | None,
     industry: str | None,
     industry_tags: str | list[str] | None,
+    customer_segment: str | None,
 ):
-    try:
-        return normalize_industry_profile(
-            industry=industry,
-            industry_tags=industry_tags,
+    inferred = infer_industry_metadata(
+        current_industry=industry,
+        current_segment=customer_segment,
+        current_industry_tags=_industry_tags_list(industry_tags),
+        company=company,
+    )
+    if inferred["suggested_industry"]:
+        profile = normalize_industry_profile(
+            industry=inferred["suggested_industry"],
+            industry_tags=inferred["suggested_industry_tags"] or industry_tags,
         )
+        warnings = list(profile.warnings)
+        if (
+            inferred["suggested_industry"] != _clean_optional_text(industry)
+            or inferred["suggested_customer_segment"]
+            != _clean_optional_text(customer_segment)
+        ):
+            warnings.append(
+                {
+                    "code": "auto_classified_industry_metadata",
+                    "field": "industry",
+                    "value": industry,
+                    "message": (
+                        "Normalized industry metadata from a mixed or localized label."
+                    ),
+                }
+            )
+        return (
+            IndustryProfile(
+                industry=profile.industry,
+                industry_tags=profile.industry_tags,
+                warnings=warnings,
+            ),
+            inferred["suggested_customer_segment"],
+        )
+    try:
+        profile = normalize_industry_profile(industry=industry, industry_tags=industry_tags)
+        return profile, _clean_optional_text(customer_segment)
     except IndustryTaxonomyError as exc:
         raise MCPError(
             error_code=ErrorCode.INVALID_INPUT,
@@ -182,6 +221,14 @@ def _normalize_industry_or_raise(
             },
             retryable=False,
         ) from exc
+
+
+def _industry_tags_list(value: str | list[str] | None) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [item.strip() for item in value.replace("/", ",").split(",") if item.strip()]
+    return [str(item).strip() for item in value if str(item).strip()]
 
 
 def _build_deal_value(

@@ -471,6 +471,7 @@ def apply_taxonomy_cleanup(
                     mongo=mongo,
                     deal_id=payload["deal_id"],
                     industry=payload.get("industry"),
+                    industry_tags=payload.get("industry_tags"),
                     customer_segment=payload.get("customer_segment"),
                     update_note=payload.get("update_note"),
                     confirmed_by_user=True,
@@ -512,6 +513,7 @@ def apply_taxonomy_cleanup(
                 "current_industry": row.get("current_industry"),
                 "current_customer_segment": row.get("current_customer_segment"),
                 "suggested_industry": row.get("suggested_industry"),
+                "suggested_industry_tags": row.get("suggested_industry_tags"),
                 "suggested_customer_segment": row.get("suggested_customer_segment"),
                 "confidence": row.get("confidence"),
                 "needs_human_review": row.get("needs_human_review"),
@@ -527,6 +529,61 @@ def apply_taxonomy_cleanup(
         typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
     else:
         typer.echo(_format_taxonomy_cleanup_result(payload))
+
+    if not payload["ok"]:
+        raise typer.Exit(code=1)
+
+
+@app.command("backfill-industry-tags")
+def backfill_industry_tags(
+    limit: int = typer.Option(
+        0,
+        "--limit",
+        min=0,
+        max=5000,
+        help="Maximum deals to scan. 0 means scan all readable deals.",
+    ),
+    apply: bool = typer.Option(
+        False,
+        "--apply",
+        help="Write updates. Without this flag, only print a dry-run plan.",
+    ),
+    confirmed_by_user: bool = typer.Option(
+        False,
+        "--confirmed-by-user",
+        help="Required with --apply to confirm the backfill should be written.",
+    ),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Print structured JSON instead of concise text.",
+    ),
+) -> None:
+    """Backfill and normalize industry metadata from existing labels."""
+
+    from deal_intel import _context
+    from deal_intel.errors import MCPError
+    from deal_intel.tools import backfill_industry_tags as _t
+
+    try:
+        payload = _t.handle(
+            mongo=_context.mongo(),
+            limit=limit,
+            dry_run=not apply,
+            confirmed_by_user=confirmed_by_user,
+        )
+    except MCPError as exc:
+        payload = exc.to_envelope()
+        if json_output:
+            typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+        else:
+            typer.echo(_format_industry_tag_backfill_result(payload))
+        raise typer.Exit(code=1) from exc
+
+    if json_output:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+    else:
+        typer.echo(_format_industry_tag_backfill_result(payload))
 
     if not payload["ok"]:
         raise typer.Exit(code=1)
@@ -1606,6 +1663,119 @@ def _format_taxonomy_cleanup_result(payload: dict) -> str:
             lines.append(
                 f"- {error.get('company')} ({error.get('deal_id')}): "
                 f"{error.get('error')}"
+            )
+    return "\n".join(lines)
+
+
+def _format_industry_tag_backfill_result(payload: dict) -> str:
+    if not payload.get("ok") and payload.get("error_code"):
+        return (
+            "Industry metadata backfill: not applied\n"
+            f"Error: {payload.get('error_code')} - {payload.get('message')}"
+        )
+
+    summary = payload["summary"]
+    mode = "dry-run" if payload.get("dry_run") else "apply"
+    lines = [
+        f"Industry metadata backfill: {mode}",
+        (
+            "Deals: "
+            f"{summary['deals_scanned']} scanned, "
+            f"{summary['candidate_count']} candidate(s), "
+            f"{summary.get('research_count', 0)} research, "
+            f"{summary['clean_count']} clean, "
+            f"{summary['skipped_count']} skipped"
+        ),
+    ]
+    if summary.get("issue_counts"):
+        issue_text = ", ".join(
+            f"{key}={value}" for key, value in summary["issue_counts"].items()
+        )
+        lines.append(f"Issue/action counts: {issue_text}")
+
+    if payload.get("dry_run"):
+        lines.append(
+            "No storage writes were made. Re-run with --apply --confirmed-by-user "
+            "after reviewing the candidates."
+        )
+    else:
+        lines.append(
+            f"Applied: {summary['applied_count']} row(s), "
+            f"errors: {summary['error_count']}"
+        )
+
+    candidates = payload.get("candidates") or []
+    if candidates:
+        lines.append("")
+        lines.append("Candidates:")
+        for row in candidates:
+            lines.append(
+                "- "
+                f"{row.get('company')} ({row.get('deal_id')}) "
+                f"action={row.get('action')}"
+            )
+            lines.append(
+                "  "
+                f"current_industry={row.get('industry') or '-'}, "
+                f"suggested_industry={row.get('suggested_industry') or '-'}, "
+                f"current_tags={row.get('current_industry_tags') or []}, "
+                f"suggested_tags={row.get('suggested_industry_tags') or []}, "
+                f"segment={row.get('current_customer_segment') or '-'} -> "
+                f"{row.get('suggested_customer_segment') or '-'}"
+            )
+            if row.get("confidence"):
+                lines.append(f"  confidence={row.get('confidence')}")
+            if row.get("taxonomy_warnings"):
+                codes = [
+                    str(warning.get("code"))
+                    for warning in row.get("taxonomy_warnings") or []
+                ]
+                lines.append(f"  warnings={codes}")
+
+    research = payload.get("research") or []
+    if research:
+        lines.append("")
+        lines.append("Needs AI research:")
+        for row in research[:10]:
+            lines.append(
+                "- "
+                f"{row.get('company')} ({row.get('deal_id')}) "
+                f"action={row.get('action')}"
+            )
+            if row.get("research_query"):
+                lines.append(f"  search: {row.get('research_query')}")
+            if row.get("recommended_action"):
+                lines.append(f"  next: {row.get('recommended_action')}")
+        if len(research) > 10:
+            lines.append(f"... {len(research) - 10} more research row(s)")
+
+    skipped = payload.get("skipped") or []
+    if skipped:
+        lines.append("")
+        lines.append("Skipped:")
+        for row in skipped[:10]:
+            lines.append(
+                "- "
+                f"{row.get('company')} ({row.get('deal_id')}) "
+                f"reason={row.get('reason')}"
+            )
+            if row.get("candidates"):
+                lines.append(f"  candidates={row.get('candidates')}")
+            if row.get("suggested_industry"):
+                lines.append(f"  suggested_industry={row.get('suggested_industry')}")
+            if row.get("unmapped_parts"):
+                lines.append(f"  unmapped_parts={row.get('unmapped_parts')}")
+        if len(skipped) > 10:
+            lines.append(f"... {len(skipped) - 10} more skipped row(s)")
+
+    errors = payload.get("errors") or []
+    if errors:
+        lines.append("")
+        lines.append("Errors:")
+        for row in errors:
+            lines.append(
+                "- "
+                f"{row.get('company')} ({row.get('deal_id')}): {row.get('error')}"
             )
     return "\n".join(lines)
 

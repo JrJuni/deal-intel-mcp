@@ -12,6 +12,7 @@ from deal_intel.schema.industry_taxonomy import (
 def test_industry_candidates_normalizes_korean_single_vertical() -> None:
     assert industry_candidates("제조") == ["Manufacturing"]
     assert industry_candidates("핀테크") == ["Finance"]
+    assert industry_candidates("애그테크") == ["AgTech"]
 
 
 def test_primary_industry_rejects_ambiguous_compound_value() -> None:
@@ -41,10 +42,10 @@ def test_profile_splits_compound_tags_and_forces_primary() -> None:
 
 
 def test_profile_keeps_custom_industry_with_warning() -> None:
-    result = normalize_industry_profile(industry="Deep Tech")
+    result = normalize_industry_profile(industry="Space Mining")
 
-    assert result.industry == "Deep Tech"
-    assert result.industry_tags == ["Deep Tech"]
+    assert result.industry == "Space Mining"
+    assert result.industry_tags == ["Space Mining"]
     assert result.warnings[0]["code"] == "unknown_custom_industry"
 
 

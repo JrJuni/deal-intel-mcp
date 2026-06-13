@@ -12,13 +12,20 @@ SEGMENT_SEPARATOR = "; "
 SEGMENT_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("startup", ("startup", "start-up", "스타트업")),
     ("enterprise", ("enterprise", "large enterprise", "대기업", "엔터프라이즈")),
-    ("mid_market", ("mid-market", "mid_market", "middle market", "중견", "중견기업")),
+    (
+        "mid_market",
+        ("mid-market", "mid_market", "middle market", "중견", "중견기업", "준대기업"),
+    ),
     ("smb", ("smb", "small business", "중소", "중소기업")),
-    ("public_sector", ("public sector", "public_sector", "공공기관", "공기업", "준공기업")),
+    (
+        "public_sector",
+        ("public sector", "public_sector", "공공기관", "공기업", "준공기업", "정부", "공공"),
+    ),
+    ("deeptech", ("deeptech", "deep tech", "딥테크")),
 )
 
 FUNDING_STAGE_RE = re.compile(
-    r"\b(pre[-\s]?ipo|series\s*[a-f])\b|시리즈\s*([a-fA-F가-하])",
+    r"\b(pre[-\s]?ipo|series\s*[a-f])\b",
     re.IGNORECASE,
 )
 
@@ -36,11 +43,7 @@ def build_taxonomy_audit(
     output_rows = rows if include_all else issue_rows
     output_rows.sort(key=_sort_key)
     limited_rows = output_rows[:limit]
-    issue_counts = Counter(
-        issue
-        for row in rows
-        for issue in row["issues"]
-    )
+    issue_counts = Counter(issue for row in rows for issue in row["issues"])
     confidence_counts = Counter(row["confidence"] for row in issue_rows)
     total_returnable_count = len(output_rows)
     return {
@@ -69,45 +72,33 @@ def build_taxonomy_audit(
 def _build_row(deal: dict) -> dict:
     current_industry = _clean(deal.get("industry"))
     current_segment = _clean(deal.get("customer_segment"))
-    industry_candidates = _industry_candidates(current_industry)
-    segment_candidates = _segment_candidates(current_industry)
+    inference = infer_industry_metadata(
+        current_industry=current_industry,
+        current_segment=current_segment,
+        company=deal.get("company"),
+    )
     issues = _issues(
         current_industry=current_industry,
         current_segment=current_segment,
-        industry_candidates=industry_candidates,
-        segment_candidates=segment_candidates,
+        inference=inference,
     )
-    suggested_industry = _suggested_industry(
-        current_industry=current_industry,
-        industry_candidates=industry_candidates,
-        segment_candidates=segment_candidates,
-    )
-    suggested_segment = _suggested_segment(current_segment, segment_candidates)
-    confidence = _confidence(
-        issues=issues,
-        industry_candidates=industry_candidates,
-        segment_candidates=segment_candidates,
-        suggested_industry=suggested_industry,
-        suggested_segment=suggested_segment,
-    )
-    needs_review = confidence != "high" or "multiple_industry_candidates" in issues
+    confidence = _confidence(issues=issues, inference=inference)
+    needs_review = confidence == "low"
     review_explanation = _review_explanation(
         issues=issues,
         confidence=confidence,
         needs_review=needs_review,
         current_industry=current_industry,
-        suggested_industry=suggested_industry,
-        suggested_segment=suggested_segment,
-        industry_candidates=industry_candidates,
-        segment_candidates=segment_candidates,
+        inference=inference,
     )
     update_payload = None
-    if issues:
+    if issues and inference["suggested_industry"]:
         update_payload = {
             "deal_id": deal.get("deal_id"),
             "confirmed_by_user": True,
-            "industry": suggested_industry,
-            "customer_segment": suggested_segment,
+            "industry": inference["suggested_industry"],
+            "industry_tags": inference["suggested_industry_tags"],
+            "customer_segment": inference["suggested_customer_segment"],
             "update_note": (
                 "User confirmed taxonomy cleanup after reviewing deal context."
             ),
@@ -118,8 +109,9 @@ def _build_row(deal: dict) -> dict:
         "deal_stage": deal.get("deal_stage"),
         "current_industry": current_industry,
         "current_customer_segment": current_segment,
-        "suggested_industry": suggested_industry,
-        "suggested_customer_segment": suggested_segment,
+        "suggested_industry": inference["suggested_industry"],
+        "suggested_industry_tags": inference["suggested_industry_tags"],
+        "suggested_customer_segment": inference["suggested_customer_segment"],
         "confidence": confidence,
         "needs_human_review": needs_review,
         "issues": issues,
@@ -130,73 +122,111 @@ def _build_row(deal: dict) -> dict:
     }
 
 
+def infer_industry_metadata(
+    *,
+    current_industry: str | None,
+    current_segment: str | None = None,
+    current_industry_tags: list[str] | None = None,
+    company: str | None = None,
+) -> dict:
+    """Infer primary industry, tags, and customer segment from a stored label.
+
+    This is intentionally deterministic. It is not trying to be a perfect BD
+    classifier; it gives the product a sane default so operators only review the
+    genuinely weird rows.
+    """
+
+    industry_parts = _split_parts(current_industry)
+    detected_industries: list[str] = []
+    detected_segments: list[str] = []
+    unmapped_parts: list[str] = []
+
+    for part in industry_parts:
+        candidates = industry_candidates(part)
+        segments = _segment_candidates(part)
+        if candidates:
+            detected_industries.extend(candidates)
+        if segments:
+            detected_segments.extend(segments)
+        if not candidates and not segments:
+            unmapped_parts.append(part)
+
+    source = "industry"
+    if not detected_industries:
+        detected_industries.extend(industry_candidates(current_industry))
+    if not detected_industries:
+        company_candidates = industry_candidates(company)
+        if company_candidates:
+            detected_industries.extend(company_candidates)
+            source = "company_name"
+
+    normalized_current_tags: list[str] = []
+    for tag in current_industry_tags or []:
+        candidates = industry_candidates(tag)
+        normalized_current_tags.extend(candidates or [tag])
+
+    suggested_industry = detected_industries[0] if detected_industries else None
+    suggested_tags = _dedupe([*detected_industries, *normalized_current_tags])
+    suggested_segment = _merge_segment(current_segment, detected_segments)
+    return {
+        "suggested_industry": suggested_industry,
+        "suggested_industry_tags": suggested_tags,
+        "suggested_customer_segment": suggested_segment,
+        "detected_industries": _dedupe(detected_industries),
+        "detected_segments": _dedupe(detected_segments),
+        "unmapped_parts": unmapped_parts,
+        "inference_source": source if detected_industries else None,
+        "research_query": _research_query(company, current_industry)
+        if not detected_industries
+        else None,
+    }
+
+
+def _research_query(company: str | None, current_industry: str | None) -> str | None:
+    company = _clean(company)
+    if not company:
+        return None
+    if current_industry:
+        return f"{company} company industry business model"
+    return f"{company} company industry"
+
+
 def _issues(
     *,
     current_industry: str | None,
     current_segment: str | None,
-    industry_candidates: list[str],
-    segment_candidates: list[str],
+    inference: dict,
 ) -> list[str]:
     issues = []
-    if not current_industry:
+    suggested_industry = inference["suggested_industry"]
+    suggested_segment = inference["suggested_customer_segment"]
+    detected_industries = inference["detected_industries"]
+    detected_segments = inference["detected_segments"]
+
+    if not current_industry and suggested_industry:
+        issues.append("inferred_missing_industry_from_company")
+    elif not current_industry:
         issues.append("missing_industry")
-    if current_industry and segment_candidates:
+    elif not suggested_industry:
+        issues.append("unmapped_industry")
+    if current_industry and suggested_industry and suggested_industry != current_industry:
+        issues.append("normalized_primary_industry")
+    if current_industry and len(detected_industries) > 1:
+        issues.append("cross_industry_tags_detected")
+    if detected_segments:
         issues.append("mixed_segment_in_industry")
-    if current_industry and _has_separator(current_industry) and len(industry_candidates) > 1:
-        issues.append("multiple_industry_candidates")
-    if current_industry and _has_separator(current_industry) and not segment_candidates:
-        issues.append("compound_industry_needs_review")
-    if segment_candidates and not current_segment:
-        issues.append("missing_customer_segment")
+    if suggested_segment and suggested_segment != current_segment:
+        issues.append("missing_or_updated_customer_segment")
     return issues
 
 
-def _suggested_industry(
-    *,
-    current_industry: str | None,
-    industry_candidates: list[str],
-    segment_candidates: list[str],
-) -> str | None:
-    if industry_candidates:
-        return " / ".join(industry_candidates)
-    if current_industry and not segment_candidates:
-        return current_industry
-    return None
-
-
-def _suggested_segment(
-    current_segment: str | None,
-    segment_candidates: list[str],
-) -> str | None:
-    segments = []
-    if current_segment:
-        segments.extend(_split_segments(current_segment))
-    segments.extend(segment_candidates)
-    segments = _dedupe(segments)
-    return SEGMENT_SEPARATOR.join(segments) if segments else current_segment
-
-
-def _confidence(
-    *,
-    issues: list[str],
-    industry_candidates: list[str],
-    segment_candidates: list[str],
-    suggested_industry: str | None,
-    suggested_segment: str | None,
-) -> str:
+def _confidence(*, issues: list[str], inference: dict) -> str:
     if not issues:
         return "none"
-    if (
-        suggested_industry
-        and suggested_segment
-        and len(industry_candidates) == 1
-        and segment_candidates
-        and "multiple_industry_candidates" not in issues
-        and "compound_industry_needs_review" not in issues
-    ):
-        return "high"
-    if suggested_industry or suggested_segment:
+    if inference.get("inference_source") == "company_name":
         return "medium"
+    if inference["suggested_industry"]:
+        return "high"
     return "low"
 
 
@@ -206,23 +236,13 @@ def _review_explanation(
     confidence: str,
     needs_review: bool,
     current_industry: str | None,
-    suggested_industry: str | None,
-    suggested_segment: str | None,
-    industry_candidates: list[str],
-    segment_candidates: list[str],
+    inference: dict,
 ) -> dict:
-    """Explain why a taxonomy row is safe to apply or needs human review.
-
-    The language is intentionally product-facing. This command often runs before
-    a human trusts the taxonomy cleanup flow, so it should explain the judgment
-    boundary instead of only printing a machine label.
-    """
-
     if not issues:
         return {
             "review_level": "clean",
             "mental_model": _taxonomy_mental_model(),
-            "reason": "Industry and customer_segment already look separated.",
+            "reason": "Industry, tags, and customer_segment already look separated.",
             "why_human_review": None,
             "what_to_check": [],
             "safe_next_step": "No taxonomy update is needed.",
@@ -233,127 +253,48 @@ def _review_explanation(
             "review_level": "auto_apply_candidate",
             "mental_model": _taxonomy_mental_model(),
             "reason": (
-                "The current industry contains one clear business vertical and "
-                "one or more account-segment labels, so the split preserves both "
-                "meanings without choosing between competing industries."
+                "The stored label contains recognizable industry and segment "
+                "signals, so the system can normalize it into primary industry, "
+                "industry_tags, and customer_segment without dropping meaning."
             ),
             "why_human_review": None,
             "what_to_check": [
-                f"Industry becomes {suggested_industry!r}.",
-                f"Customer segment becomes {suggested_segment!r}.",
+                f"Industry becomes {inference['suggested_industry']!r}.",
+                f"Tags become {inference['suggested_industry_tags']!r}.",
+                f"Customer segment becomes {inference['suggested_customer_segment']!r}.",
             ],
             "safe_next_step": (
-                "If the user accepts this cleanup rule, it can be applied with "
-                "apply-taxonomy-cleanup."
+                "Apply the cleanup after reviewing the dry-run candidate list."
             ),
         }
 
-    reason = _human_review_reason(
-        current_industry=current_industry,
-        suggested_industry=suggested_industry,
-        industry_candidates=industry_candidates,
-        segment_candidates=segment_candidates,
-        issues=issues,
-        confidence=confidence,
-    )
     return {
         "review_level": "human_review_required",
         "mental_model": _taxonomy_mental_model(),
-        "reason": reason["reason"],
-        "why_human_review": reason["why_human_review"],
-        "what_to_check": reason["what_to_check"],
-        "safe_next_step": (
-            "Open the deal context, pick the single best business vertical, then "
-            "use update_deal with a user-confirmed update_note."
+        "reason": (
+            "The stored label does not match the configured taxonomy strongly "
+            "enough for automatic normalization."
         ),
+        "why_human_review": (
+            f"{current_industry!r} has no confident industry match. Add a taxonomy "
+            "rule or update the deal with the desired primary industry."
+        ),
+        "what_to_check": [
+            "What is the buyer's actual business vertical?",
+            "Should this become a new canonical industry rule?",
+            "Which labels belong in customer_segment instead of industry?",
+        ],
+        "safe_next_step": "Use update_deal after choosing the target taxonomy.",
     }
 
 
 def _taxonomy_mental_model() -> str:
     return (
         "industry is the market shelf the customer belongs on; "
+        "industry_tags are extra shelves for cross-industry accounts; "
         "customer_segment is the sticky note about size, maturity, ownership, "
         "or funding stage."
     )
-
-
-def _human_review_reason(
-    *,
-    current_industry: str | None,
-    suggested_industry: str | None,
-    industry_candidates: list[str],
-    segment_candidates: list[str],
-    issues: list[str],
-    confidence: str,
-) -> dict:
-    if "multiple_industry_candidates" in issues:
-        return {
-            "reason": (
-                "More than one plausible industry was detected, so an automatic "
-                "split would be choosing a reporting taxonomy on behalf of the user."
-            ),
-            "why_human_review": (
-                f"{current_industry!r} can be read as {suggested_industry!r}. "
-                "Those choices change industry charts and customer-theme grouping, "
-                "and can shift weekly reporting, so the system should not guess."
-            ),
-            "what_to_check": [
-                "Which vertical should this account be grouped under in weekly reporting?",
-                "Is the other detected label a sub-industry, business model, or just context?",
-                "Would BD search for this company by the suggested industry name?",
-            ],
-        }
-    if "compound_industry_needs_review" in issues:
-        return {
-            "reason": (
-                "The industry has separators but no confident canonical vertical "
-                "match, so the label is compound but the target industry is unclear."
-            ),
-            "why_human_review": (
-                f"{current_industry!r} probably mixes concepts, but the configured "
-                "taxonomy does not know which one should become the primary industry."
-            ),
-            "what_to_check": [
-                "What is the buyer's actual business vertical?",
-                "Should one part become customer_segment or remain industry detail?",
-                "Does the taxonomy need a new industry rule for this market?",
-            ],
-        }
-    if confidence == "medium" and suggested_industry is None and segment_candidates:
-        return {
-            "reason": (
-                "The segment part is clear, but the industry part is not yet mapped "
-                "to the canonical taxonomy."
-            ),
-            "why_human_review": (
-                "Moving only the segment would leave the old mixed industry in place, "
-                "and guessing the missing industry could distort reports."
-            ),
-            "what_to_check": [
-                "Choose the canonical industry before applying the split.",
-                "Add a taxonomy rule if this industry will appear again.",
-                "Confirm the suggested segment labels are useful for BD filtering.",
-            ],
-        }
-    return {
-        "reason": (
-            "The row has a taxonomy issue, but the suggestion is not strong enough "
-            "to apply without a person checking the deal context."
-        ),
-        "why_human_review": (
-            "The cleanup affects reporting groups, so uncertain rows should stay "
-            "visible rather than be silently normalized."
-        ),
-        "what_to_check": [
-            "Confirm the primary business vertical.",
-            "Confirm which maturity or account-stage labels belong in customer_segment.",
-            "Use update_deal only after the split is clear.",
-        ],
-    }
-
-
-def _industry_candidates(value: str | None) -> list[str]:
-    return industry_candidates(value)
 
 
 def _segment_candidates(value: str | None) -> list[str]:
@@ -365,6 +306,8 @@ def _segment_candidates(value: str | None) -> list[str]:
         for canonical, patterns in SEGMENT_RULES
         if any(pattern.casefold() in text for pattern in patterns)
     ]
+    if "mid_market" in candidates and ("준대기업" in text or "중견" in text):
+        candidates = [candidate for candidate in candidates if candidate != "enterprise"]
     candidates.extend(_funding_stages(value))
     return _dedupe(candidates)
 
@@ -372,17 +315,14 @@ def _segment_candidates(value: str | None) -> list[str]:
 def _funding_stages(value: str) -> list[str]:
     stages = []
     for match in FUNDING_STAGE_RE.finditer(value):
-        raw = match.group(1) or match.group(2)
+        raw = match.group(1)
         if not raw:
             continue
-        cleaned = raw.strip().replace(" ", "-")
-        if cleaned.casefold().replace("-", "") == "preipo":
+        compact = re.sub(r"[-\s]+", "", raw).casefold()
+        if compact == "preipo":
             stages.append("Pre-IPO")
-        elif cleaned.casefold().startswith("series"):
-            suffix = cleaned.split("-")[-1].upper()
-            stages.append(f"Series {suffix}")
-        else:
-            stages.append(f"Series {cleaned.upper()}")
+        elif compact.startswith("series"):
+            stages.append(f"Series {compact.removeprefix('series').upper()}")
     return stages
 
 
@@ -445,13 +385,13 @@ def _warnings(
                 "message": "Increase --limit or use --json to inspect every returned row.",
             }
         )
-    if any(row["confidence"] != "high" for row in issue_rows):
+    if any(row["confidence"] == "low" for row in issue_rows):
         warnings.append(
             {
-                "code": "human_review_required",
+                "code": "taxonomy_rule_needed",
                 "message": (
-                    "Medium/low confidence suggestions should be confirmed "
-                    "against full deal context before update_deal."
+                    "Some rows could not be mapped automatically. Add a taxonomy "
+                    "rule or update those deals explicitly."
                 ),
             }
         )
@@ -467,16 +407,23 @@ def _sort_key(row: dict) -> tuple[int, int, str]:
     )
 
 
-def _has_separator(value: str) -> bool:
-    return any(separator in value for separator in ("·", "/", "|", ",", ";"))
-
-
-def _split_segments(value: str) -> list[str]:
+def _split_parts(value: str | None) -> list[str]:
+    if not value:
+        return []
     return [
         item.strip()
-        for item in re.split(r"[;,/|·]+", value)
+        for item in re.split(r"[,;/|·ㆍ]+", value)
         if item.strip()
     ]
+
+
+def _merge_segment(current_segment: str | None, detected_segments: list[str]) -> str | None:
+    segments = []
+    if current_segment:
+        segments.extend(_split_parts(current_segment))
+    segments.extend(detected_segments)
+    segments = _dedupe(segments)
+    return SEGMENT_SEPARATOR.join(segments) if segments else current_segment
 
 
 def _dedupe(values: Iterable[str]) -> list[str]:
@@ -496,4 +443,4 @@ def _clean(value: Any) -> str | None:
 
 def _truncate(value: str, *, limit: int = 180) -> str:
     value = " ".join(value.split())
-    return value if len(value) <= limit else f"{value[: limit - 1]}…"
+    return value if len(value) <= limit else f"{value[: limit - 3]}..."

@@ -117,8 +117,14 @@ maturity, account segment, ownership, or lifecycle labels such as startup,
 Series B, enterprise, public_sector, or Pre-IPO. This split keeps industry
 dashboards and theme breakdowns from mixing verticals with company stage.
 Primary industry input is normalized against the shared taxonomy when possible.
-Ambiguous primary values return a preflight error with candidate industries
-instead of guessing.
+Tool entrypoints such as `create_deal`, `update_deal`, and
+`backfill-industry-tags` first try to normalize recognizable mixed labels into
+primary industry, `industry_tags`, and `customer_segment`. The user-facing
+taxonomy UX is draft-first and correction-friendly: non-empty unmapped labels
+become low-confidence custom drafts, and missing industries become either a
+company-name inference candidate or an AI/web research task with an
+`update_deal` follow-up. Low-level schema helpers remain stricter so internal
+callers can still opt into explicit validation when they need it.
 
 `update_deal` supports confirmed deal value fields plus selected metadata:
 `company`, `industry`, `industry_tags`, `customer_segment`,

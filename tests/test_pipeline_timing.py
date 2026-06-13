@@ -619,6 +619,53 @@ def test_mcp_create_deal_prefers_segment_override(monkeypatch) -> None:
     assert mongo.saved["customer_segment"] == "Enterprise"
 
 
+def test_mcp_create_deal_auto_classifies_mixed_industry_metadata(monkeypatch) -> None:
+    mongo = FakeMongo()
+    monkeypatch.setattr(_context, "mongo", lambda: mongo)
+    monkeypatch.setattr(
+        _context,
+        "config",
+        lambda: {
+            "pipeline": {
+                "expected_close": {
+                    "default_days": 7,
+                    "days_by_segment": {"enterprise": 21},
+                }
+            }
+        },
+    )
+    before = datetime.now(ZoneInfo("Asia/Seoul")).date()
+
+    result = mcp_server.create_deal("Aurora Insurance", industry="보험·금융·대기업")
+
+    assert result["ok"] is True
+    assert result["industry"] == "Insurance"
+    assert result["industry_tags"] == ["Insurance", "Finance"]
+    assert result["customer_segment"] == "enterprise"
+    assert result["expected_close_date"] == (before + timedelta(days=21)).isoformat()
+    assert result["expected_close_date_source"] == "config_segment"
+    assert result["taxonomy_warnings"][0]["code"] == "auto_classified_industry_metadata"
+    assert mongo.saved is not None
+    assert mongo.saved["industry"] == "Insurance"
+    assert mongo.saved["industry_tags"] == ["Insurance", "Finance"]
+
+
+def test_mcp_create_deal_infers_missing_industry_from_company_name(monkeypatch) -> None:
+    mongo = FakeMongo()
+    monkeypatch.setattr(_context, "mongo", lambda: mongo)
+    monkeypatch.setattr(_context, "config", lambda: {})
+
+    result = mcp_server.create_deal("Aurora Insurance")
+
+    assert result["ok"] is True
+    assert result["industry"] == "Insurance"
+    assert result["industry_tags"] == ["Insurance"]
+    assert result["taxonomy_warnings"][0]["code"] == "auto_classified_industry_metadata"
+    assert mongo.saved is not None
+    assert mongo.saved["industry"] == "Insurance"
+    assert mongo.saved["industry_tags"] == ["Insurance"]
+
+
 def test_mcp_create_deal_forwards_value_classification(monkeypatch) -> None:
     mongo = FakeMongo()
     monkeypatch.setattr(_context, "mongo", lambda: mongo)

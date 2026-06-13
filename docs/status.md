@@ -12,6 +12,50 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-13
 
+### Industry metadata backfill I4
+
+Implemented:
+
+- Added `backfill-industry-tags` CLI for older rows that predate the
+  `industry_tags` and `customer_segment` split.
+- The command is dry-run by default.
+- Real writes require `--apply --confirmed-by-user`.
+- The backfill now normalizes recognizable mixed labels into `industry`,
+  `industry_tags`, and `customer_segment` instead of sending them to human
+  review by default.
+- Missing industry is no longer treated as a dead-end skip. If the company name
+  carries a recognizable signal, the tool creates a medium-confidence draft
+  classification. Otherwise it returns a web research query and recommended
+  `update_deal` follow-up so the AI client can resolve the row instead of
+  handing the work back as vague human review.
+- Unmapped non-empty labels become low-confidence custom industry drafts with
+  warnings, so the record remains usable while still making uncertainty visible.
+- `create_deal` and `update_deal` use the same automatic industry metadata
+  classifier for mixed labels such as `보험·금융·대기업`.
+- `create_deal` also uses company-name inference when the industry input is
+  omitted but the company name contains an obvious taxonomy signal.
+- Actual writes go through `update_deal`, so `deal_metadata_history` records the
+  change.
+
+Validation:
+
+- I4 targeted regression:
+  `82 passed, 1 warning`.
+- Full regression:
+  `503 passed, 1 warning`.
+- Ruff:
+  `All checks passed`.
+
+Next:
+
+- Operator dry-run on live Atlas:
+  `deal-intel backfill-industry-tags --json`.
+- If the candidate list looks right, apply with:
+  `deal-intel backfill-industry-tags --apply --confirmed-by-user`.
+- Research rows should be resolved by the AI client with web lookup followed by
+  `update_deal`. If this becomes common enough, add a dedicated web-enrichment
+  MCP tool later.
+
 ### Industry tags Atlas chart I3
 
 Implemented:
@@ -34,13 +78,12 @@ Validation:
 - Ruff:
   `All checks passed`.
 
-Next:
+Manual Atlas UI step:
 
-- Manual Atlas UI step: render
+- Render
   `render-atlas-dashboard --dashboard customer_themes --chart-id pain_by_industry_tag`
   and paste the pipeline into a new optional Customer Themes chart if the
   dashboard needs tag-level comparison.
-- Older-row `industry_tags` backfill remains a future operator task.
 
 ### Industry tags read behavior I2
 
@@ -81,10 +124,11 @@ Implemented:
 - Added `industry_tags` to create/update MCP contracts and internal handlers.
 - Enforced the primary industry invariant: the single `industry` is always
   included in `industry_tags` when industry metadata is written.
-- Normalized clear aliases such as `제조` -> `Manufacturing` and
-  `핀테크` -> `Finance`.
-- Rejected ambiguous primary industry input such as `보험·금융` with a
-  preflight error and candidate list instead of guessing.
+- Normalized clear aliases such as Korean manufacturing and fintech labels to
+  `Manufacturing` and `Finance`.
+- Initial implementation rejected ambiguous primary industry input with a
+  preflight error. I4 later replaced the tool-entrypoint behavior with automatic
+  mixed-label classification for recognizable labels.
 - Kept tag input flexible: compound tags can expand into multiple canonical
   tags, and unknown custom tags are preserved with `taxonomy_warnings`.
 - Added `industry_tags` to Mongo validators, safe Mongo projections,
@@ -173,8 +217,9 @@ Validation:
     12 high-confidence candidates and 10 human-review rows.
   - `deal-intel apply-taxonomy-cleanup --limit 50 --apply --confirmed-by-user`
     applied 12 high-confidence rows through `update_deal` with 0 errors.
-  - Post-apply dry-run found 10 remaining issue rows, all skipped because they
-    require human review.
+  - Post-apply dry-run found 10 remaining issue rows under the older strict
+    taxonomy policy. I4 later changed recognizable mixed labels to auto
+    classification candidates.
 
 ## Previous Update - 2026-06-13
 

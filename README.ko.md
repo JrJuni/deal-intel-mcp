@@ -298,8 +298,8 @@ reporting:
 `industry`에는 대표 업종 하나만 넣는다. 고객사가 여러 업종에 걸쳐 있으면 나머지는
 `industry_tags`에 넣고, 대표 `industry`는 태그 목록에 자동 포함된다. 저장 시 가능한
 값은 canonical taxonomy로 정규화되므로 `제조`는 `Manufacturing`, `핀테크`는
-`Finance`처럼 저장될 수 있다. `보험·금융`처럼 대표 업종을 하나로 고르기 어려운 값은
-바로 저장하지 않고 대표 업종 선택을 요구한다. 스타트업/대기업/공공기관/Series B/Pre-IPO처럼
+`Finance`처럼 저장될 수 있다. `보험·금융·대기업`처럼 알아볼 수 있는 혼합 라벨은
+대표 업종, 추가 업종 태그, `customer_segment`로 자동 분리한다. 스타트업/대기업/공공기관/Series B/Pre-IPO처럼
 고객군이나 사업단계에 가까운 값은 `customer_segment`에 넣는다. 예상 종료일은
 segment override가 먼저 적용되고, 없으면 industry override, 그것도 없으면 기본값을
 쓴다. 자동 날짜는 reporting timezone의 업무 날짜를 사용하며, 저장되는 감사 timestamp는
@@ -311,12 +311,17 @@ UTC를 유지한다.
 deal-intel audit-taxonomy
 deal-intel apply-taxonomy-cleanup
 deal-intel apply-taxonomy-cleanup --apply --confirmed-by-user
+deal-intel backfill-industry-tags
+deal-intel backfill-industry-tags --apply --confirmed-by-user
 ```
 
-`audit-taxonomy`는 읽기 전용이다. `apply-taxonomy-cleanup`은 기본이 dry-run이고,
-확신도가 높은 분리 후보만 쓴다. 사람이 판단해야 하는 행은 왜 멈췄는지도 같이
-설명한다. 예를 들어 `보험/금융`은 보험을 주 업종으로 볼지, 금융을 상위 업종으로
-볼지에 따라 차트와 보고서 그룹이 달라지므로 시스템이 조용히 찍어 맞추면 안 된다.
+`audit-taxonomy`는 읽기 전용이다. `apply-taxonomy-cleanup`과
+`backfill-industry-tags`는 기본이 dry-run이다. `보험·금융·대기업`처럼 알아볼 수
+있는 혼합 라벨은 사람이 매번 고르지 않아도 대표 업종, 업종 태그,
+`customer_segment`로 자동 정리한다. 업종이 비어 있으면 멈추지 않고 enrichment
+대상으로 다룬다. 회사명으로 추론할 수 있으면 medium-confidence 초안을 만들고,
+못 하면 AI 클라이언트가 바로 검색해 `update_deal`로 이어갈 수 있도록 검색 쿼리와
+다음 액션을 반환한다. 기본 UX는 “초안 생성 후 수정 가능”이다.
 
 ---
 
@@ -424,7 +429,7 @@ discovery → qualification → proposal → negotiation → won / lost / stalle
 - 금액 수정은 `deal_size_note`에 사용자 확인 근거 또는 회의록 evidence 입력
 - 메타데이터 수정은 `update_note` 또는 fallback `deal_size_note` 입력
 
-금액 수정은 `deal_value_history`, 메타데이터 수정은 `deal_metadata_history`에 이력이 남는다. `보험·금융`처럼 대표 업종을 하나로 고르기 어려운 값은 바로 저장하지 않고, 대표 `industry` 하나와 추가 `industry_tags`를 나눠 입력하도록 요구한다.
+금액 수정은 `deal_value_history`, 메타데이터 수정은 `deal_metadata_history`에 이력이 남는다. `보험·금융·대기업`처럼 알아볼 수 있는 혼합 업종 라벨은 대표 업종, `industry_tags`, `customer_segment`로 자동 정리한다. 매핑할 수 없는 라벨만 명시적인 확인 업데이트로 고친다.
 
 ---
 

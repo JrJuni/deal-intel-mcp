@@ -178,7 +178,7 @@ def test_update_deal_updates_metadata_with_confirmation_and_history() -> None:
     ]
     assert mongo.saved is not None
     assert mongo.saved["industry"] == "Manufacturing"
-    assert mongo.saved["industry_tags"] == ["Manufacturing", "IT"]
+    assert mongo.saved["industry_tags"] == ["Manufacturing"]
     assert mongo.saved["customer_segment"] == "enterprise"
     assert mongo.saved["expected_close_date"] == "2026-07-15"
     assert mongo.saved["expected_close_date_source"] == "user_provided"
@@ -188,7 +188,7 @@ def test_update_deal_updates_metadata_with_confirmation_and_history() -> None:
     assert history["old_values"]["expected_close_date"] == "2026-06-30"
     assert history["old_values"]["industry"] == "IT"
     assert history["new_values"]["industry"] == "Manufacturing"
-    assert history["new_values"]["industry_tags"] == ["Manufacturing", "IT"]
+    assert history["new_values"]["industry_tags"] == ["Manufacturing"]
     assert history["old_values"]["customer_segment"] == "startup"
     assert history["new_values"]["expected_close_date"] == "2026-07-15"
     assert history["new_values"]["customer_segment"] == "enterprise"
@@ -217,21 +217,23 @@ def test_update_deal_updates_industry_tags_without_changing_primary() -> None:
     assert mongo.saved["industry_tags"] == ["Finance", "Insurance", "SaaS"]
 
 
-def test_update_deal_rejects_ambiguous_primary_industry_before_storage() -> None:
+def test_update_deal_auto_classifies_mixed_industry_metadata() -> None:
     mongo = FakeMongo(_deal())
 
-    with pytest.raises(MCPError) as exc_info:
-        update_deal.handle(
-            mongo=mongo,
-            deal_id="deal-1",
-            industry="보험·금융",
-            update_note="user confirmed industry",
-            confirmed_by_user=True,
-        )
+    result = update_deal.handle(
+        mongo=mongo,
+        deal_id="deal-1",
+        industry="보험·금융·대기업",
+        update_note="user confirmed industry",
+        confirmed_by_user=True,
+    )
 
-    assert exc_info.value.error_code == ErrorCode.INVALID_INPUT
-    assert exc_info.value.hint["candidates"] == ["Finance", "Insurance"]
-    assert mongo.saved is None
+    assert result["ok"] is True
+    assert result["new_deal_metadata"]["industry"] == "Insurance"
+    assert result["new_deal_metadata"]["industry_tags"] == ["Insurance", "Finance"]
+    assert result["new_deal_metadata"]["customer_segment"] == "enterprise"
+    assert mongo.saved is not None
+    assert mongo.saved["industry"] == "Insurance"
 
 
 def test_update_deal_updates_terminal_postmortem_fields() -> None:
@@ -411,7 +413,7 @@ def test_mcp_update_deal_forwards_metadata_update(monkeypatch) -> None:
     ]
     assert mongo.saved is not None
     assert mongo.saved["industry"] == "Finance"
-    assert mongo.saved["industry_tags"] == ["Finance", "IT"]
+    assert mongo.saved["industry_tags"] == ["Finance"]
     assert mongo.saved["customer_segment"] == "enterprise"
 
 

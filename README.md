@@ -322,7 +322,17 @@ reporting:
   timezone: Asia/Seoul
 ```
 
-Keep `industry` as the single primary business vertical. If an account is cross-industry, put the other verticals in `industry_tags`; the primary `industry` is always included in that tag list. Put account maturity, ownership, buying segment, or funding stage in `customer_segment` instead. Industry input is normalized against the built-in taxonomy when possible, so values such as `제조` or `핀테크` are stored as canonical labels such as `Manufacturing` or `Finance`. Ambiguous primary industry input such as `보험·금융` is rejected until the user chooses one primary industry and passes the rest as tags. Segment overrides apply first; industry overrides apply second, both on a case-insensitive exact match. Auto-dates use the business date in the reporting timezone, while stored audit timestamps stay in UTC.
+Keep `industry` as the single primary business vertical. If an account is
+cross-industry, put the other verticals in `industry_tags`; the primary
+`industry` is always included in that tag list. Put account maturity,
+ownership, buying segment, or funding stage in `customer_segment` instead.
+Industry input is normalized against the built-in taxonomy when possible, so
+values such as `제조`, `핀테크`, or `보험·금융·대기업` are stored as canonical
+metadata such as `industry=Insurance`, `industry_tags=["Insurance", "Finance"]`,
+and `customer_segment=enterprise`. Segment overrides apply first; industry
+overrides apply second, both on a case-insensitive exact match. Auto-dates use
+the business date in the reporting timezone, while stored audit timestamps stay
+in UTC.
 
 For existing data, use the taxonomy cleanup CLIs:
 
@@ -330,14 +340,18 @@ For existing data, use the taxonomy cleanup CLIs:
 deal-intel audit-taxonomy
 deal-intel apply-taxonomy-cleanup
 deal-intel apply-taxonomy-cleanup --apply --confirmed-by-user
+deal-intel backfill-industry-tags
+deal-intel backfill-industry-tags --apply --confirmed-by-user
 ```
 
-`audit-taxonomy` is read-only. `apply-taxonomy-cleanup` is dry-run by default
-and only writes high-confidence splits unless you explicitly include rows that
-need human review. Human-review rows explain why the system stopped: for
-example, `Insurance / Finance` changes industry charts depending on which label
-you choose as the primary vertical, so the tool should surface the ambiguity
-instead of silently guessing.
+`audit-taxonomy` is read-only. `apply-taxonomy-cleanup` and
+`backfill-industry-tags` are dry-run by default. They automatically normalize
+recognizable mixed labels into primary industry, industry tags, and customer
+segment. If an industry is missing, the tool treats it as an enrichment task:
+it either drafts a medium-confidence industry from the company name or returns a
+web research query so the AI client can look it up and call `update_deal`. The
+default UX is draft-first and correction-friendly; only impossible rows stay out
+of writes.
 
 ---
 
@@ -454,8 +468,9 @@ Note the rationale as "CEO said let's sign today and paid same-day."
 - Metadata updates require `update_note` or a fallback `deal_size_note`
 
 Value edits are logged to `deal_value_history`; metadata edits are logged to
-`deal_metadata_history`. Ambiguous primary industry input is rejected until the
-user chooses one primary industry and passes extra verticals as `industry_tags`.
+`deal_metadata_history`. Recognizable mixed industry labels are normalized into
+primary industry, `industry_tags`, and `customer_segment`; unmapped labels should
+be corrected with an explicit confirmed update.
 
 ---
 

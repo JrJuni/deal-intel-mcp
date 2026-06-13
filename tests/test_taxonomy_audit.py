@@ -52,27 +52,28 @@ def test_taxonomy_audit_splits_industry_and_segment_candidates() -> None:
     assert payload["summary"]["issue_deal_count"] == 1
     row = payload["deals"][0]
     assert row["suggested_industry"] == "IT"
+    assert row["suggested_industry_tags"] == ["IT"]
     assert row["suggested_customer_segment"] == "startup; Series B"
     assert row["confidence"] == "high"
     assert row["needs_human_review"] is False
     assert row["review_explanation"]["review_level"] == "auto_apply_candidate"
-    assert "one clear business vertical" in row["review_explanation"]["reason"]
     assert row["update_deal_payload"] == {
         "deal_id": "deal-1",
         "confirmed_by_user": True,
         "industry": "IT",
+        "industry_tags": ["IT"],
         "customer_segment": "startup; Series B",
         "update_note": "User confirmed taxonomy cleanup after reviewing deal context.",
     }
 
 
-def test_taxonomy_audit_marks_compound_industry_for_review() -> None:
+def test_taxonomy_audit_auto_tags_cross_industry_labels() -> None:
     payload = build_taxonomy_audit(
         [
             {
                 "deal_id": "deal-1",
                 "company": "Mixed Co",
-                "industry": "SaaS/Finance",
+                "industry": "보험·금융·대기업",
                 "customer_segment": None,
                 "deal_stage": "proposal",
             }
@@ -80,14 +81,32 @@ def test_taxonomy_audit_marks_compound_industry_for_review() -> None:
     )
 
     row = payload["deals"][0]
-    assert row["suggested_industry"] == "Finance / SaaS"
-    assert row["confidence"] == "medium"
+    assert row["suggested_industry"] == "Insurance"
+    assert row["suggested_industry_tags"] == ["Insurance", "Finance"]
+    assert row["suggested_customer_segment"] == "enterprise"
+    assert row["confidence"] == "high"
+    assert row["needs_human_review"] is False
+    assert "cross_industry_tags_detected" in row["issues"]
+
+
+def test_taxonomy_audit_marks_unmapped_industry_for_review() -> None:
+    payload = build_taxonomy_audit(
+        [
+            {
+                "deal_id": "deal-1",
+                "company": "Unknown Co",
+                "industry": "우주광물채굴",
+                "customer_segment": None,
+                "deal_stage": "proposal",
+            }
+        ]
+    )
+
+    row = payload["deals"][0]
+    assert row["suggested_industry"] is None
+    assert row["confidence"] == "low"
     assert row["needs_human_review"] is True
-    assert "multiple_industry_candidates" in row["issues"]
-    explanation = row["review_explanation"]
-    assert explanation["review_level"] == "human_review_required"
-    assert "More than one plausible industry" in explanation["reason"]
-    assert "weekly reporting" in explanation["why_human_review"]
+    assert "unmapped_industry" in row["issues"]
 
 
 def test_taxonomy_audit_cli_is_read_only(monkeypatch) -> None:
@@ -155,7 +174,7 @@ def test_apply_taxonomy_cleanup_requires_confirmation_for_writes(monkeypatch) ->
     assert mongo.written is False
 
 
-def test_apply_taxonomy_cleanup_writes_only_high_confidence_by_default(
+def test_apply_taxonomy_cleanup_writes_high_confidence_by_default(
     monkeypatch,
 ) -> None:
     mongo = FakeMongo(
@@ -163,7 +182,7 @@ def test_apply_taxonomy_cleanup_writes_only_high_confidence_by_default(
             {
                 "deal_id": "deal-1",
                 "company": "Lumino AI",
-                "industry": "IT 스타트업·Series B",
+                "industry": "보험·금융·대기업",
                 "customer_segment": None,
                 "deal_stage": "discovery",
                 "expected_close_date": "2026-06-30",
@@ -171,8 +190,8 @@ def test_apply_taxonomy_cleanup_writes_only_high_confidence_by_default(
             },
             {
                 "deal_id": "deal-2",
-                "company": "Mixed Co",
-                "industry": "SaaS/Finance",
+                "company": "Unknown Co",
+                "industry": "우주광물채굴",
                 "customer_segment": None,
                 "deal_stage": "proposal",
                 "expected_close_date": "2026-06-30",
@@ -191,7 +210,7 @@ def test_apply_taxonomy_cleanup_writes_only_high_confidence_by_default(
     assert "Applied: 1 row(s), errors: 0" in result.stdout
     assert len(mongo.saved) == 1
     assert mongo.saved[0]["deal_id"] == "deal-1"
-    assert mongo.saved[0]["industry"] == "IT"
-    assert mongo.saved[0]["industry_tags"] == ["IT"]
-    assert mongo.saved[0]["customer_segment"] == "startup; Series B"
+    assert mongo.saved[0]["industry"] == "Insurance"
+    assert mongo.saved[0]["industry_tags"] == ["Insurance", "Finance"]
+    assert mongo.saved[0]["customer_segment"] == "enterprise"
     assert mongo.saved[0]["deal_metadata_history"][-1]["source"] == "update_deal"

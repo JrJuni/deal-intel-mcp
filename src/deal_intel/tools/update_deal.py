@@ -4,6 +4,7 @@ from datetime import UTC, date, datetime
 
 from deal_intel.errors import ErrorCode, MCPError, Stage
 from deal_intel.schema.industry_taxonomy import (
+    IndustryProfile,
     IndustryTaxonomyError,
     normalize_industry_profile,
 )
@@ -14,6 +15,7 @@ from deal_intel.schema.metrics import (
     DealValueStatus,
     assess_deal_value,
 )
+from deal_intel.schema.taxonomy_audit import infer_industry_metadata
 from deal_intel.storage.mongodb import MongoDBClient
 
 
@@ -417,16 +419,24 @@ def _build_updated_metadata(
     if _has_text(company):
         updated["company"] = _clean_text(company, "company")
     if _has_text(industry) or _has_industry_tags_value(industry_tags):
-        profile = _normalize_industry_or_raise(
+        segment_for_inference = (
+            customer_segment
+            if _has_text(customer_segment)
+            else (None if _has_text(industry) else current.get("customer_segment"))
+        )
+        profile, inferred_segment = _normalize_industry_or_raise(
             industry=industry if _has_text(industry) else current.get("industry"),
             industry_tags=industry_tags
             if _has_industry_tags_value(industry_tags)
             else None,
             existing_industry_tags=current.get("industry_tags"),
+            customer_segment=segment_for_inference,
         )
         updated["industry"] = profile.industry
         updated["industry_tags"] = profile.industry_tags
         taxonomy_warnings.extend(profile.warnings)
+        if not _has_text(customer_segment) and inferred_segment:
+            updated["customer_segment"] = inferred_segment
     if _has_text(customer_segment):
         updated["customer_segment"] = _clean_text(
             customer_segment,
@@ -480,13 +490,53 @@ def _normalize_industry_or_raise(
     industry: str | None,
     industry_tags: str | list[str] | None,
     existing_industry_tags: list[str] | None,
+    customer_segment: str | None,
 ):
+    explicit_industry = _clean_optional_text(industry) is not None
+    explicit_tags = _industry_tags_list(industry_tags)
+    inferred = infer_industry_metadata(
+        current_industry=industry,
+        current_segment=customer_segment,
+        current_industry_tags=explicit_tags
+        or ([] if explicit_industry else list(existing_industry_tags or [])),
+    )
+    if inferred["suggested_industry"]:
+        profile = normalize_industry_profile(
+            industry=inferred["suggested_industry"],
+            industry_tags=inferred["suggested_industry_tags"] or industry_tags,
+            existing_industry_tags=None if explicit_industry else existing_industry_tags,
+        )
+        warnings = list(profile.warnings)
+        if (
+            inferred["suggested_industry"] != _clean_optional_text(industry)
+            or inferred["suggested_customer_segment"]
+            != _clean_optional_text(customer_segment)
+        ):
+            warnings.append(
+                {
+                    "code": "auto_classified_industry_metadata",
+                    "field": "industry",
+                    "value": industry,
+                    "message": (
+                        "Normalized industry metadata from a mixed or localized label."
+                    ),
+                }
+            )
+        return (
+            IndustryProfile(
+                industry=profile.industry,
+                industry_tags=profile.industry_tags,
+                warnings=warnings,
+            ),
+            inferred["suggested_customer_segment"],
+        )
     try:
-        return normalize_industry_profile(
+        profile = normalize_industry_profile(
             industry=industry,
             industry_tags=industry_tags,
             existing_industry_tags=existing_industry_tags,
         )
+        return profile, _clean_optional_text(customer_segment)
     except IndustryTaxonomyError as exc:
         raise MCPError(
             error_code=ErrorCode.INVALID_INPUT,
@@ -503,6 +553,19 @@ def _normalize_industry_or_raise(
             },
             retryable=False,
         ) from exc
+
+
+def _industry_tags_list(value: str | list[str] | None) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [item.strip() for item in value.replace("/", ",").split(",") if item.strip()]
+    return [str(item).strip() for item in value if str(item).strip()]
+
+
+def _clean_optional_text(value: str | None) -> str | None:
+    cleaned = (value or "").strip()
+    return cleaned or None
 
 
 def _has_text(value: str | None) -> bool:

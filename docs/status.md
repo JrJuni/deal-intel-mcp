@@ -12,6 +12,39 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-14
 
+### v1 readiness gate rerun
+
+Validation:
+
+- Full regression:
+  `pytest -q -p no:cacheprovider --basetemp .tmp\pytest-v1-readiness`:
+  `533 passed, 1 warning`.
+- Ruff:
+  `ruff check .`: `All checks passed`.
+- Config doctor:
+  `config doctor --offline`: `OK`, profile `full`, storage `mongo`, tool
+  surface `standard`, `25` exposed tools, storage ping skipped as expected.
+- Full profile smoke:
+  `smoke-profile --profile full --offline`: `OK`; no writes, no LLM
+  completions, no embeddings, no Atlas admin calls.
+- Sample profile smoke:
+  `DEAL_INTEL_STORAGE_BACKEND=local_sample smoke-profile --profile sample`:
+  `OK`, `21` exposed tools.
+- Natural-question smoke:
+  `DEAL_INTEL_STORAGE_BACKEND=local_sample smoke-natural-questions --as-of
+  2026-06-10 --output-dir .tmp\v1-readiness-natural`: `OK`, `12/12` pass,
+  no sensitive failures, no blocked questions.
+- Report export default-path smoke:
+  local-sample `export_report(report_type="weekly_pipeline", as_of="2026-06-10")`
+  succeeded with `USERPROFILE` pointed at `.tmp`; output resolved under
+  `.tmp\.deal-intel\reports`, confirming the user-home default path policy.
+- MCPB manifest:
+  `mcpb validate mcpb\manifest.json`: manifest schema validation passes.
+- Hygiene scan:
+  no tracked personal path / stale tool-count matches. Expected placeholder
+  matches remain only in `.env.example`, install docs, and secret-redaction
+  tests.
+
 ### v1 polish: README / AI start scan
 
 Implemented:

@@ -227,6 +227,40 @@ def test_mcp_runtime_filters_tools_by_surface(monkeypatch) -> None:
     assert "create_sample_data" not in names
 
 
+def test_high_traffic_tool_descriptions_guide_tool_selection(monkeypatch) -> None:
+    monkeypatch.setattr(
+        _context,
+        "config",
+        lambda: {"tools": {"surface": "developer"}},
+    )
+
+    tools = {
+        tool.name: (tool.description or "").lower()
+        for tool in asyncio.run(mcp_server.app.list_tools())
+    }
+
+    expected_snippets = {
+        "get_metrics": ["kpi", "get_deal_review"],
+        "list_deals": ["quick pipeline table", "get_metrics"],
+        "get_deal_review": ["default tool", "llm-free", "analyze_deal"],
+        "get_deal_gaps": ["what is missing", "get_deal_review"],
+        "export_report": ["csv/markdown", "get_metrics"],
+        "get_customer_themes": ["customers worry", "get_customer_theme_evidence"],
+        "get_customer_theme_breakdown": ["industry tag", "get_customer_theme_evidence"],
+        "get_customer_theme_evidence": ["show examples/evidence", "get_customer_themes"],
+        "search_deals": ["similar past deals", "get_customer_themes"],
+        "analyze_deal": ["optional", "server-side llm", "get_deal_review"],
+        "add_interaction": ["new evidence", "get_deal_review"],
+        "update_stage": ["user confirms", "add_interaction"],
+        "update_deal": ["confirmed corrections", "update_stage"],
+    }
+
+    for tool_name, snippets in expected_snippets.items():
+        description = tools[tool_name]
+        for snippet in snippets:
+            assert snippet in description, tool_name
+
+
 def test_mcp_runtime_blocks_hidden_tool_calls(monkeypatch) -> None:
     from fastmcp.exceptions import NotFoundError
 

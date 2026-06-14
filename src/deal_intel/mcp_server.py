@@ -139,6 +139,9 @@ def create_deal(
 ) -> dict:
     """Create a new deal for a prospect company.
 
+    Use this only for a new customer opportunity. For correcting an existing
+    deal's amount, industry, dates, or close metadata, use update_deal instead.
+
     deal_size_status can be: unknown, rough_estimate, customer_budget,
     quoted, or strategic_zero. A zero amount is valid only with
     strategic_zero; omit deal_size_amount when the amount is unknown.
@@ -223,13 +226,20 @@ def add_interaction(
 ) -> dict:
     """Add a customer interaction and extract MEDDPICC signals.
 
+    Use this when the user provides new evidence such as a meeting note,
+    customer email reply, user interview, call summary, or internal note. This
+    is one of the few write tools that calls the configured server-side LLM
+    because the extracted scoring/themes are persisted as deal data.
+
     interaction_type: meeting, email_thread, user_interview, call_summary,
     internal_note, or a configured custom interaction type. direction:
     inbound, outbound, mixed, or internal.
 
     New records are stored as canonical interactions. Legacy meeting-based
     read paths are still supported as fallback. Stage changes are suggestions
-    only and still require update_stage after user confirmation.
+    only and still require update_stage after user confirmation. For chat-only
+    review or advice based on existing data, use get_deal_review or
+    get_deal_gaps instead.
     """
     try:
         from deal_intel import _context
@@ -266,6 +276,10 @@ def update_stage(
     actual_close_date: str = "",
 ) -> dict:
     """Move a deal to a new pipeline stage and log it to stage_history.
+
+    Use this only after the user confirms a real stage transition. Do not infer
+    and apply stage changes from add_interaction content automatically; surface
+    the stage_suggestion first, then call this tool after confirmation.
 
     Valid stages: discovery, qualification, proposal, negotiation, won, lost, stalled.
     For won/lost, actual_close_date is an optional ISO date (YYYY-MM-DD). It
@@ -309,9 +323,13 @@ def update_deal(
 ) -> dict:
     """Update confirmed value fields and selected metadata.
 
+    Use this for confirmed corrections to amount, currency, industry,
+    industry_tags, customer_segment, close dates, or close reason. Do not use
+    it for stage transitions; use update_stage. Do not use it to add new
+    evidence; use add_interaction.
+
     Requires confirmed_by_user=true. Value updates require deal_size_status and
     deal_size_note. Metadata updates require update_note or deal_size_note.
-    Does not change deal_stage; use update_stage for stage transitions.
     """
     try:
         from deal_intel import _context
@@ -543,7 +561,12 @@ def migrate_local_data(
 
 @app.tool()
 def get_deal(deal_id: str) -> dict:
-    """Retrieve a deal with full meeting history and MEDDPICC scores."""
+    """Retrieve one deal's stored details, interactions, and MEDDPICC scores.
+
+    Use this when the user asks to inspect the raw stored deal record or history.
+    For synthesized risk/action review, prefer get_deal_review. For missing
+    information across one or many deals, use get_deal_gaps.
+    """
     try:
         from deal_intel import _context
         from deal_intel.tools import get_deal as _t
@@ -556,6 +579,10 @@ def get_deal(deal_id: str) -> dict:
 @app.tool()
 def list_deals(stage: str = "", limit: int = 20, as_of: str = "") -> dict:
     """List deals with health, stuck, overdue, and attention reasons.
+
+    Use this for a quick pipeline table or to find which deals need attention at
+    a glance. Do not use it for KPI totals; use get_metrics. Do not use it for a
+    single-deal review; use get_deal_review.
 
     Optionally filter by stage (discovery/qualification/proposal/negotiation/won/lost/stalled).
     as_of accepts YYYY-MM-DD for reproducible date-based calculations.
@@ -579,6 +606,10 @@ def list_deals(stage: str = "", limit: int = 20, as_of: str = "") -> dict:
 @app.tool()
 def get_insights(query_type: str, as_of: str = "") -> dict:
     """Run a BI aggregation query across all deals.
+
+    Use this for legacy/special BI pattern queries such as win/loss patterns or
+    stage velocity. For current pipeline-health KPIs, prefer get_metrics. For
+    customer concern rankings/evidence, use the customer theme tools.
 
     as_of accepts YYYY-MM-DD and is returned with the reporting timezone and
     generation timestamp. It labels the current collection snapshot rather
@@ -617,6 +648,11 @@ def get_metrics(
 ) -> dict:
     """Return shared BI metrics for direct assistant answers.
 
+    Use this for numeric KPI questions such as current pipeline health, stage
+    value, win rate, attention counts, or pipeline trend. This is LLM-free and
+    should be preferred over get_insights for pipeline health. For per-deal
+    risk/action review, use get_deal_review or get_deal_gaps.
+
     Supported metric_type values: pipeline_health, pipeline_trend.
     Optional filters:
     - stage: exact pipeline stage match
@@ -652,6 +688,11 @@ def get_deal_gaps(
 ) -> dict:
     """Show customer-attack information gaps that need sales follow-up.
 
+    Use this when the user asks what is missing, what to confirm next, or which
+    deals have sales/forecast information gaps. It returns prioritized hints,
+    not generated strategy prose. For a full one-deal review, use
+    get_deal_review.
+
     Read-only. Uses the shared metric projection and does not call LLM,
     embeddings, or write to MongoDB.
 
@@ -685,6 +726,11 @@ def get_deal_gaps(
 def get_deal_review(deal_id: str, as_of: str = "") -> dict:
     """Review one deal with health quality separated from evidence coverage.
 
+    This is the default tool for one-deal status, risk, uncertainty, and next
+    questions/actions. It is LLM-free and safer for routine deal review. Use
+    analyze_deal only when the user explicitly asks for generated BD strategy
+    prose or wants to persist bd_strategy.
+
     Read-only. Uses restricted BI projection and does not call LLM, embeddings,
     or write to MongoDB. The response suppresses uncalibrated win-probability
     numbers and instead returns evidence coverage, uncertainty, missing
@@ -716,6 +762,10 @@ def export_report(
     lookback_days: int = 7,
 ) -> dict:
     """Export BI reports to local files and return absolute artifact paths.
+
+    Use this only when the user asks to create or save a CSV/Markdown report.
+    For chat-only KPI answers, use get_metrics. For one-deal review, use
+    get_deal_review.
 
     Supported report_type values: weekly_pipeline, pipeline_trend.
     Creates a CSV and Markdown report using the shared BI/reporting contracts.
@@ -812,6 +862,11 @@ def get_customer_themes(
 ) -> dict:
     """Rank recurring customer concerns by unique deal count with evidence.
 
+    Use this for questions like "what do customers worry about most?" or "what
+    decision criteria appear most often?" For stage/industry comparisons, use
+    get_customer_theme_breakdown. For concrete snippets, use
+    get_customer_theme_evidence.
+
     dimension: all | identify_pain | decision_criteria | metrics
     stage: active | all | discovery | qualification | proposal | negotiation | won | lost | stalled
     industry: primary industry or industry_tags filter, or empty for all industries
@@ -840,6 +895,10 @@ def get_customer_theme_breakdown(
     top_k: int = 5,
 ) -> dict:
     """Compare recurring customer themes by stage, industry, industry tag, or dimension.
+
+    Use this after or alongside get_customer_themes when the user wants a
+    breakdown by stage, primary industry, industry tag, or theme dimension. For
+    representative snippets, use get_customer_theme_evidence.
 
     Read-only. Uses curated customer_themes only; does not return raw meeting
     notes, contacts, or embeddings.
@@ -878,6 +937,9 @@ def get_customer_theme_evidence(
 ) -> dict:
     """Return curated evidence examples for one customer theme.
 
+    Use this when the user asks "show examples/evidence" for a known theme. Do
+    not use it to rank themes from scratch; use get_customer_themes first.
+
     Read-only. Evidence is the structured snippet already extracted into
     customer_themes; raw meeting notes, raw interaction content, contacts, and
     embeddings are excluded.
@@ -915,6 +977,11 @@ def get_customer_theme_evidence(
 @app.tool()
 def search_deals(query: str, limit: int = 5) -> dict:
     """Find deals semantically similar to the query.
+
+    Use this for natural-language reference search in Mongo-backed mode, such
+    as finding similar past deals or similar customer situations. Do not use it
+    for frequency/ranking questions; use get_customer_themes or get_metrics.
+    This tool is hidden in sample mode.
 
     Examples:
     - "deals where the customer struggles with cost reduction"
@@ -1004,7 +1071,14 @@ def search_deals(query: str, limit: int = 5) -> dict:
 
 @app.tool()
 def analyze_deal(deal_id: str) -> dict:
-    """Analyze a deal's MEDDPICC gaps and generate BD strategy recommendations."""
+    """Generate optional LLM-written BD strategy for one deal.
+
+    Use this only when the user explicitly asks for generated strategy prose,
+    next-meeting strategy, or wants bd_strategy persisted. It calls the
+    configured server-side LLM and may write the generated strategy back to the
+    deal. For routine status/risk/uncertainty review, use get_deal_review. For
+    missing-info prioritization, use get_deal_gaps.
+    """
     try:
         from deal_intel import _context
         from deal_intel.tools import analyze_deal as _t

@@ -564,19 +564,24 @@ Specify `as_of="YYYY-MM-DD"` to re-run date-based calculations against the same 
 
 ---
 
-### 7. `analyze_deal` - MEDDPICC gap analysis + BD strategy
+### 7. `analyze_deal` - optional generated BD strategy
 
-**When to use**: When a deal is stuck or you're planning the next meeting. The LLM analyzes gaps and proposes concrete actions.
+**When to use**: Only when you explicitly want the server-side LLM to write a BD strategy memo or persist `bd_strategy` back onto the deal.
+
+For routine deal status, risk, uncertainty, and next-question review, prefer
+`get_deal_review`. For "what information are we missing?" use
+`get_deal_gaps`. Those read paths are deterministic, LLM-free, and cheaper.
 
 **Example**:
 ```
-Analyze the Hyundai Precision deal. Where is it weak, and what should I do next meeting'
+Generate a BD strategy memo for the Hyundai Precision deal.
 ```
 
 The result includes:
 - a summary of current MEDDPICC health
 - concrete responses per weak dimension
 - a recommended agenda for the next meeting
+- persisted `bd_strategy` when the tool succeeds
 
 ---
 
@@ -584,12 +589,17 @@ The result includes:
 
 **When to use**: For instant BI questions in Claude/Codex like "how's pipeline health right now'", "how many at-risk deals'", "show pipeline value and health by stage."
 
-The first version supports only `pipeline_health`.
+This is the default read tool for numeric pipeline answers. Do not use
+`list_deals` to hand-calculate KPIs, and do not use `get_insights` unless the
+question is about a legacy/special BI pattern such as win/loss comparison or
+stage velocity.
+
+Supported metric types are `pipeline_health` and `pipeline_trend`.
 
 **Parameters**:
 | Parameter | Required | Description |
 |---|---|---|
-| `metric_type` | optional | Currently only `pipeline_health` |
+| `metric_type` | optional | `pipeline_health` or `pipeline_trend` |
 | `stage` | optional | Exact match against the stored stage |
 | `industry` | optional | Exact match against the stored industry |
 | `as_of` | optional | Base date for stuck/overdue calculation, `YYYY-MM-DD` |
@@ -621,6 +631,10 @@ Show stuck/overdue status for IT-industry deals
 **When to use**: When you want to know what you still need to confirm before pursuing, forecasting, or reviewing a deal.
 
 This is not a table-completeness checker. It prioritizes missing or weak information by practical sales impact and forecast trust. It is read-only, uses no LLM, uses no embedding, and excludes raw notes, raw interaction content, contacts, and vectors.
+
+Use this for missing-information questions across the pipeline or for a single
+deal. Use `get_deal_review` when the user wants a broader one-deal status/risk
+review.
 
 **Parameters**:
 | Parameter | Required | Description |
@@ -654,7 +668,9 @@ For this deal_id, what should I confirm next'
 
 **When to use**: When you need a file to share or for a meeting, like "make this week's pipeline report."
 
-The first version supports only `weekly_pipeline` and produces CSV and Markdown with the same timestamp.
+Use `export_report` only when the user wants files. For chat-only KPI answers,
+use `get_metrics` instead. The report path produces CSV and Markdown with the
+same timestamp.
 
 **Parameters**:
 | Parameter | Required | Description |
@@ -708,9 +724,14 @@ Cross-check the dashboard numbers:
 
 ---
 
-### 11. `get_insights` - pipeline BI analysis
+### 11. `get_insights` - legacy/special BI analysis
 
 **When to use**: To aggregate all deal data and spot patterns. Good for monthly reviews and learning win/loss patterns.
+
+Prefer `get_metrics` for current pipeline-health KPIs. Prefer customer theme
+tools for customer concerns, decision criteria, and evidence. `get_insights`
+remains useful for special BI variants such as win/loss comparison, gap
+frequency, industry benchmark, and stage velocity.
 
 You can specify `as_of`; the response includes `timezone` and a UTC `generated_at`. These label the current collection snapshot - they don't reconstruct historical document state.
 
@@ -743,6 +764,10 @@ Which dimension is most often missing'
 
 **When to use**: When you want to reference how past deals in similar situations played out. Search in natural language.
 
+Do not use semantic search for frequency/ranking questions such as "what do
+customers worry about most?" Use `get_customer_themes` for that. `search_deals`
+is for similar-case retrieval in Mongo-backed mode.
+
 **Example**:
 ```
 Find deals where the customer struggled with cost reduction.
@@ -770,6 +795,9 @@ Any deals with a pattern similar to Hyundai Precision'
 ### 13. `get_customer_themes` - frequency of customer concerns / selection criteria
 
 **When to use**: To group meeting evidence across deals and see the topics customers worry about most. It counts by unique deal (not by meeting) and returns representative companies and evidence.
+
+For "show me examples" follow up with `get_customer_theme_evidence`. For
+stage/industry/tag comparison, use `get_customer_theme_breakdown`.
 
 **Example**:
 ```
@@ -808,14 +836,15 @@ Customer Themes dashboard setup, including the optional
 ```
 1. Right after customer evidence -> add_interaction (meeting/email/interview/call)
 2. On stage change           -> update_stage
-3. Pre-meeting prep          -> analyze_deal (figure out the next agenda)
+3. One-deal status/risk      -> get_deal_review
 4. Before pursuing/forecast  -> get_deal_gaps (what's still missing)
-5. Weekly review             -> list_deals (find stuck deals)
-6. Pipeline KPIs             -> get_metrics pipeline_health
-7. Monthly retro             -> get_insights compare_won_lost / stage_velocity
-8. Reference similar cases   -> search_deals
-9. Customer-concern analysis -> get_customer_themes
-10. Dashboard                -> Atlas Charts Weekly Pipeline Review
+5. Optional strategy memo    -> analyze_deal (LLM-written BD strategy)
+6. Weekly review             -> list_deals (find stuck deals)
+7. Pipeline KPIs             -> get_metrics pipeline_health
+8. Monthly retro             -> get_insights compare_won_lost / stage_velocity
+9. Reference similar cases   -> search_deals
+10. Customer-concern analysis -> get_customer_themes
+11. Dashboard                -> Atlas Charts Weekly Pipeline Review
 ```
 
 ---

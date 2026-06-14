@@ -131,6 +131,31 @@ Which deal needs attention first?
 What are customers most often concerned about?
 ```
 
+## Tool Selection Defaults
+
+Prefer deterministic read tools for normal questions:
+
+- Pipeline health / KPI / trend -> `get_metrics`
+- Pipeline table / stuck deals at a glance -> `list_deals`
+- One deal's stored history -> `get_deal`
+- One deal's status, risk, uncertainty, and next questions -> `get_deal_review`
+- Missing customer or forecast information -> `get_deal_gaps`
+- CSV/Markdown file output -> `export_report`
+- Customer concern or decision-criteria ranking -> `get_customer_themes`
+- Stage/industry/tag theme comparison -> `get_customer_theme_breakdown`
+- Evidence snippets for one theme -> `get_customer_theme_evidence`
+
+Use LLM/write tools only when the user intent requires them:
+
+- New evidence to store and score -> `add_interaction`
+- Confirmed stage transition -> `update_stage`
+- Confirmed metadata/value correction -> `update_deal`
+- Optional generated BD strategy memo -> `analyze_deal`
+
+Do not use `analyze_deal` as the default deal-review tool. It calls the
+configured server-side LLM and may persist `bd_strategy`. For routine review,
+use `get_deal_review` first.
+
 For new evidence, use `add_interaction` as the single public intake:
 
 - meeting notes: `interaction_type=meeting`

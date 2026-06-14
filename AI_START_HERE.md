@@ -56,6 +56,13 @@ new local setup, the recommended environment name is `deal-intel`:
 & "$HOME\miniconda3\envs\deal-intel\python.exe" -c "import sys; print(sys.executable)"
 ```
 
+If the package is not installed yet, have the user clone or download the repo,
+open a terminal in the repo root, and run:
+
+```powershell
+& "$HOME\miniconda3\envs\deal-intel\python.exe" -m pip install -e ".[embedding]"
+```
+
 Use the printed path in later commands and in the MCPB `Python interpreter path`
 field. In examples below, replace the path if the user chose a different conda
 environment:

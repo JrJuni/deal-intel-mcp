@@ -135,14 +135,23 @@ tier is enough for the default full profile.
 
 **Step 1 - Install the package**
 
+Clone or download this repository first, then run the install command from the
+repository root. The examples below use a conda environment named `deal-intel`;
+if you chose a different name, replace the Python path with the path printed by
+`import sys; print(sys.executable)` from that environment.
+
 ```bash
-# use the conda env where you want to install deal-intel-mcp
+# run from the deal-intel-mcp repository root
 ~/miniconda3/envs/deal-intel/python.exe -m pip install -e ".[embedding]"
 ```
 
 Adding `[embedding]` also installs `sentence-transformers` (for similar-deal search).
-If you chose a different environment name, replace the Python path with the
-output of `import sys; print(sys.executable)` from that environment.
+After install, the `deal-intel` console command should be available in that
+environment. If your shell cannot find it, use the explicit module form:
+
+```bash
+~/miniconda3/envs/deal-intel/python.exe -m deal_intel.cli config profiles
+```
 
 **Step 2 - Configure the default full profile**
 

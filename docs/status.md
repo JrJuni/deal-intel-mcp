@@ -12,6 +12,31 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-14
 
+### v1 polish: README / AI start scan
+
+Implemented:
+
+- Scanned `README.md` and `AI_START_HERE.md` for stale tool counts, personal
+  local paths, old environment names, and sample/full guidance drift.
+- Clarified that users should clone/download the repository and run install
+  commands from the repository root.
+- Added an explicit `python -m deal_intel.cli ...` fallback when the
+  `deal-intel` console script is not on PATH.
+- Added the missing install step to `AI_START_HERE.md` for agents helping a
+  fresh user.
+
+Validation:
+
+- Targeted:
+  `pytest tests/test_tool_surfaces.py tests/test_mcpb_manifest.py -q -p
+  no:cacheprovider --basetemp .tmp\pytest-readme-ai-scan`:
+  `30 passed, 1 warning`.
+- Ruff:
+  `ruff check .`: `All checks passed`.
+- Hygiene scan:
+  no README/AI_START matches for personal local paths, old environment names,
+  or stale tool-count phrasing.
+
 ### v1 polish: output path hardening
 
 Implemented:

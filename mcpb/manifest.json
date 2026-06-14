@@ -2,7 +2,7 @@
   "manifest_version": "0.2",
   "name": "deal-intel-mcp",
   "display_name": "Deal Intelligence MCP",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "description": "Turn meeting notes and customer interactions into MEDDPICC-structured deal intelligence. Profile-aware MCP tool surfaces, zero-config sample mode, local-to-Mongo migration, MongoDB Atlas storage, semantic deal search, ChatGPT OAuth, Anthropic, or OpenAI API LLM backend.",
   "long_description": "deal-intel-mcp captures consultation records, meeting notes, email replies, user interviews, call summaries, and internal notes, extracts MEDDPICC qualification signals and customer concern themes via LLM, and can run on bundled/local sample data or MongoDB Atlas-backed real team data. Runtime tool surfaces expose sample, standard, or developer tool lists from the same package, and a dry-run-first migration path moves local personal deals into MongoDB when users graduate to full mode. Supports ChatGPT Plus OAuth, Anthropic Claude API, or the official OpenAI API as LLM backends.",
   "author": {
@@ -19,6 +19,7 @@
   "keywords": ["mcp", "bd", "meddpicc", "deal", "crm", "sales-intelligence"],
   "tools": [
     {"name": "config_doctor", "description": "Diagnose profile, storage, vector search, and LLM readiness without writes or LLM calls."},
+    {"name": "get_tool_catalog", "description": "List the current Deal Intelligence tool surface when host tool search shows only a truncated subset."},
     {"name": "update_config", "description": "Preview or apply safe non-secret user-config changes such as LLM provider/model, report output directory, timezone, and tool surface."},
     {"name": "create_deal",   "description": "Create a new deal for a prospect company."},
     {"name": "add_meeting",   "description": "Deprecated developer-surface alias for add_interaction with interaction_type=meeting."},

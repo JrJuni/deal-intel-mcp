@@ -140,7 +140,7 @@ MCP tools are profile-filtered by default:
 
 - `sample`: 22 zero-config/local personal tools
 - `standard`: 26 normal real-data tools
-- `developer`: all 29 tools, including demo seed/cleanup helpers
+- `developer`: all registered tools, including demo seed/cleanup helpers
 
 Use `tools.surface: developer` or `DEAL_INTEL_TOOLS_SURFACE=developer` only
 when you intentionally want the full maintainer/debug surface.
@@ -280,12 +280,14 @@ deal-intel login-chatgpt
 
 Then restart Claude Desktop.
 
-You're done when the MCP tool list loads. The server registers 29 internal
-tools, then exposes a profile-filtered surface; `src/deal_intel/mcp_server.py`
-and `docs/baseline.md` are the source of truth.
+You're done when the MCP tool list loads. Some host apps show only the top
+matching tools during search; ask for `get_tool_catalog` to see the full
+current Deal Intelligence surface. The server registers internal tools, then
+exposes a profile-filtered surface; `src/deal_intel/mcp_server.py` and
+`docs/baseline.md` are the source of truth.
 
 ```
-config_doctor / update_config
+config_doctor / get_tool_catalog / update_config
 create_deal / add_interaction / get_deal / update_stage / update_deal
 archive_deal / restore_deal / delete_deal / migrate_local_data
 list_deals / get_insights / get_metrics / get_deal_gaps / get_deal_review
@@ -975,7 +977,7 @@ Customer Themes dashboard setup, including the optional
 Current source of truth:
 
 - MCP server: `src/deal_intel/mcp_server.py`
-- Current tool count: 29
+- Current registered tool count: see `get_tool_catalog` or `config_doctor`
 - Detailed contract: [`docs/baseline.md`](docs/baseline.md)
 - Documentation map: [`docs/README.md`](docs/README.md)
 - User memory samples: [`user_docs/README.md`](user_docs/README.md)
@@ -984,7 +986,7 @@ Current source of truth:
 [Claude Desktop / Codex - natural-language input]
          | stdio JSON-RPC
          v
-[deal-intel-mcp  FastMCP server  29 tools]
+[deal-intel-mcp  FastMCP server]
          |
          |-- LLM Provider
          |     |-- ChatGPT OAuth (default, Plus/Pro subscription)

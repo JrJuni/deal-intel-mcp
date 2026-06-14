@@ -57,19 +57,20 @@ available.
 
 ### MCP Tool Contracts
 
-The Python server keeps all 29 handler functions available internally, but MCP
+The Python server keeps all 30 handler functions available internally, but MCP
 clients see a config-filtered tool surface:
 
 - `tools.surface: auto` resolves from the effective profile.
-- `sample` exposes 22 tools for bundled/local personal sample mode.
-- `standard` exposes 26 tools for normal MongoDB-backed operation.
-- `developer` exposes all 29 tools, including demo database seed/cleanup.
+- `sample` exposes 23 tools for bundled/local personal sample mode.
+- `standard` exposes 27 tools for normal MongoDB-backed operation.
+- `developer` exposes all 30 tools, including demo database seed/cleanup.
 - Invalid `tools.surface` config exposes only `config_doctor` and
   `update_config` so setup can be diagnosed and repaired.
 
 | Tool | Required inputs | Optional inputs | Success response | Persistence or external effects |
 |---|---|---|---|---|
 | `config_doctor` | None | `offline` | `ok`, `profile`, `generated_at`, `summary`, `checks`, `next_actions` | Read only; checks config, storage readiness, vector-search mode, and LLM provider readiness without LLM calls, embeddings, or writes. The default path may perform a bounded storage ping; `offline=true` skips it |
+| `get_tool_catalog` | None | `include_hidden` | `ok`, `resolved_tool_surface`, `visible_tool_count`, `registered_tool_count`, `tools`, `categories`, `surfaces`, `usage_hint` | Read only; lists the current profile-filtered tool surface and optional hidden/developer-only tools. Use when host tool search returns only a truncated subset |
 | `update_config` | None | `dry_run`, `confirmed_by_user`, `llm_provider`, `chatgpt_oauth_model`, `openai_api_model`, `reporting_output_dir`, `reporting_timezone`, `reporting_language`, `tools_surface` | `ok`, `command`, `user_config_path`, `dry_run`, `changed_fields`, `doctor`, `storage_written`, `backup_path` | Dry-run-first local file write. Applies only allowlisted non-secret settings to `~/.deal-intel/config.yaml`; real writes require `confirmed_by_user=true`; rejects MongoDB URIs and API-key shaped values |
 | `create_deal` | `company` | `industry`, `industry_tags`, `customer_segment`, `deal_size_amount`, `deal_size_currency`, `deal_size_status`, `deal_size_low_amount`, `deal_size_high_amount`, `deal_size_note`, `expected_close_date` | `ok`, `deal_id`, `company`, `industry`, `industry_tags`, `customer_segment`, deal value fields, `expected_close_date`, `expected_close_date_source`, `taxonomy_warnings`, optional `analytics_snapshot` | Validates the initial deal-value classification, normalizes industry metadata, applies the configured close-date default when omitted, upserts one deal, initializes `discovery` stage history, and attempts a non-blocking analytics snapshot |
 | `add_meeting` | `deal_id`, `date`, `raw_notes` | None | `ok`, `interaction_id`, `meeting_id`, `summary`, `meddpicc`, `meddpicc_latest`, `customer_themes`, `stage_suggestion`, `embedding_stored`, `usage`, `usage_summary`, optional `analytics_snapshot` | Deprecated developer-surface compatibility alias over `add_interaction` with `interaction_type: meeting`. Calls LLM, writes an `interaction_type: meeting` record under `deal.interactions`, stores `llm_usage` metadata, recalculates deal signals, optionally stores an embedding for MongoDB-backed data, upserts the deal, and attempts a non-blocking analytics snapshot. New clients should call `add_interaction` directly |
@@ -308,8 +309,8 @@ Before Milestone 1 started, all 28 findings were resolved. The current gate is:
 pytest -> 128 passed
 ruff check . -> All checks passed
 wheel build -> passed
-FastMCP runtime surface exposure -> sample 22 tools, standard 26 tools,
-developer 29 tools
+FastMCP runtime surface exposure -> sample 23 tools, standard 27 tools,
+developer 30 tools
 MongoDB Atlas read smoke -> passed
 ```
 

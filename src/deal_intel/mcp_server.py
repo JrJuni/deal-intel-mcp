@@ -80,6 +80,72 @@ def config_doctor(offline: bool = False) -> dict:
 
 
 @app.tool()
+def get_tool_catalog(include_hidden: bool = False) -> dict:
+    """List Deal Intelligence MCP tools for the current profile/tool surface.
+
+    Use this when a host app's tool search shows only a truncated subset of
+    tools. Read-only: no storage access, no LLM calls, no file writes.
+
+    By default, returns only tools visible in the current resolved surface.
+    Set include_hidden=true to also show developer-only or profile-hidden tools
+    with visibility metadata.
+    """
+    try:
+        from deal_intel import _context
+        from deal_intel.tool_surfaces import (
+            list_tool_surface_contracts,
+            resolve_tool_surface,
+            surface_names,
+            tool_names_for_surface,
+        )
+
+        cfg = _context.config()
+        resolved_surface = resolve_tool_surface(cfg)
+        visible_names = set(tool_names_for_surface(resolved_surface))
+        all_names_by_surface = {
+            surface: list(tool_names_for_surface(surface))
+            for surface in surface_names()
+        }
+        contracts = list_tool_surface_contracts()
+        tools = [
+            {
+                **contract.to_dict(),
+                "visible": contract.name in visible_names,
+            }
+            for contract in contracts
+            if include_hidden or contract.name in visible_names
+        ]
+        categories: dict[str, list[str]] = {}
+        for tool in tools:
+            categories.setdefault(tool["category"], []).append(tool["name"])
+
+        surfaces_payload = (
+            all_names_by_surface
+            if include_hidden
+            else {resolved_surface: sorted(visible_names)}
+        )
+
+        return {
+            "ok": True,
+            "resolved_tool_surface": resolved_surface,
+            "visible_tool_count": len(visible_names),
+            "registered_tool_count": len(contracts),
+            "include_hidden": include_hidden,
+            "tools": tools,
+            "categories": categories,
+            "surfaces": surfaces_payload,
+            "usage_hint": (
+                "Use this catalog when the host app's tool search returns only "
+                "a few matching tools. For setup, start with config_doctor. "
+                "For one-deal status, use get_deal_review. For reports, use "
+                "export_report; for spreadsheet ledgers, use export_data."
+            ),
+        }
+    except Exception as exc:
+        return envelope_from_exception(exc, stage=Stage.PREFLIGHT)
+
+
+@app.tool()
 def update_config(
     dry_run: bool = True,
     confirmed_by_user: bool = False,

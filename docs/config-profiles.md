@@ -258,7 +258,7 @@ Implemented behavior:
   `mongo`, while `local_sample` remains available for zero-config demos.
 - The MCP bundle metadata reflects the current 29-tool internal registration
   with profile-filtered surfaces.
-- The current bundle manifest version is `0.1.13`.
+- The current bundle manifest version is `0.1.14`.
 - `mcpb/README.md` now documents `tools_surface=auto`, mutable local personal
   sample data, and dry-run-first local-to-Mongo migration.
 - `tests/test_mcpb_manifest.py` validates the manifest against the tool-surface
@@ -334,7 +334,7 @@ Default mapping:
 Result:
 
 - `build_tool_surface_matrix()` returns a serializable surface matrix.
-- Targeted tests verify that all 29 registered MCP tools are classified.
+- Targeted tests verify that all registered MCP tools are classified.
 - Targeted tests verify that `sample` includes safe local personal write/admin
   tools while excluding LLM-heavy, semantic-search, legacy Mongo aggregation,
   and Mongo demo-database maintenance tools.

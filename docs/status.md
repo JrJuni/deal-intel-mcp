@@ -12,6 +12,31 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-15
 
+### Tool catalog for truncated host discovery
+
+Implemented:
+
+- Added the read-only MCP tool `get_tool_catalog(include_hidden=false)`.
+- The tool returns the resolved surface, visible tool count, registered tool
+  count, category grouping, per-tool visibility metadata, and guidance for
+  common tool-selection confusion.
+- This addresses host-app behavior where a tool search may show only the top
+  few matching tools even though the MCP server loaded the full surface.
+- Bumped package and MCPB manifest version to `0.1.14`.
+- Updated visible tool counts to `sample=23`, `standard=27`, `developer=30`.
+
+Notes:
+
+- This is a host-discovery UX fix, not evidence that v0.1.13 loaded only five
+  tools. The host search UI can truncate results independently of the MCP
+  server's actual `list_tools()` result.
+
+Validation:
+
+- `pytest -q -p no:cacheprovider --basetemp .pytest-tool-catalog-full`: 546 passed.
+- `ruff check .`: passed.
+- `mcpb validate mcpb/manifest.json`: passed.
+
 ### Post-v1 roadmap finalized
 
 Implemented:

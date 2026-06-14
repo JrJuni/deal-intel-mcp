@@ -39,6 +39,7 @@ and future local personal path.
 without MongoDB today. It is not the full operating surface:
 
 - `config_doctor`
+- `get_tool_catalog`
 - `update_config`
 - `create_deal`
 - `add_interaction`
@@ -139,9 +140,9 @@ Behavior:
 
 Current exposed counts:
 
-- `sample`: 22 tools
-- `standard`: 26 tools
-- `developer`: 29 tools
+- `sample`: 23 tools
+- `standard`: 27 tools
+- `developer`: 30 tools
 
 Implementation notes:
 
@@ -149,5 +150,8 @@ Implementation notes:
   `list_tools()` and blocks hidden `call_tool()` requests by surface.
 - This keeps developer tests and direct module imports stable while making the
   MCP client-facing tool list non-developer friendly.
+- Some host apps show only a few top matches from their own tool search. This
+  is not necessarily a server loading failure; call `get_tool_catalog` to see
+  the complete current surface.
 - `DEAL_INTEL_TOOLS_SURFACE` can override the configured surface for smoke
   tests or packaged installs.

@@ -553,7 +553,7 @@ Next candidate units:
 
 1. Optional live Atlas smoke for local personal -> MongoDB migration when a
    disposable target database is available.
-2. Reinstall smoke with `deal-intel-mcp-0.1.13.mcpb` after the safe config
+2. Reinstall smoke with `deal-intel-mcp-0.1.14.mcpb` after the safe config
    update manifest change.
 3. Decide whether release bundles need signing before external distribution.
 
@@ -865,7 +865,7 @@ Backlog items:
   manifest fields, tool list alignment, environment mapping, and launcher
   behavior.
 - Rebuild and attach a fresh `.mcpb` artifact after bundle manifest changes.
-  Current local artifact target: `deal-intel-mcp-0.1.13.mcpb`; unsigned.
+  Current local artifact target: `deal-intel-mcp-0.1.14.mcpb`; unsigned.
 
 ### Cost And Query Optimization
 

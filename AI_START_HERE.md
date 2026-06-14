@@ -125,9 +125,13 @@ When installing the MCPB, recommend:
 
 Expected visible tool counts:
 
-- `sample`: 22 tools
-- `standard` / `full`: 26 tools
-- `developer`: 29 tools
+- `sample`: 23 tools
+- `standard` / `full`: 27 tools
+- `developer`: 30 tools
+
+If the host app's tool search shows only a handful of tools, that is usually a
+host-side search limit rather than a server loading failure. Ask it to call
+`get_tool_catalog` for the full current Deal Intelligence tool surface.
 
 After restart, ask Claude/Codex to run `config_doctor` first.
 

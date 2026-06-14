@@ -664,7 +664,7 @@ For this deal_id, what should I confirm next'
 
 ---
 
-### 10. `export_report` - generate a weekly pipeline report
+### 10. `export_report` - generate a pipeline report
 
 **When to use**: When you need a file to share or for a meeting, like "make this week's pipeline report."
 
@@ -675,7 +675,7 @@ same timestamp.
 **Parameters**:
 | Parameter | Required | Description |
 |---|---|---|
-| `report_type` | optional | Currently only `weekly_pipeline` |
+| `report_type` | optional | `weekly_pipeline` or `pipeline_trend`; defaults to `weekly_pipeline` |
 | `output_dir` | optional | Save path. Omitted -> `reporting.output_dir` or `~/.deal-intel/reports`; relative paths are scoped under `~/.deal-intel/` |
 | `stage` | optional | Exact match against the stored stage |
 | `industry` | optional | Exact match against the stored industry |

@@ -800,7 +800,8 @@ def export_report(
     - industry: exact stored industry match
     - as_of: YYYY-MM-DD business date for stuck/overdue calculations
     - lookback_days: trend window length, used only by pipeline_trend
-    - output_dir: local output directory; defaults to reporting.output_dir or ~/.deal-intel/reports
+    - output_dir: local output directory; defaults to reporting.output_dir or ~/.deal-intel/reports;
+      relative paths are scoped under ~/.deal-intel/
     """
     try:
         from deal_intel import _context

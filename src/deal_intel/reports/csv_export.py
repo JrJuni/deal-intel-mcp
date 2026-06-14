@@ -23,7 +23,7 @@ def save_report_csv(
     columns = _columns(report, rows)
     generated = _generated_at(generated_at)
     filename = f"{_safe_filename_part(report_type)}_{generated:%Y%m%d_%H%M%S}.csv"
-    directory = Path(output_dir)
+    directory = Path(output_dir).expanduser()
     path = directory / filename
 
     try:

@@ -311,6 +311,13 @@ def test_export_report_relative_output_dir_is_user_home_scoped(
     )
 
 
+def test_export_report_rejects_control_characters_in_output_dir() -> None:
+    with pytest.raises(ValueError, match="single path string"):
+        export_report._resolve_output_dir({}, "reports\nbad")
+    with pytest.raises(ValueError, match="single path string"):
+        export_report._resolve_output_dir({}, "reports\x00bad")
+
+
 def test_export_report_mcp_wrapper_forwards_to_handler(monkeypatch, tmp_path) -> None:
     mongo = FakeMongo([_deal("deal-1", company="PublicCo")])
     monkeypatch.setattr(_context, "mongo", lambda: mongo)

@@ -24,6 +24,11 @@ Implemented:
 - Moved the default natural-question smoke output directory from repo-local
   `outputs/smoke/...` to `~/.deal-intel/smoke/...`.
 - Updated report docs to explain relative-path scoping.
+- Aligned report export polish details:
+  - `export_report` docs now mention both `weekly_pipeline` and
+    `pipeline_trend`.
+  - direct CSV export expands `~` like Markdown export.
+  - output directory strings with control characters fail preflight.
 
 Validation:
 
@@ -31,9 +36,13 @@ Validation:
   `pytest tests/test_export_report.py tests/test_cli_deal_review_smoke.py -q
   -p no:cacheprovider --basetemp .tmp\pytest-output-paths`:
   `24 passed, 1 warning`.
+- Targeted report polish:
+  `pytest tests/test_export_report.py tests/test_csv_export.py
+  tests/test_cli_deal_review_smoke.py -q -p no:cacheprovider --basetemp
+  .tmp\pytest-report-polish`: `31 passed, 1 warning`.
 - Full regression:
-  `pytest -q -p no:cacheprovider --basetemp .tmp\pytest-output-paths-full`:
-  `531 passed, 1 warning`.
+  `pytest -q -p no:cacheprovider --basetemp .tmp\pytest-report-polish-full`:
+  `533 passed, 1 warning`.
 - Ruff:
   `ruff check .`: `All checks passed`.
 

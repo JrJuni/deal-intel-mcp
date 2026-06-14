@@ -100,6 +100,21 @@ def test_save_report_csv_uses_utc_timestamp_for_filename(tmp_path) -> None:
     assert result["filename"] == "weekly_pipeline_20260609_123456.csv"
 
 
+def test_save_report_csv_expands_user_home(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+
+    result = save_report_csv(
+        _report(),
+        output_dir="~/csv-reports",
+        generated_at=datetime(2026, 6, 9, 12, 34, 56, tzinfo=UTC),
+    )
+
+    expected = tmp_path / "csv-reports" / "weekly_pipeline_20260609_123456.csv"
+    assert result["ok"] is True
+    assert result["path"] == str(expected.resolve())
+    assert expected.exists()
+
+
 def test_save_report_csv_returns_structured_error_on_write_failure(tmp_path) -> None:
     output_file = tmp_path / "not-a-directory"
     output_file.write_text("occupied", encoding="utf-8")

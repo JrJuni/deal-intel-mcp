@@ -260,6 +260,8 @@ def _resolve_output_dir(cfg: dict, output_dir: str | None) -> Path:
 
 
 def _resolve_user_output_path(value: str) -> Path:
+    if "\n" in value or "\r" in value or "\x00" in value:
+        raise ValueError("output_dir must be a single path string")
     path = Path(value).expanduser()
     if path.is_absolute():
         return path

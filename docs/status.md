@@ -12,6 +12,31 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-14
 
+### v1 polish: output path hardening
+
+Implemented:
+
+- Hardened report output path resolution so relative `output_dir` values are
+  scoped under `~/.deal-intel/` instead of the current working directory.
+- Preserved absolute paths and `~` paths as explicit user choices.
+- Mapped the legacy relative `outputs/reports` value to
+  `~/.deal-intel/reports` to avoid MCPB/host-app write failures.
+- Moved the default natural-question smoke output directory from repo-local
+  `outputs/smoke/...` to `~/.deal-intel/smoke/...`.
+- Updated report docs to explain relative-path scoping.
+
+Validation:
+
+- Targeted:
+  `pytest tests/test_export_report.py tests/test_cli_deal_review_smoke.py -q
+  -p no:cacheprovider --basetemp .tmp\pytest-output-paths`:
+  `24 passed, 1 warning`.
+- Full regression:
+  `pytest -q -p no:cacheprovider --basetemp .tmp\pytest-output-paths-full`:
+  `531 passed, 1 warning`.
+- Ruff:
+  `ruff check .`: `All checks passed`.
+
 ### v1 polish: tool selection and usage visibility
 
 Implemented:

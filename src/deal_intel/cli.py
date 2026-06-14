@@ -3109,7 +3109,7 @@ def _write_natural_question_smoke_artifacts(
 
 def _default_natural_question_output_dir() -> Path:
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return Path("outputs") / "smoke" / f"natural-question-pack-{stamp}"
+    return Path.home() / ".deal-intel" / "smoke" / f"natural-question-pack-{stamp}"
 
 
 def _format_natural_question_smoke(payload: dict) -> str:

@@ -338,7 +338,7 @@ MCP.
 | Parameter | Required | Contract |
 |---|---|---|
 | `report_type` | optional | Defaults to `weekly_pipeline`; other values fail preflight |
-| `output_dir` | optional | Explicit local directory. Defaults to `reporting.output_dir` or `~/.deal-intel/reports` |
+| `output_dir` | optional | Explicit local directory. Defaults to `reporting.output_dir` or `~/.deal-intel/reports`; relative paths are scoped under `~/.deal-intel/` |
 | `stage` | optional | Exact valid stage match |
 | `industry` | optional | Exact stored industry match |
 | `as_of` | optional | `YYYY-MM-DD` business date for stuck/overdue calculations |
@@ -464,7 +464,7 @@ CSV and Markdown artifacts.
 | Parameter | Required | Contract |
 |---|---|---|
 | `report_type` | optional | `pipeline_trend` for this report |
-| `output_dir` | optional | Explicit local directory. Defaults to `reporting.output_dir` or `~/.deal-intel/reports` |
+| `output_dir` | optional | Explicit local directory. Defaults to `reporting.output_dir` or `~/.deal-intel/reports`; relative paths are scoped under `~/.deal-intel/` |
 | `stage` | optional | Exact valid snapshot `deal_stage` match |
 | `industry` | optional | Exact stored snapshot industry match |
 | `as_of` | optional | `YYYY-MM-DD` business end date |

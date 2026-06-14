@@ -286,6 +286,31 @@ def test_export_report_default_output_dir_uses_user_home() -> None:
     ).expanduser()
 
 
+def test_export_report_legacy_relative_reports_dir_uses_user_home() -> None:
+    assert export_report._resolve_output_dir(
+        {"reporting": {"output_dir": "outputs/reports"}},
+        None,
+    ) == Path("~/.deal-intel/reports").expanduser()
+    assert export_report._resolve_output_dir({}, "outputs/reports") == Path(
+        "~/.deal-intel/reports"
+    ).expanduser()
+
+
+def test_export_report_relative_output_dir_is_user_home_scoped(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+
+    assert export_report._resolve_output_dir(
+        {"reporting": {"output_dir": "custom_reports"}},
+        None,
+    ) == tmp_path / ".deal-intel" / "custom_reports"
+    assert export_report._resolve_output_dir({}, "nested/reports") == (
+        tmp_path / ".deal-intel" / "nested" / "reports"
+    )
+
+
 def test_export_report_mcp_wrapper_forwards_to_handler(monkeypatch, tmp_path) -> None:
     mongo = FakeMongo([_deal("deal-1", company="PublicCo")])
     monkeypatch.setattr(_context, "mongo", lambda: mongo)

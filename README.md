@@ -676,7 +676,7 @@ same timestamp.
 | Parameter | Required | Description |
 |---|---|---|
 | `report_type` | optional | Currently only `weekly_pipeline` |
-| `output_dir` | optional | Save path. Omitted -> `reporting.output_dir` or `~/.deal-intel/reports` |
+| `output_dir` | optional | Save path. Omitted -> `reporting.output_dir` or `~/.deal-intel/reports`; relative paths are scoped under `~/.deal-intel/` |
 | `stage` | optional | Exact match against the stored stage |
 | `industry` | optional | Exact match against the stored industry |
 | `as_of` | optional | Base date for stuck/overdue calculation, `YYYY-MM-DD` |

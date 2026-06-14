@@ -2,6 +2,7 @@
 
 import json
 from copy import deepcopy
+from pathlib import Path
 
 from typer.testing import CliRunner
 
@@ -457,5 +458,34 @@ def test_smoke_natural_questions_json_outputs_artifact_path(monkeypatch, tmp_pat
     assert [row["id"] for row in payload["questions"]][-1] == (
         "q12_interaction_source_coverage"
     )
+    assert (output_dir / "summary.md").exists()
+    assert mongo.write_count == 0
+
+
+def test_smoke_natural_questions_default_output_dir_uses_user_home(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    mongo = FakeMongo([_deal("deal-1", company="페이브릿지")])
+    monkeypatch.setattr(_context, "mongo", lambda: mongo)
+    monkeypatch.setattr(_context, "config", lambda: {})
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "smoke-natural-questions",
+            "--as-of",
+            "2026-06-10",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["ok"] is True
+    output_dir = Path(payload["output_dir"])
+    assert output_dir.parent == tmp_path / ".deal-intel" / "smoke"
+    assert output_dir.name.startswith("natural-question-pack-")
     assert (output_dir / "summary.md").exists()
     assert mongo.write_count == 0

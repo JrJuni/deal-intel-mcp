@@ -246,7 +246,7 @@ def _resolve_output_dir(cfg: dict, output_dir: str | None) -> Path:
     if output_dir not in (None, ""):
         if not isinstance(output_dir, str):
             raise ValueError("output_dir must be a string path")
-        return Path(output_dir).expanduser()
+        return _resolve_user_output_path(output_dir)
 
     reporting = cfg.get("reporting", {})
     if not isinstance(reporting, dict):
@@ -256,7 +256,17 @@ def _resolve_output_dir(cfg: dict, output_dir: str | None) -> Path:
         return DEFAULT_OUTPUT_DIR.expanduser()
     if not isinstance(configured, str):
         raise ValueError("reporting.output_dir must be a string path")
-    return Path(configured).expanduser()
+    return _resolve_user_output_path(configured)
+
+
+def _resolve_user_output_path(value: str) -> Path:
+    path = Path(value).expanduser()
+    if path.is_absolute():
+        return path
+    normalized_parts = tuple(part.lower() for part in path.parts)
+    if normalized_parts == ("outputs", "reports"):
+        return DEFAULT_OUTPUT_DIR.expanduser()
+    return Path.home() / ".deal-intel" / path
 
 
 def _raise_io_error(result: dict) -> None:

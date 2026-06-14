@@ -12,6 +12,46 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-14
 
+### v1 polish: tool selection and usage visibility
+
+Implemented:
+
+- Clarified high-traffic MCP tool descriptions so host AIs can choose between
+  adjacent tools more reliably.
+- Repositioned `get_deal_review` as the default LLM-free one-deal review tool.
+- Repositioned `analyze_deal` as optional server-side LLM strategy generation
+  that may persist `bd_strategy`.
+- Added persisted LLM usage metadata for new `add_interaction` calls and
+  `analyze_deal` strategy generation.
+- Added `get_usage` MCP tool and `deal-intel usage` CLI command.
+- `get_usage` summarizes usage by provider, tool, and operation, with
+  date-window filters.
+- Cost estimates are conservative: ChatGPT OAuth is treated as subscription
+  backed with zero incremental API estimate; API-provider costs are calculated
+  only when `usage.pricing` is configured.
+- Updated tool-surface counts to `sample=21`, `standard=25`,
+  `developer=28`.
+
+Validation:
+
+- Targeted:
+  `pytest tests/test_usage.py tests/test_add_interaction.py
+  tests/test_local_sample_backend.py tests/test_tool_surfaces.py
+  tests/test_mcpb_manifest.py -q -p no:cacheprovider --basetemp
+  .tmp\pytest-p2-targeted`: `64 passed, 1 warning`.
+- Full regression:
+  `pytest -q -p no:cacheprovider --basetemp .tmp\pytest-p2-full`:
+  `528 passed, 1 warning`.
+- Ruff:
+  `ruff check .`: `All checks passed`.
+- CLI smoke:
+  `DEAL_INTEL_STORAGE_BACKEND=local_sample deal-intel usage --json`: `ok=true`
+  with `no_persisted_usage_metadata_found`, as expected for bundled sample data
+  before any new server-side LLM usage is written.
+- Hygiene scan:
+  no tracked personal path / stale tool-count matches found outside generated
+  output folders.
+
 ### Public launch hygiene stream
 
 Documented:

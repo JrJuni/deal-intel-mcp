@@ -92,9 +92,9 @@ Preferred maintainer loop:
 
 Source of truth: `src/deal_intel/mcp_server.py`.
 
-Current tool count: 26.
+Current tool count: 28.
 
-- Config/readiness: `config_doctor`
+- Config/readiness: `config_doctor`, `update_config`
 - Write/lifecycle: `create_deal`, `add_interaction`, `update_stage`,
   `update_deal`, `archive_deal`, `restore_deal`, `delete_deal`
 - Deprecated compatibility: `add_meeting` (developer surface only; use
@@ -103,7 +103,7 @@ Current tool count: 26.
 - Migration: `migrate_local_data`
 - Read/review: `get_deal`, `list_deals`, `get_deal_gaps`,
   `get_deal_review`
-- BI/reporting: `get_insights`, `get_metrics`, `export_report`
+- BI/reporting: `get_insights`, `get_metrics`, `get_usage`, `export_report`
 - User memory: `get_user_memory`, `record_user_memory`
 - Customer themes: `get_customer_themes`, `get_customer_theme_breakdown`,
   `get_customer_theme_evidence`

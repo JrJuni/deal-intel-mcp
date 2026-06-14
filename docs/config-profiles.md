@@ -256,7 +256,7 @@ Implemented behavior:
 - Pro requirements are clearly labeled as paid-infra opt-in.
 - `mcpb/manifest.json` exposes `storage_backend`; the installer default is
   `mongo`, while `local_sample` remains available for zero-config demos.
-- The MCP bundle metadata reflects the current 24-tool internal registration
+- The MCP bundle metadata reflects the current 28-tool internal registration
   with profile-filtered surfaces.
 - The current bundle manifest version is `0.1.13`.
 - `mcpb/README.md` now documents `tools_surface=auto`, mutable local personal
@@ -334,7 +334,7 @@ Default mapping:
 Result:
 
 - `build_tool_surface_matrix()` returns a serializable surface matrix.
-- Targeted tests verify that all 27 registered MCP tools are classified.
+- Targeted tests verify that all 28 registered MCP tools are classified.
 - Targeted tests verify that `sample` includes safe local personal write/admin
   tools while excluding LLM-heavy, semantic-search, legacy Mongo aggregation,
   and Mongo demo-database maintenance tools.

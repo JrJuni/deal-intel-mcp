@@ -167,6 +167,49 @@ def config_doctor(
         raise typer.Exit(code=1)
 
 
+@app.command("usage")
+def usage_summary(
+    since: str = typer.Option(
+        "",
+        "--since",
+        help="Optional start date, YYYY-MM-DD.",
+    ),
+    until: str = typer.Option(
+        "",
+        "--until",
+        help="Optional end date, YYYY-MM-DD.",
+    ),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Print structured JSON instead of concise text.",
+    ),
+) -> None:
+    """Summarize persisted server-side LLM token usage and estimated cost."""
+
+    from deal_intel import _context
+    from deal_intel.errors import Stage, envelope_from_exception
+    from deal_intel.tools import get_usage as _usage
+
+    try:
+        payload = _usage.handle(
+            mongo=_context.mongo(),
+            cfg=_context.config(),
+            since=since or None,
+            until=until or None,
+        )
+    except Exception as exc:
+        payload = envelope_from_exception(exc, stage=Stage.STORAGE)
+
+    if json_output:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+    else:
+        typer.echo(_format_usage_summary(payload))
+
+    if not payload["ok"]:
+        raise typer.Exit(code=1)
+
+
 @config_app.command("init")
 def config_init(
     profile: str = typer.Option(
@@ -2129,6 +2172,61 @@ def _format_config_doctor(payload: dict) -> str:
             if isinstance(rendered, dict):
                 rendered = json.dumps(rendered, ensure_ascii=False)
             lines.append(f"- [{action['check_id']}] {rendered}")
+    return "\n".join(lines)
+
+
+def _format_usage_summary(payload: dict) -> str:
+    if not payload.get("ok"):
+        return (
+            "Usage summary: failed\n"
+            f"{payload.get('message') or payload.get('error_code') or 'unknown error'}"
+        )
+    summary = payload["summary"]
+    tokens = summary["tokens"]
+    estimated = summary.get("estimated_cost_usd")
+    estimated_text = (
+        "not estimated"
+        if estimated is None
+        else f"${float(estimated):.6f}"
+    )
+    lines = [
+        "Usage summary:",
+        (
+            f"- entries={summary['usage_entries']}, "
+            f"llm_calls={summary['llm_call_count']}, "
+            f"deals_scanned={summary['deal_count_scanned']}"
+        ),
+        (
+            f"- tokens: input={tokens['input_tokens']}, "
+            f"output={tokens['output_tokens']}, total={tokens['total_tokens']}"
+        ),
+        f"- estimated cost: {estimated_text}",
+    ]
+    if payload.get("filters"):
+        filters = payload["filters"]
+        if filters.get("since") or filters.get("until"):
+            lines.append(
+                f"- filters: since={filters.get('since')}, until={filters.get('until')}"
+            )
+    if payload.get("by_provider"):
+        lines.append("")
+        lines.append("By provider:")
+        for row in payload["by_provider"]:
+            row_cost = row.get("estimated_cost_usd")
+            row_cost_text = (
+                "not estimated"
+                if row_cost is None
+                else f"${float(row_cost):.6f}"
+            )
+            lines.append(
+                f"- {row['provider']}: calls={row['llm_call_count']}, "
+                f"tokens={row['tokens']['total_tokens']}, cost={row_cost_text}"
+            )
+    if payload.get("warnings"):
+        lines.append("")
+        lines.append("Warnings:")
+        for warning in payload["warnings"]:
+            lines.append(f"- {warning}")
     return "\n".join(lines)
 
 

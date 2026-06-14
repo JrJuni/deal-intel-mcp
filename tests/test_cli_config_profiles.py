@@ -77,7 +77,7 @@ def test_config_show_cli_summarizes_effective_config_without_secrets(
     assert payload["effective_config"]["tools"] == {
         "surface": "auto",
         "resolved_surface": "sample",
-        "mcp_tool_count": 20,
+        "mcp_tool_count": 21,
     }
     assert payload["effective_config"]["llm"]["provider"] == "openai_api"
     assert payload["environment"]["MONGODB_URI"]["configured"] is True

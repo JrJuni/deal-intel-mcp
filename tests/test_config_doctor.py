@@ -267,7 +267,7 @@ def test_config_doctor_mcp_runtime_registers_tool(monkeypatch) -> None:
     tools = asyncio.run(mcp_server.app.list_tools())
     names = sorted(tool.name for tool in tools)
 
-    assert len(names) == 27
+    assert len(names) == 28
     assert "config_doctor" in names
     assert "update_config" in names
 

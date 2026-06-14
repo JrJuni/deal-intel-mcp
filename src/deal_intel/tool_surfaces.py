@@ -228,6 +228,18 @@ MCP_TOOL_SURFACE_CONTRACTS: tuple[MCPToolSurfaceContract, ...] = (
         llm_calls=False,
     ),
     MCPToolSurfaceContract(
+        name="get_usage",
+        category="core_read",
+        surfaces=_SAMPLE,
+        user_facing=True,
+        db_writes=False,
+        llm_calls=False,
+        notes=(
+            "Read-only summary of persisted server-side LLM token usage and "
+            "safe cost estimates."
+        ),
+    ),
+    MCPToolSurfaceContract(
         name="export_report",
         category="local_artifact",
         surfaces=_SAMPLE,

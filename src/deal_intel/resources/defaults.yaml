@@ -84,3 +84,11 @@ deal_review:
   evidence_coverage:
     low_max: 40
     high_min: 70
+
+# LLM usage visibility.
+# get_usage always reports token counts from persisted tool metadata. Cost is
+# estimated only when pricing is configured here or in ~/.deal-intel/config.yaml.
+# ChatGPT OAuth is treated as subscription-backed with zero incremental API
+# estimate because it does not bill through an API key.
+usage:
+  pricing: {}

@@ -229,7 +229,7 @@ Run the relevant tests:
 Pass criteria:
 
 - `sample`, `standard`, and `developer` tool counts match the documented
-  contract: `sample=20`, `standard=24`, `developer=27`.
+  contract: `sample=21`, `standard=25`, `developer=28`.
 - `add_interaction` is visible on sample/standard.
 - Deprecated `add_meeting` is hidden from sample/standard and only visible on
   developer.

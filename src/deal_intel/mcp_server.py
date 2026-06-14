@@ -753,6 +753,32 @@ def get_deal_review(deal_id: str, as_of: str = "") -> dict:
 
 
 @app.tool()
+def get_usage(since: str = "", until: str = "") -> dict:
+    """Summarize persisted server-side LLM token usage and estimated cost.
+
+    Use this when the user asks how much the MCP server has used or roughly
+    cost. It is read-only and never returns prompts, raw notes, emails, API
+    keys, OAuth tokens, or MongoDB URIs. Cost is estimated only when safe:
+    ChatGPT OAuth is reported as zero incremental API cost, and API-provider
+    pricing is calculated only if usage.pricing is configured.
+
+    since/until accept YYYY-MM-DD and filter persisted usage metadata.
+    """
+    try:
+        from deal_intel import _context
+        from deal_intel.tools import get_usage as _t
+
+        return _t.handle(
+            mongo=_context.mongo(),
+            cfg=_context.config(),
+            since=since or None,
+            until=until or None,
+        )
+    except Exception as exc:
+        return envelope_from_exception(exc, stage=Stage.STORAGE)
+
+
+@app.tool()
 def export_report(
     report_type: str = "weekly_pipeline",
     output_dir: str = "",
@@ -1086,6 +1112,7 @@ def analyze_deal(deal_id: str) -> dict:
         return _t.handle(
             mongo=_context.mongo(),
             llm=_context.llm_provider(),
+            cfg=_context.config(),
             deal_id=deal_id,
         )
     except Exception as exc:

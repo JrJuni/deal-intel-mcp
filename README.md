@@ -95,9 +95,9 @@ You can still override `llm.openai_api_model` or switch `llm.provider` to
 
 MCP tools are profile-filtered by default:
 
-- `sample`: 20 zero-config/local personal tools
-- `standard`: 24 normal real-data tools
-- `developer`: all 27 tools, including demo seed/cleanup helpers
+- `sample`: 21 zero-config/local personal tools
+- `standard`: 25 normal real-data tools
+- `developer`: all 28 tools, including demo seed/cleanup helpers
 
 Use `tools.surface: developer` or `DEAL_INTEL_TOOLS_SURFACE=developer` only
 when you intentionally want the full maintainer/debug surface.
@@ -228,7 +228,7 @@ deal-intel login-chatgpt
 
 Then restart Claude Desktop.
 
-You're done when the MCP tool list loads. The server registers 27 internal
+You're done when the MCP tool list loads. The server registers 28 internal
 tools, then exposes a profile-filtered surface; `src/deal_intel/mcp_server.py`
 and `docs/baseline.md` are the source of truth.
 
@@ -237,7 +237,7 @@ config_doctor / update_config
 create_deal / add_interaction / get_deal / update_stage / update_deal
 archive_deal / restore_deal / delete_deal / migrate_local_data
 list_deals / get_insights / get_metrics / get_deal_gaps / get_deal_review
-export_report / get_user_memory / record_user_memory
+get_usage / export_report / get_user_memory / record_user_memory
 get_customer_themes / get_customer_theme_breakdown / get_customer_theme_evidence
 search_deals / analyze_deal
 ```
@@ -698,6 +698,26 @@ Export the proposal stage only as a weekly pipeline report
 
 ---
 
+### 11. `get_usage` - inspect server-side LLM usage
+
+**When to use**: When you want to know how much server-side LLM work this MCP
+has performed, such as token counts, call counts, and safe cost estimates.
+
+This is read-only. It never returns prompts, raw notes, raw emails, API keys,
+OAuth tokens, or MongoDB URIs. ChatGPT OAuth is shown as subscription-backed
+with zero incremental API estimate. API-provider costs are estimated only when
+you configure `usage.pricing`.
+
+**Example**:
+```
+Show my Deal Intelligence MCP usage this month.
+```
+```
+Show usage since 2026-06-01.
+```
+
+---
+
 ### Atlas Charts Dashboard - `Weekly Pipeline Review`
 
 When you'd rather see it on screen than as CSV/Markdown, use the Atlas Charts dashboard. The dashboard aggregation spec and setup runbook are in [`docs/atlas-charts.md`](docs/atlas-charts.md).
@@ -724,7 +744,7 @@ Cross-check the dashboard numbers:
 
 ---
 
-### 11. `get_insights` - legacy/special BI analysis
+### 12. `get_insights` - legacy/special BI analysis
 
 **When to use**: To aggregate all deal data and spot patterns. Good for monthly reviews and learning win/loss patterns.
 
@@ -760,7 +780,7 @@ Which dimension is most often missing'
 
 ---
 
-### 12. `search_deals` - semantic similar-deal search
+### 13. `search_deals` - semantic similar-deal search
 
 **When to use**: When you want to reference how past deals in similar situations played out. Search in natural language.
 
@@ -792,7 +812,7 @@ Any deals with a pattern similar to Hyundai Precision'
 
 ---
 
-### 13. `get_customer_themes` - frequency of customer concerns / selection criteria
+### 14. `get_customer_themes` - frequency of customer concerns / selection criteria
 
 **When to use**: To group meeting evidence across deals and see the topics customers worry about most. It counts by unique deal (not by meeting) and returns representative companies and evidence.
 
@@ -841,10 +861,11 @@ Customer Themes dashboard setup, including the optional
 5. Optional strategy memo    -> analyze_deal (LLM-written BD strategy)
 6. Weekly review             -> list_deals (find stuck deals)
 7. Pipeline KPIs             -> get_metrics pipeline_health
-8. Monthly retro             -> get_insights compare_won_lost / stage_velocity
-9. Reference similar cases   -> search_deals
-10. Customer-concern analysis -> get_customer_themes
-11. Dashboard                -> Atlas Charts Weekly Pipeline Review
+8. Usage / cost check        -> get_usage
+9. Monthly retro             -> get_insights compare_won_lost / stage_velocity
+10. Reference similar cases  -> search_deals
+11. Customer-concern analysis -> get_customer_themes
+12. Dashboard                -> Atlas Charts Weekly Pipeline Review
 ```
 
 ---
@@ -854,7 +875,7 @@ Customer Themes dashboard setup, including the optional
 Current source of truth:
 
 - MCP server: `src/deal_intel/mcp_server.py`
-- Current tool count: 27
+- Current tool count: 28
 - Detailed contract: [`docs/baseline.md`](docs/baseline.md)
 - Documentation map: [`docs/README.md`](docs/README.md)
 - User memory samples: [`user_docs/README.md`](user_docs/README.md)
@@ -863,7 +884,7 @@ Current source of truth:
 [Claude Desktop / Codex - natural-language input]
          | stdio JSON-RPC
          v
-[deal-intel-mcp  FastMCP server  27 tools]
+[deal-intel-mcp  FastMCP server  28 tools]
          |
          |-- LLM Provider
          |     |-- ChatGPT OAuth (default, Plus/Pro subscription)

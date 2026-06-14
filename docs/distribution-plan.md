@@ -100,7 +100,7 @@ Tasks:
   setup checks.
 - Keep `sample` smoke documented as an optional zero-config evaluation path.
 - Keep tool surface counts aligned with the runtime contract:
-  `sample=20`, `standard=24`, `developer=27`.
+  `sample=21`, `standard=25`, `developer=28`.
 - Keep user-memory, canonical interaction intake, industry metadata, and local
   personal data commands represented in the MVP checklist.
 - Record any live MongoDB or MCPB reinstall checks that could not be completed

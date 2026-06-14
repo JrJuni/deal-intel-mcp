@@ -127,15 +127,16 @@ Near-term candidates:
      deterministic and LLM-free.
    - Use `analyze_deal` only when the user explicitly asks for generated BD
      strategy text or wants to persist `bd_strategy`.
-2. Add a usage/cost visibility tool for v1 polish.
-   - Report server-side LLM calls by tool, provider, model, and date window
-     where usage metadata is available.
-   - Estimate cost with a versioned pricing table and clearly label the result
-     as an estimate.
-   - Start with LLM usage; MongoDB/Atlas and embedding runtime cost can remain
+2. Usage/cost visibility tool - implemented in v1 polish.
+   - `get_usage` and `deal-intel usage` report persisted server-side LLM calls
+     by tool, provider, model, operation, and date window.
+   - Cost is labeled as an estimate. ChatGPT OAuth is tracked as zero
+     incremental API cost; API-provider pricing is calculated only when
+     `usage.pricing` is configured.
+   - Current scope is LLM usage. MongoDB/Atlas and embedding runtime cost remain
      future work.
-   - Avoid raw content, prompts, API keys, OAuth tokens, and MongoDB URIs in
-     usage payloads.
+   - Usage payloads avoid raw content, prompts, API keys, OAuth tokens, and
+     MongoDB URIs.
 3. Keep customer-theme backfill as an explicit maintenance/admin flow.
    - It is for legacy meeting data, migration, and theme logic refreshes rather
      than day-to-day user interaction.
@@ -675,7 +676,8 @@ First cleanup implemented on 2026-06-11:
   deprecated compatibility alias.
 - README, MCPB manifest text, baseline/tool-surface docs, AGENTS/CLAUDE rules,
   and primary tests now point new integrations to `add_interaction`.
-- Runtime surface counts are now `sample=17`, `standard=21`, `developer=24`.
+- At implementation time, runtime surface counts were verified by targeted
+  tests. See `docs/tool-surfaces.md` for current counts.
 
 Why now:
 

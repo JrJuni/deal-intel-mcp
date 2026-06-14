@@ -7,6 +7,7 @@ from deal_intel.errors import ErrorCode, MCPError, Stage
 from deal_intel.providers.llm import LLMProvider
 from deal_intel.schema.interactions import scoring_interactions
 from deal_intel.storage.mongodb import MongoDBClient
+from deal_intel.usage import build_llm_usage_metadata
 
 _SYSTEM = "You are a senior B2B sales strategist. Be direct, specific, and actionable."
 
@@ -57,7 +58,7 @@ def _meddpicc_summary(interactions: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def handle(mongo: MongoDBClient, llm: LLMProvider, *, deal_id: str) -> dict:
+def handle(mongo: MongoDBClient, llm: LLMProvider, cfg: dict, *, deal_id: str) -> dict:
     deal = mongo.get_deal(deal_id)
     if deal is None:
         raise MCPError(
@@ -94,11 +95,28 @@ def handle(mongo: MongoDBClient, llm: LLMProvider, *, deal_id: str) -> dict:
             retryable=True,
         ) from exc
 
+    llm_usage = build_llm_usage_metadata(
+        cfg,
+        source_tool="analyze_deal",
+        calls=[{"operation": "generate_bd_strategy", "usage": resp.usage}],
+    )
     deal["bd_strategy"] = resp.text
+    deal["bd_strategy_usage"] = llm_usage
     deal["updated_at"] = datetime.now(UTC).isoformat()
     try:
         mongo.upsert_deal(deal)
     except Exception:
         pass  # analysis still returned even if save fails
 
-    return {"ok": True, "deal_id": deal_id, "analysis": resp.text, "usage": resp.usage}
+    return {
+        "ok": True,
+        "deal_id": deal_id,
+        "analysis": resp.text,
+        "usage": resp.usage,
+        "usage_summary": {
+            "calls": llm_usage["calls"],
+            "totals": llm_usage["totals"],
+            "estimated_cost_usd": llm_usage["estimated_cost_usd"],
+            "cost_basis": llm_usage["cost_basis"],
+        },
+    }

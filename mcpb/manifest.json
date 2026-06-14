@@ -37,6 +37,7 @@
     {"name": "get_metrics",   "description": "Return pipeline_health or pipeline_trend metrics from the shared BI calculators."},
     {"name": "get_deal_gaps", "description": "Return prioritized read-only sales follow-up gaps for deals."},
     {"name": "get_deal_review", "description": "Return evidence-aware deal review output for one deal without raw notes, contacts, or embeddings."},
+    {"name": "get_usage", "description": "Summarize persisted server-side LLM token usage and safe cost estimates without exposing prompts or secrets."},
     {"name": "export_report", "description": "Export weekly_pipeline or pipeline_trend CSV and Markdown reports."},
     {"name": "get_user_memory", "description": "Read constrained user-memory Markdown files for assistant context loading."},
     {"name": "record_user_memory", "description": "Append durable user feedback to safe user-memory Markdown files after secret/path checks."},
@@ -44,7 +45,7 @@
     {"name": "get_customer_theme_breakdown", "description": "Compare customer themes by stage, industry, or dimension."},
     {"name": "get_customer_theme_evidence", "description": "Return theme evidence snippets with privacy-safe projections."},
     {"name": "search_deals",  "description": "Semantic search - find deals similar to a natural language query (M0 uses local Python cosine; Atlas search is optional on M10+)."},
-    {"name": "analyze_deal",  "description": "Analyze MEDDPICC gaps and generate BD strategy recommendations."}
+    {"name": "analyze_deal",  "description": "Optional server-side LLM tool that generates and persists BD strategy recommendations for one deal."}
   ],
   "user_config": {
     "python_path": {

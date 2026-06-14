@@ -27,6 +27,7 @@ from deal_intel.tools.analytics_snapshot import (
     record_analytics_snapshot,
     snapshot_event_id,
 )
+from deal_intel.usage import build_llm_usage_metadata, summarize_usage
 
 _SYSTEM = "You are a B2B sales expert specializing in MEDDPICC deal qualification."
 
@@ -108,16 +109,16 @@ Interaction content:
 """
 
 
-def _generate_summary(llm: LLMProvider, content: str) -> str:
+def _generate_summary(llm: LLMProvider, content: str) -> tuple[str, dict]:
     try:
         resp = llm.chat_once(
             system=_SUMMARY_SYSTEM,
             user=_SUMMARY_PROMPT.format(content=content),
             max_tokens=256,
         )
-        return resp.text.strip()
+        return resp.text.strip(), resp.usage
     except Exception:
-        return ""
+        return "", {}
 
 
 def _stage_suggestion_from_signal(
@@ -222,8 +223,16 @@ def handle(
     scored_meddpicc = meddpicc_raw if scoring_applied else {}
     scored_customer_themes = customer_themes if scoring_applied else []
 
-    summary = _generate_summary(llm, normalized_content)
+    summary, summary_usage = _generate_summary(llm, normalized_content)
     interaction_id = str(uuid.uuid4())
+    llm_usage = build_llm_usage_metadata(
+        cfg,
+        source_tool=source_tool,
+        calls=[
+            {"operation": "extract_signals", "usage": resp.usage},
+            {"operation": "summarize_interaction", "usage": summary_usage},
+        ],
+    )
     source_metadata = {
         "source": source_tool,
         "interaction_id": interaction_id,
@@ -241,6 +250,7 @@ def handle(
         "meddpicc": scored_meddpicc,
         "customer_themes": scored_customer_themes,
         "scoring_applied": scoring_applied,
+        "llm_usage": llm_usage,
         "custom_fields": custom_fields,
         **source_metadata,
     }
@@ -316,6 +326,12 @@ def handle(
         "stage_suggestion": stage_suggestion,
         "embedding_stored": embedding_provider is not None,
         "usage": resp.usage,
+        "usage_summary": {
+            "calls": llm_usage["calls"],
+            "totals": summarize_usage([resp.usage, summary_usage]),
+            "estimated_cost_usd": llm_usage["estimated_cost_usd"],
+            "cost_basis": llm_usage["cost_basis"],
+        },
     }
     if analytics_snapshot is not None:
         result["analytics_snapshot"] = analytics_snapshot

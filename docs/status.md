@@ -12,6 +12,41 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-15
 
+### Full-profile demo sample dataset
+
+Implemented:
+
+- Added a generated 22-deal fictional full-profile sample dataset as a bundled
+  package resource.
+- Reworked `create_sample_data` to load the public sample from package
+  resources instead of constructing a smaller inline Python fixture.
+- Kept the existing safety model: `full` mode starts empty for new users,
+  sample seeding is opt-in, writes target the demo database, dry-run remains
+  the default, and actual writes still require explicit confirmation.
+- Removed raw notes, raw interaction content, contacts, embeddings, legacy KRW
+  shadow fields, and internal metadata history from the bundled sample payload.
+
+Notes:
+
+- This dataset is for Atlas-backed demos and public screenshots. It is separate
+  from the zero-config `local_sample` fixture.
+
+Validation:
+
+- `pytest tests/test_sample_data.py -q -p no:cacheprovider`: `9 passed`,
+  `1` third-party deprecation warning.
+- `ruff check src/deal_intel/tools/sample_dataset.py tests/test_sample_data.py`:
+  passed.
+- `pytest -q -p no:cacheprovider`: `545 passed`, `1` third-party
+  deprecation warning.
+- `ruff check .`: passed.
+- `git diff --check`: passed.
+- `pip wheel . --no-deps --wheel-dir .tmp-wheel`: passed after running outside
+  the sandbox because sandbox networking blocked build dependency resolution.
+- Wheel inspection confirmed
+  `deal_intel/resources/sample_datasets/weekly_pipeline_demo.v2.json` is
+  included.
+
 ### Post-v1 roadmap finalized
 
 Implemented:

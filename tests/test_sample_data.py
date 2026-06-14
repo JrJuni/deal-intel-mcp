@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from copy import deepcopy
 
 import pytest
@@ -8,7 +9,7 @@ import pytest
 from deal_intel import _context, mcp_server
 from deal_intel.errors import ErrorCode, MCPError
 from deal_intel.tools import create_sample_data, delete_sample_data
-from deal_intel.tools.sample_dataset import SAMPLE_BATCH_ID
+from deal_intel.tools.sample_dataset import SAMPLE_BATCH_ID, build_sample_deals
 
 
 class FakeMongo:
@@ -71,6 +72,29 @@ def _matching(deals: list[dict], query: dict) -> list[dict]:
     ]
 
 
+def test_public_sample_dataset_excludes_sensitive_and_legacy_fields() -> None:
+    deals = build_sample_deals(loaded_at="2026-06-15T00:00:00+00:00")
+    serialized = json.dumps(deals, ensure_ascii=False).lower()
+
+    assert len(deals) == 22
+    assert all(deal["is_sample"] is True for deal in deals)
+    assert {deal["sample_batch_id"] for deal in deals} == {SAMPLE_BATCH_ID}
+    for forbidden in [
+        "raw_notes",
+        "raw_content",
+        "summary_embedding",
+        "contacts",
+        "deal_size_krw",
+        "deal_size_low_krw",
+        "deal_size_high_krw",
+        "deal_metadata_history",
+        "mongodb+srv",
+        "openai_api_key",
+        "anthropic_api_key",
+    ]:
+        assert forbidden not in serialized
+
+
 def test_create_sample_data_dry_run_previews_without_writing() -> None:
     mongo = FakeMongo()
 
@@ -84,7 +108,7 @@ def test_create_sample_data_dry_run_previews_without_writing() -> None:
     assert result["storage_written"] is False
     assert result["primary_database"] == "deal_intel"
     assert result["demo_database"] == "deal_intel_demo"
-    assert result["deal_count"] == 10
+    assert result["deal_count"] == 22
     assert len(result["preview"]) == 3
     assert mongo.upsert_calls == 0
 
@@ -133,8 +157,8 @@ def test_create_sample_data_writes_marked_demo_records() -> None:
     )
 
     assert result["storage_written"] is True
-    assert result["created_or_replaced_count"] == 10
-    assert len(mongo.deals) == 10
+    assert result["created_or_replaced_count"] == 22
+    assert len(mongo.deals) == 22
     assert all(deal["is_sample"] is True for deal in mongo.deals)
     assert {deal["sample_batch_id"] for deal in mongo.deals} == {SAMPLE_BATCH_ID}
     assert mongo.delete_calls == 0
@@ -178,9 +202,9 @@ def test_create_sample_data_overwrite_replaces_existing_batch() -> None:
         confirmed_by_user=True,
     )
 
-    assert result["deleted_existing_count"] == 10
-    assert result["created_or_replaced_count"] == 10
-    assert len(mongo.deals) == 10
+    assert result["deleted_existing_count"] == 22
+    assert result["created_or_replaced_count"] == 22
+    assert len(mongo.deals) == 22
     assert mongo.delete_calls == 1
 
 
@@ -195,9 +219,9 @@ def test_delete_sample_data_dry_run_and_actual_delete() -> None:
 
     dry_run = delete_sample_data.handle(mongo=mongo, cfg=_cfg())
     assert dry_run["dry_run"] is True
-    assert dry_run["would_delete_count"] == 10
+    assert dry_run["would_delete_count"] == 22
     assert dry_run["storage_written"] is False
-    assert len(mongo.deals) == 10
+    assert len(mongo.deals) == 22
 
     with pytest.raises(MCPError) as missing_confirmation:
         delete_sample_data.handle(mongo=mongo, cfg=_cfg(), dry_run=False)
@@ -210,7 +234,7 @@ def test_delete_sample_data_dry_run_and_actual_delete() -> None:
     )
 
     assert missing_confirmation.value.error_code == ErrorCode.INVALID_INPUT
-    assert actual["deleted_count"] == 10
+    assert actual["deleted_count"] == 22
     assert actual["storage_written"] is True
     assert mongo.deals == []
 

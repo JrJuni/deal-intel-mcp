@@ -83,7 +83,9 @@ Why this matters:
 - `search_deals` currently needs Mongo-backed embeddings or Atlas Vector Search.
 - `analyze_deal` calls an LLM and may persist strategy output.
 - `create_sample_data` and `delete_sample_data` manage an Atlas demo database,
-  not the bundled zero-config local sample dataset.
+  not the bundled zero-config local sample dataset. The current demo dataset
+  contains 22 fictional generated deals and is never auto-seeded into the
+  primary `full` database.
 - `get_insights` and `get_customer_themes` still include legacy Mongo
   aggregation paths; sample mode should prefer shared metric/theme surfaces that
   use the local sample read contract.

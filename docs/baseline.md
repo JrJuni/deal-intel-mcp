@@ -164,7 +164,9 @@ sample-data layer. They use `mongodb.demo_database` by default
 `mongodb.database`. Both tools default to `dry_run: true`; actual writes or
 deletes require `confirmed_by_user: true`. `delete_sample_data` only deletes
 documents matching both `is_sample: true` and the known `sample_batch_id`.
-The first supported dataset is `weekly_pipeline_demo`.
+The first supported dataset is `weekly_pipeline_demo`, a generated 22-deal
+fictional full-profile sample. `full` mode never auto-seeds it; users must
+explicitly run `create_sample_data`, and writes go to the demo database.
 
 `analytics_snapshots` form the M5.1-M5.5 trend foundation. `create_deal`,
 `add_interaction`, `update_stage`, and the deprecated `add_meeting` alias attempt to write one

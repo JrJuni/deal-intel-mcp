@@ -301,6 +301,11 @@ create_sample_data / delete_sample_data
 deprecated compatibility alias: add_meeting
 ```
 
+`full` starts with the user's own MongoDB data and does not auto-seed sample
+records. If you want a richer Atlas-backed demo, switch to the `developer` tool
+surface and run `create_sample_data`; it writes 22 fictional generated deals to
+the configured demo database, not to the primary real-data database.
+
 ---
 
 ## Zero-config sample mode (no MongoDB)

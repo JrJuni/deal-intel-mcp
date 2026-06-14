@@ -30,7 +30,7 @@ def test_tool_surface_contract_covers_registered_mcp_tools(monkeypatch) -> None:
     contracted = {contract.name for contract in list_tool_surface_contracts()}
 
     assert registered == contracted
-    assert len(contracted) == 29
+    assert len(contracted) == 30
 
 
 def test_tool_surface_matrix_is_stable_and_serializable() -> None:
@@ -54,6 +54,7 @@ def test_sample_surface_is_zero_config_safe_local_personal() -> None:
 
     assert sample_tools == {
         "config_doctor",
+        "get_tool_catalog",
         "update_config",
         "create_deal",
         "add_interaction",
@@ -242,6 +243,7 @@ def test_high_traffic_tool_descriptions_guide_tool_selection(monkeypatch) -> Non
     }
 
     expected_snippets = {
+        "get_tool_catalog": ["truncated subset", "current profile"],
         "get_metrics": ["kpi", "get_deal_review"],
         "list_deals": ["quick pipeline table", "get_metrics"],
         "get_deal_review": ["default tool", "llm-free", "analyze_deal"],
@@ -263,6 +265,45 @@ def test_high_traffic_tool_descriptions_guide_tool_selection(monkeypatch) -> Non
         description = tools[tool_name]
         for snippet in snippets:
             assert snippet in description, tool_name
+
+
+def test_get_tool_catalog_reports_visible_surface(monkeypatch) -> None:
+    monkeypatch.setattr(
+        _context,
+        "config",
+        lambda: {"storage": {"backend": "local_sample"}, "tools": {"surface": "auto"}},
+    )
+
+    result = mcp_server.get_tool_catalog()
+
+    assert result["ok"] is True
+    assert result["resolved_tool_surface"] == "sample"
+    assert result["visible_tool_count"] == len(tool_names_for_surface("sample"))
+    assert result["registered_tool_count"] == len(list_tool_surface_contracts())
+    assert {tool["name"] for tool in result["tools"]} == set(
+        tool_names_for_surface("sample")
+    )
+    assert all(tool["visible"] is True for tool in result["tools"])
+    assert "tool search returns only" in result["usage_hint"]
+
+
+def test_get_tool_catalog_can_include_hidden_tools(monkeypatch) -> None:
+    monkeypatch.setattr(
+        _context,
+        "config",
+        lambda: {"storage": {"backend": "local_sample"}, "tools": {"surface": "auto"}},
+    )
+
+    result = mcp_server.get_tool_catalog(include_hidden=True)
+
+    assert result["ok"] is True
+    names = {tool["name"] for tool in result["tools"]}
+    assert names == {contract.name for contract in list_tool_surface_contracts()}
+    assert "search_deals" in names
+    assert any(
+        tool["name"] == "search_deals" and tool["visible"] is False
+        for tool in result["tools"]
+    )
 
 
 def test_mcp_runtime_blocks_hidden_tool_calls(monkeypatch) -> None:

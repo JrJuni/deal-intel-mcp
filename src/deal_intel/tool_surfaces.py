@@ -59,6 +59,18 @@ MCP_TOOL_SURFACE_CONTRACTS: tuple[MCPToolSurfaceContract, ...] = (
         notes="Safe setup diagnosis. May perform bounded storage ping.",
     ),
     MCPToolSurfaceContract(
+        name="get_tool_catalog",
+        category="diagnostic",
+        surfaces=_SAMPLE,
+        user_facing=True,
+        db_writes=False,
+        llm_calls=False,
+        notes=(
+            "Lists the current MCP tool surface and guidance for each tool; "
+            "use when host tool search only returns a truncated subset."
+        ),
+    ),
+    MCPToolSurfaceContract(
         name="update_config",
         category="diagnostic",
         surfaces=_SAMPLE,

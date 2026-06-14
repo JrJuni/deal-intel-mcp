@@ -12,6 +12,31 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-15
 
+### Tool catalog for truncated host discovery
+
+Implemented:
+
+- Added the read-only MCP tool `get_tool_catalog(include_hidden=false)`.
+- The tool returns the resolved surface, visible tool count, registered tool
+  count, category grouping, per-tool visibility metadata, and guidance for
+  common tool-selection confusion.
+- This addresses host-app behavior where a tool search may show only the top
+  few matching tools even though the MCP server loaded the full surface.
+- Bumped package and MCPB manifest version to `0.1.14`.
+- Updated visible tool counts to `sample=23`, `standard=27`, `developer=30`.
+
+Notes:
+
+- This is a host-discovery UX fix, not evidence that v0.1.13 loaded only five
+  tools. The host search UI can truncate results independently of the MCP
+  server's actual `list_tools()` result.
+
+Validation:
+
+- `pytest -q -p no:cacheprovider --basetemp .pytest-tool-catalog-full`: 546 passed.
+- `ruff check .`: passed.
+- `mcpb validate mcpb/manifest.json`: passed.
+
 ### Full-profile demo sample dataset
 
 Implemented:
@@ -30,19 +55,23 @@ Notes:
 
 - This dataset is for Atlas-backed demos and public screenshots. It is separate
   from the zero-config `local_sample` fixture.
+- This change is packaged as `0.1.15`.
 
 Validation:
 
-- `pytest tests/test_sample_data.py -q -p no:cacheprovider`: `9 passed`,
+- `pytest tests/test_sample_data.py tests/test_mcpb_manifest.py -q
+  -p no:cacheprovider --basetemp .pytest-full-sample-targeted`: `16 passed`,
   `1` third-party deprecation warning.
-- `ruff check src/deal_intel/tools/sample_dataset.py tests/test_sample_data.py`:
-  passed.
-- `pytest -q -p no:cacheprovider`: `545 passed`, `1` third-party
+- `ruff check src/deal_intel/tools/sample_dataset.py tests/test_sample_data.py
+  tests/test_mcpb_manifest.py`: passed.
+- `mcpb validate mcpb/manifest.json`: passed.
+- `pytest -q -p no:cacheprovider --basetemp .pytest-full-sample-full`:
+  `547 passed`, `1` third-party
   deprecation warning.
 - `ruff check .`: passed.
 - `git diff --check`: passed.
-- `pip wheel . --no-deps --wheel-dir .tmp-wheel`: passed after running outside
-  the sandbox because sandbox networking blocked build dependency resolution.
+- `pip wheel . --no-deps --no-build-isolation --no-cache-dir --wheel-dir
+  .tmp-wheel`: passed.
 - Wheel inspection confirmed
   `deal_intel/resources/sample_datasets/weekly_pipeline_demo.v2.json` is
   included.

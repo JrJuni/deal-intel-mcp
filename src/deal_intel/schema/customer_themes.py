@@ -110,25 +110,35 @@ def normalize_stage_signal(raw: Any) -> dict | None:
     }
 
 
-def parse_meeting_analysis(text: str) -> tuple[dict, list[dict], dict | None]:
-    """Parse the combined MEDDPICC, customer-theme, and stage-signal response.
+def parse_meeting_analysis_payload(payload: Any) -> tuple[dict, list[dict], dict | None]:
+    """Parse a loaded interaction-analysis payload.
 
     Returns (meddpicc, customer_themes, stage_signal). stage_signal is None
     unless the notes clearly indicate a pipeline stage transition; it is a
     suggestion only and never mutates the deal.
     """
-    payload = load_json_response(text)
     if not isinstance(payload, dict):
         return {}, [], None
 
-    if isinstance(payload.get("meddpicc"), dict):
-        meddpicc = payload["meddpicc"]
+    has_modern_shape = (
+        isinstance(payload.get("meddpicc"), dict)
+        or isinstance(payload.get("qualification"), dict)
+        or isinstance(payload.get("customer_themes"), list)
+        or isinstance(payload.get("stage_signal"), dict)
+    )
+    if has_modern_shape:
+        meddpicc = payload["meddpicc"] if isinstance(payload.get("meddpicc"), dict) else {}
         themes = normalize_customer_themes(payload.get("customer_themes"))
         stage_signal = normalize_stage_signal(payload.get("stage_signal"))
         return meddpicc, themes, stage_signal
 
     # Backward compatibility if a provider returns the legacy MEDDPICC-only shape.
     return payload, [], None
+
+
+def parse_meeting_analysis(text: str) -> tuple[dict, list[dict], dict | None]:
+    """Parse the combined MEDDPICC, customer-theme, and stage-signal response."""
+    return parse_meeting_analysis_payload(load_json_response(text))
 
 
 def rebuild_deal_customer_themes(deal: dict) -> list[dict]:

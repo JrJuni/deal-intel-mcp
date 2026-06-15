@@ -456,6 +456,33 @@ Verification gate:
 
 ### QF-4b. Interaction Extraction Generalization
 
+Status:
+
+- Implemented the first runtime integration.
+- `add_interaction` now resolves the active framework before calling the LLM.
+- Non-MEDDPICC active frameworks inject the framework extraction contract into
+  the LLM prompt and store normalized evidence in `interaction.qualification`.
+- Unconfirmed sources store custom-framework evidence in
+  `interaction.unconfirmed_qualification` only.
+- `qualification_latest` is rebuilt from the active framework after each
+  interaction.
+- Legacy `interaction.meddpicc`, `meddpicc_latest`, customer themes, and
+  stage suggestions remain compatible.
+
+Contract:
+
+- Active `meddpicc`:
+  - LLM output uses the existing top-level `meddpicc` object.
+  - `qualification_latest` reads `interaction.meddpicc`.
+- Active non-MEDDPICC framework:
+  - LLM output may include a top-level `qualification` object keyed by the
+    active framework's dimensions.
+  - Stored confirmed evidence goes to `interaction.qualification`.
+  - Stored unconfirmed evidence goes to `interaction.unconfirmed_qualification`.
+  - Unknown, disabled, invalid, fractional, or out-of-range dimensions are
+    dropped with structured warnings.
+- Invalid active framework config fails during preflight before LLM calls.
+
 Purpose:
 
 - Make `add_interaction` extract the active framework, not hardcoded MEDDPICC.
@@ -467,7 +494,8 @@ Implementation:
 - Keep `interaction.meddpicc` compatibility when the active framework is
   MEDDPICC.
 - Recompute `deal.qualification_latest`.
-- Mirror or alias `deal.meddpicc_latest` during compatibility window.
+- Keep `deal.meddpicc_latest` as the compatibility mirror during the migration
+  window.
 - Keep source-policy behavior:
   - customer-stated evidence can update confirmed scores;
   - outbound/internal evidence remains unconfirmed by default.
@@ -476,6 +504,7 @@ Verification gate:
 
 - Mocked LLM extraction for default MEDDPICC.
 - Mocked LLM extraction for a custom framework.
+- Custom framework extraction without a `meddpicc` object is parsed safely.
 - Source-policy tests remain green.
 - Usage tracking still records server-side LLM calls.
 - No raw content leaks into list/report/BI paths.

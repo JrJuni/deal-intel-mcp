@@ -12,6 +12,49 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-15
 
+### QF-4b interaction extraction generalization
+
+Implemented:
+
+- Connected `add_interaction` to the active qualification framework resolved
+  from effective config.
+- Embedded the active framework extraction contract into the interaction LLM
+  prompt for non-MEDDPICC frameworks.
+- Normalized LLM-produced `qualification` output through
+  `normalize_qualification_extraction()` before storage.
+- Stored confirmed custom-framework evidence in `interaction.qualification`.
+- Stored outbound/internal/unconfirmed custom-framework evidence in
+  `interaction.unconfirmed_qualification` without changing
+  `qualification_latest`.
+- Preserved legacy `interaction.meddpicc` extraction and
+  `meddpicc_latest` compatibility while allowing non-MEDDPICC
+  `qualification_latest` to use only `interaction.qualification`.
+- Added preflight validation for invalid active framework config before any
+  LLM call is made.
+- Updated the interaction-analysis parser so a response containing
+  `qualification` but no `meddpicc` is not mistaken for legacy MEDDPICC-only
+  output.
+
+Design notes:
+
+- MEDDPICC remains the compatibility read path. When `active_framework` is
+  `meddpicc`, `qualification_latest` still reads `interaction.meddpicc`.
+- Non-MEDDPICC frameworks write and read `interaction.qualification`; MEDDPICC
+  evidence is not force-mapped into unrelated frameworks.
+- Unknown or invalid custom dimension output is dropped with structured
+  warnings rather than contaminating the score engine.
+
+Validation:
+
+- `pytest tests/test_add_interaction.py tests/test_qualification_extraction.py tests/test_qualification_snapshot.py -q --basetemp .tmp\pytest-qf4b-targeted`:
+  31 passed, 1 warning.
+- `pytest tests/test_add_interaction.py tests/test_qualification_extraction.py tests/test_qualification_snapshot.py tests/test_qualification_framework.py tests/test_qualification_config.py tests/test_update_stage.py tests/test_tool_surfaces.py -q --basetemp .tmp\pytest-qf4b-wide`:
+  123 passed, 1 warning.
+- `pytest -q --basetemp .tmp\pytest-qf4b-full`:
+  627 passed, 1 warning.
+- `ruff check .`:
+  passed.
+
 ### QF-4a generic qualification extraction contract
 
 Implemented:

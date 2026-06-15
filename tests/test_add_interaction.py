@@ -74,6 +74,49 @@ def _analysis(score: int = 4) -> str:
     )
 
 
+def _qualification_analysis(*, include_meddpicc: bool = True) -> str:
+    payload = {
+        "qualification": {
+            "business_need": {
+                "score": 5,
+                "evidence": "Customer said manual reporting blocks weekly close.",
+                "reason": "Explicit business problem and urgency.",
+                "confidence": "high",
+            },
+            "next_step": {
+                "score": 4,
+                "evidence": "Customer asked for a pilot plan by Friday.",
+                "reason": "Specific follow-up with a date.",
+                "confidence": "medium",
+            },
+            "unknown_dimension": {"score": 5, "evidence": "must be dropped"},
+        },
+        "customer_themes": [
+            {
+                "theme_key": "operational_efficiency",
+                "dimension": "identify_pain",
+                "evidence": "manual reporting blocks weekly close",
+                "importance": 4,
+            }
+        ],
+    }
+    if include_meddpicc:
+        payload["meddpicc"] = {
+            "identify_pain": {
+                "score": 4,
+                "evidence": "manual reporting blocks weekly close",
+            }
+        }
+    return json.dumps(payload)
+
+
+def _simple_b2b_cfg() -> dict:
+    return {
+        "qualification": {"active_framework": "simple_b2b"},
+        "meddpicc": {"weights": {}},
+    }
+
+
 def _local_cfg(tmp_path) -> dict:
     return {
         "storage": {
@@ -228,6 +271,89 @@ def test_add_interaction_returns_config_error_for_invalid_active_framework() -> 
     assert exc_info.value.error_code == ErrorCode.CONFIG_ERROR
     assert "missing_framework" in exc_info.value.message
     assert mongo.saved is None
+    assert llm.calls == []
+
+
+def test_add_interaction_extracts_active_custom_qualification_framework() -> None:
+    mongo = FakeMongo(_deal())
+    llm = FakeLLM([_qualification_analysis(include_meddpicc=False), "Customer summary."])
+
+    result = add_interaction.handle(
+        mongo=mongo,
+        llm=llm,
+        cfg=_simple_b2b_cfg(),
+        embedding_provider=None,
+        deal_id="deal-1",
+        date="2026-06-11",
+        interaction_type="user_interview",
+        direction="inbound",
+        content=(
+            "Customer said manual reporting blocks weekly close and asked for a "
+            "pilot plan by Friday."
+        ),
+    )
+
+    assert result["ok"] is True
+    assert result["active_qualification_framework"] == "simple_b2b"
+    assert result["qualification"]["business_need"]["score"] == 5
+    assert result["qualification"]["next_step"]["score"] == 4
+    assert "unknown_dimension" not in result["qualification"]
+    assert result["qualification_extraction_warnings"] == [
+        {
+            "code": "unknown_dimension",
+            "dimension": "unknown_dimension",
+            "message": "dimension is not part of the active framework",
+        }
+    ]
+    assert result["qualification_latest"]["framework_key"] == "simple_b2b"
+    assert result["qualification_latest"]["filled_count"] == 2
+    assert result["qualification_latest"]["dimensions"]["business_need"]["score"] == 5.0
+    assert result["qualification_latest"]["dimensions"]["next_step"]["score"] == 4.0
+    assert result["meddpicc"] == {}
+    assert result["meddpicc_latest"]["filled_count"] == 0
+
+    assert mongo.saved is not None
+    interaction = mongo.saved["interactions"][0]
+    assert interaction["qualification_framework"] == "simple_b2b"
+    assert interaction["qualification"]["business_need"]["confidence"] == "high"
+    assert interaction["qualification_extraction_warnings"] == result[
+        "qualification_extraction_warnings"
+    ]
+    assert "Active qualification framework: Simple B2B Qualification" in llm.calls[0][
+        "user"
+    ]
+    assert "top-level `qualification` object" in llm.calls[0]["user"]
+
+
+def test_custom_qualification_from_unconfirmed_source_is_not_scored() -> None:
+    mongo = FakeMongo(_deal())
+    llm = FakeLLM([_qualification_analysis(), "Seller pitch summary."])
+
+    result = add_interaction.handle(
+        mongo=mongo,
+        llm=llm,
+        cfg=_simple_b2b_cfg(),
+        embedding_provider=None,
+        deal_id="deal-1",
+        date="2026-06-11",
+        interaction_type="email_thread",
+        direction="outbound",
+        content="We can solve weekly reporting and will send a pilot plan by Friday.",
+    )
+
+    assert result["source_confidence"] == "outbound_unconfirmed"
+    assert result["scoring_applied"] is False
+    assert result["qualification"] == {}
+    assert result["unconfirmed_qualification"]["business_need"]["score"] == 5
+    assert result["qualification_latest"]["framework_key"] == "simple_b2b"
+    assert result["qualification_latest"]["filled_count"] == 0
+    assert result["meddpicc_latest"]["filled_count"] == 0
+
+    assert mongo.saved is not None
+    interaction = mongo.saved["interactions"][0]
+    assert interaction["qualification"] == {}
+    assert interaction["unconfirmed_qualification"]["business_need"]["score"] == 5
+    assert interaction["unconfirmed_meddpicc"]["identify_pain"]["score"] == 4
 
 
 @pytest.mark.parametrize(

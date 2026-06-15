@@ -55,6 +55,7 @@ def test_render_atlas_dashboard_cli_writes_full_spec(tmp_path) -> None:
         "stage_breakdown",
         "health_bands",
         "attention_deals",
+        "qualification_gap_distribution",
         "meddpicc_gap_distribution",
     }
     assert "{{" not in output.read_text(encoding="utf-8")

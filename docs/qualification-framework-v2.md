@@ -677,15 +677,30 @@ Purpose:
 
 - Make human reports, CSV ledgers, and dashboards reflect the active framework.
 
+Status:
+
+- Implemented.
+
 Implementation:
 
-- Update `weekly_pipeline` rows to carry generic qualification fields.
-- Update Markdown report labels.
-- Update export data columns.
+- `weekly_pipeline` rows now carry generic qualification fields:
+  `qualification_framework`, `qualification_framework_display_name`,
+  `qualification_source_field`, `qualification_health_pct`,
+  `qualification_quality_pct`, `qualification_coverage_pct`, and
+  `qualification_gaps`.
+- `health_pct`, `health_band`, and `meddpicc_gaps` remain compatibility aliases;
+  `meddpicc_gaps` is populated only when the selected/fallback snapshot is
+  MEDDPICC-backed.
+- Markdown report labels and reasons now say qualification gap/health where the
+  active framework may not be MEDDPICC.
+- `export_data` columns now include qualification fields for open/all/closed
+  datasets.
 - Version Atlas chart specs:
-  - keep old `meddpicc_gap_distribution` as compatibility if needed;
+  - weekly health calculations read `qualification_latest` first and
+    `meddpicc_latest` as fallback;
+  - keep old `meddpicc_gap_distribution` as compatibility;
   - introduce `qualification_gap_distribution`.
-- Update dashboard crosscheck expectations.
+- Update dashboard render/crosscheck expectations.
 
 Verification gate:
 
@@ -700,7 +715,7 @@ Corner cases:
 
 - Non-MEDDPICC framework labels are long.
 - Mixed framework data exists during migration.
-- Dashboard expects old field names.
+- Dashboard expects old field names; legacy chart id remains available.
 - CSV consumers still expect `health_pct`.
 
 ### QF-7. Backfill And Recompute

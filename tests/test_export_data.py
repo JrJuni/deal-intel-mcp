@@ -7,6 +7,8 @@ import pytest
 
 from deal_intel.errors import MCPError
 from deal_intel.reports.data_export import build_data_export
+from deal_intel.schema.qualification import compute_qualification_latest
+from deal_intel.schema.qualification_framework import get_qualification_template
 from deal_intel.tools import export_data
 
 
@@ -89,6 +91,15 @@ def _deal(
     }
 
 
+def _simple_b2b_latest(*, score: int = 1, stage: str = "proposal") -> dict:
+    return compute_qualification_latest(
+        [{"qualification": {"business_need": {"score": score}}}],
+        framework=get_qualification_template("simple_b2b"),
+        evidence_fields=("qualification",),
+        deal_stage=stage,
+    )
+
+
 def test_build_data_export_open_deals_uses_safe_rows() -> None:
     result = build_data_export(
         [
@@ -109,6 +120,36 @@ def test_build_data_export_open_deals_uses_safe_rows() -> None:
     assert "raw_content" not in serialized
     assert "secret contact" not in serialized
     assert "summary_embedding" not in serialized
+
+
+def test_build_data_export_uses_active_qualification_snapshot() -> None:
+    deal = _deal("d1", "CustomCo", "proposal", health_pct=95.0)
+    deal["qualification_latest"] = _simple_b2b_latest(score=1, stage="proposal")
+
+    open_result = build_data_export(
+        [deal],
+        dataset="open_deals",
+        as_of=date(2026, 6, 10),
+    )
+    all_result = build_data_export(
+        [deal],
+        dataset="all_deals",
+        as_of=date(2026, 6, 10),
+    )
+
+    open_row = open_result["rows"][0]
+    all_row = all_result["rows"][0]
+    assert open_row["qualification_framework"] == "simple_b2b"
+    assert open_row["health_pct"] == 6.7
+    assert open_row["qualification_gaps"] == [
+        "business_need",
+        "buyer_owner",
+        "next_step",
+    ]
+    assert open_row["meddpicc_gaps"] == []
+    assert all_row["qualification_framework"] == "simple_b2b"
+    assert all_row["health_pct"] == 6.7
+    assert all_row["qualification_gaps"] == open_row["qualification_gaps"]
 
 
 def test_export_data_writes_csv_and_preview(tmp_path: Path) -> None:

@@ -103,9 +103,16 @@ Terminal deals, `won` and `lost`, are excluded from weekly pipeline rows.
 - `close_date_status`
 - `is_overdue`
 - `overdue_days`
+- `qualification_framework`
+- `qualification_framework_display_name`
+- `qualification_source_field`
+- `qualification_health_pct`
+- `qualification_quality_pct`
+- `qualification_coverage_pct`
+- `qualification_gaps`
 - `health_pct`
 - `health_band`
-- `meddpicc_gaps`
+- `meddpicc_gaps` (legacy alias; populated only for MEDDPICC-backed rows)
 - `last_meeting_date`
 - `primary_pain`
 - `primary_decision_criteria`
@@ -134,11 +141,16 @@ Primary theme objects include safe source metadata when available:
 derived from structured source metadata and does not require exposing raw
 interaction content.
 
+`qualification_*` fields are the canonical framework-aware report fields.
+`health_pct` and `health_band` remain stable compatibility aliases so existing
+CSV/Markdown consumers do not need to change immediately.
+
 `objective_action_items` contains only CTA-safe gaps such as overdue close
 dates, stuck stages, and explicitly stalled deals. `gap_observations` contains
-judgment-sensitive gaps such as MEDDPICC competition, champion, economic buyer,
-decision criteria, and at-risk health observations. Consumers should not flatten
-`gap_observations` into prescriptive next actions.
+judgment-sensitive qualification gaps such as competition, champion, buyer
+owner, business need, or framework-specific decision criteria, plus at-risk
+health observations. Consumers should not flatten `gap_observations` into
+prescriptive next actions.
 
 ### Sorting
 

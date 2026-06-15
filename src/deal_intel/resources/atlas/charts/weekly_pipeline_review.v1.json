@@ -55,17 +55,32 @@
                 "onNull": null
               }
             },
-            "_health_pct": "$meddpicc_latest.health_pct",
+            "_health_pct": {
+              "$ifNull": [
+                "$qualification_latest.health_pct",
+                "$meddpicc_latest.health_pct"
+              ]
+            },
             "_health_assessed": {
               "$and": [
                 {
                   "$gte": [
-                    "$meddpicc_latest.filled_count",
+                    {
+                      "$ifNull": [
+                        "$qualification_latest.filled_count",
+                        "$meddpicc_latest.filled_count"
+                      ]
+                    },
                     1
                   ]
                 },
                 {
-                  "$isNumber": "$meddpicc_latest.health_pct"
+                  "$isNumber": {
+                    "$ifNull": [
+                      "$qualification_latest.health_pct",
+                      "$meddpicc_latest.health_pct"
+                    ]
+                  }
                 }
               ]
             },
@@ -715,17 +730,32 @@
                 "onNull": null
               }
             },
-            "_health_pct": "$meddpicc_latest.health_pct",
+            "_health_pct": {
+              "$ifNull": [
+                "$qualification_latest.health_pct",
+                "$meddpicc_latest.health_pct"
+              ]
+            },
             "_health_assessed": {
               "$and": [
                 {
                   "$gte": [
-                    "$meddpicc_latest.filled_count",
+                    {
+                      "$ifNull": [
+                        "$qualification_latest.filled_count",
+                        "$meddpicc_latest.filled_count"
+                      ]
+                    },
                     1
                   ]
                 },
                 {
-                  "$isNumber": "$meddpicc_latest.health_pct"
+                  "$isNumber": {
+                    "$ifNull": [
+                      "$qualification_latest.health_pct",
+                      "$meddpicc_latest.health_pct"
+                    ]
+                  }
                 }
               ]
             },
@@ -1237,17 +1267,32 @@
         },
         {
           "$addFields": {
-            "_health_pct": "$meddpicc_latest.health_pct",
+            "_health_pct": {
+              "$ifNull": [
+                "$qualification_latest.health_pct",
+                "$meddpicc_latest.health_pct"
+              ]
+            },
             "_health_assessed": {
               "$and": [
                 {
                   "$gte": [
-                    "$meddpicc_latest.filled_count",
+                    {
+                      "$ifNull": [
+                        "$qualification_latest.filled_count",
+                        "$meddpicc_latest.filled_count"
+                      ]
+                    },
                     1
                   ]
                 },
                 {
-                  "$isNumber": "$meddpicc_latest.health_pct"
+                  "$isNumber": {
+                    "$ifNull": [
+                      "$qualification_latest.health_pct",
+                      "$meddpicc_latest.health_pct"
+                    ]
+                  }
                 }
               ]
             }
@@ -1343,17 +1388,32 @@
                 "onNull": null
               }
             },
-            "_health_pct": "$meddpicc_latest.health_pct",
+            "_health_pct": {
+              "$ifNull": [
+                "$qualification_latest.health_pct",
+                "$meddpicc_latest.health_pct"
+              ]
+            },
             "_health_assessed": {
               "$and": [
                 {
                   "$gte": [
-                    "$meddpicc_latest.filled_count",
+                    {
+                      "$ifNull": [
+                        "$qualification_latest.filled_count",
+                        "$meddpicc_latest.filled_count"
+                      ]
+                    },
                     1
                   ]
                 },
                 {
-                  "$isNumber": "$meddpicc_latest.health_pct"
+                  "$isNumber": {
+                    "$ifNull": [
+                      "$qualification_latest.health_pct",
+                      "$meddpicc_latest.health_pct"
+                    ]
+                  }
                 }
               ]
             }
@@ -1644,9 +1704,9 @@
     },
     {
       "id": "meddpicc_gap_distribution",
-      "title": "MEDDPICC Gap Distribution",
+      "title": "Qualification Gap Distribution (legacy id)",
       "chart_type": "bar",
-      "description": "Open-deal MEDDPICC gap frequency.",
+      "description": "Open-deal qualification gap frequency. The chart id is kept for existing dashboards.",
       "pipeline": [
         {
           "$match": {
@@ -1671,7 +1731,75 @@
         {
           "$project": {
             "_id": 0,
-            "gap": "$meddpicc_latest.gaps"
+            "gap": {
+              "$ifNull": [
+                "$qualification_latest.gaps",
+                "$meddpicc_latest.gaps"
+              ]
+            }
+          }
+        },
+        {
+          "$unwind": "$gap"
+        },
+        {
+          "$group": {
+            "_id": "$gap",
+            "count": {
+              "$sum": 1
+            }
+          }
+        },
+        {
+          "$project": {
+            "_id": 0,
+            "gap": "$_id",
+            "count": 1
+          }
+        },
+        {
+          "$sort": {
+            "count": -1,
+            "gap": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "qualification_gap_distribution",
+      "title": "Qualification Gap Distribution",
+      "chart_type": "bar",
+      "description": "Open-deal active qualification gap frequency.",
+      "pipeline": [
+        {
+          "$match": {
+            "archived": {
+              "$ne": true
+            }
+          }
+        },
+        {
+          "$match": {
+            "deal_stage": {
+              "$in": [
+                "discovery",
+                "qualification",
+                "proposal",
+                "negotiation",
+                "stalled"
+              ]
+            }
+          }
+        },
+        {
+          "$project": {
+            "_id": 0,
+            "gap": {
+              "$ifNull": [
+                "$qualification_latest.gaps",
+                "$meddpicc_latest.gaps"
+              ]
+            }
           }
         },
         {

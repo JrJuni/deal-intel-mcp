@@ -160,7 +160,13 @@ Charts do not automatically update from repository JSON files.
 | `stage_breakdown` | Stage Breakdown | Bar or Table | `stage`, `count`, `pipeline_value_amount`, `avg_health_pct`, `health_coverage_pct`, `stuck_count`, `overdue_count` |
 | `health_bands` | Health Bands | Donut | `health_band`, `count` |
 | `attention_deals` | Stuck / Overdue / At Risk Deals | Table | `company`, `industry`, `customer_segment`, `deal_stage`, `deal_size_amount`, `deal_size_currency`, `expected_close_date`, `days_in_stage`, `is_stuck`, `is_overdue`, `health_pct`, `health_band`, `attention_reasons` |
-| `meddpicc_gap_distribution` | MEDDPICC Gap Distribution | Bar | `gap`, `count` |
+| `qualification_gap_distribution` | Qualification Gap Distribution | Bar | `gap`, `count` |
+| `meddpicc_gap_distribution` | Qualification Gap Distribution (legacy id) | Bar | `gap`, `count` |
+
+`qualification_gap_distribution` reads `qualification_latest.gaps` first and
+falls back to `meddpicc_latest.gaps` for older/sample data. The
+`meddpicc_gap_distribution` id is retained so existing manually created Atlas
+dashboards can be updated without breaking saved chart references.
 
 The v1 Atlas dashboard is intended for a single reporting currency per
 dashboard. Python metrics and CSV/Markdown reports detect mixed currencies and
@@ -205,7 +211,7 @@ Suggested layout:
 
 1. Top row: `pipeline_kpis`
 2. Middle row: `stage_breakdown`, `health_bands`
-3. Bottom row: `attention_deals`, `meddpicc_gap_distribution`
+3. Bottom row: `attention_deals`, `qualification_gap_distribution`
 
 ## Verification Checklist
 

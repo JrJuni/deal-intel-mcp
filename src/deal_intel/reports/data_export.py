@@ -18,6 +18,7 @@ from deal_intel.schema.metrics import (
     classify_health,
     is_health_assessed,
 )
+from deal_intel.schema.qualification_read import select_qualification_snapshot
 
 DATASET_OPEN_DEALS = "open_deals"
 DATASET_ALL_DEALS = "all_deals"
@@ -43,6 +44,11 @@ OPEN_DEALS_COLUMNS = [
     "is_stuck",
     "is_overdue",
     "overdue_days",
+    "qualification_framework",
+    "qualification_health_pct",
+    "qualification_quality_pct",
+    "qualification_coverage_pct",
+    "qualification_gaps",
     "health_pct",
     "health_band",
     "attention_reasons",
@@ -70,6 +76,11 @@ ALL_DEALS_COLUMNS = [
     "expected_close_date",
     "actual_close_date",
     "close_reason",
+    "qualification_framework",
+    "qualification_health_pct",
+    "qualification_quality_pct",
+    "qualification_coverage_pct",
+    "qualification_gaps",
     "health_pct",
     "health_band",
     "meddpicc_gaps",
@@ -95,6 +106,11 @@ CLOSED_DEALS_COLUMNS = [
     "actual_close_date",
     "close_reason",
     "sales_cycle_days",
+    "final_qualification_framework",
+    "final_qualification_health_pct",
+    "final_qualification_quality_pct",
+    "final_qualification_coverage_pct",
+    "final_qualification_gaps",
     "final_health_pct",
     "final_health_band",
     "final_meddpicc_gaps",
@@ -242,6 +258,11 @@ def _open_row(row: dict, source_deal: dict) -> dict:
         "is_stuck": row.get("is_stuck"),
         "is_overdue": row.get("is_overdue"),
         "overdue_days": row.get("overdue_days"),
+        "qualification_framework": row.get("qualification_framework"),
+        "qualification_health_pct": row.get("qualification_health_pct"),
+        "qualification_quality_pct": row.get("qualification_quality_pct"),
+        "qualification_coverage_pct": row.get("qualification_coverage_pct"),
+        "qualification_gaps": row.get("qualification_gaps") or [],
         "health_pct": row.get("health_pct"),
         "health_band": row.get("health_band"),
         "attention_reasons": row.get("attention_reasons") or [],
@@ -262,8 +283,9 @@ def _build_ledger_row(
     *,
     health_thresholds: HealthBandThresholds,
 ) -> dict:
-    meddpicc_latest = deal.get("meddpicc_latest") or {}
-    health_band = classify_health(meddpicc_latest, health_thresholds)
+    qualification = select_qualification_snapshot(deal)
+    qualification_latest = qualification.snapshot
+    health_band = classify_health(qualification_latest, health_thresholds)
     interactions = iter_interactions(deal)
     return {
         "deal_id": deal.get("deal_id"),
@@ -278,13 +300,18 @@ def _build_ledger_row(
         "expected_close_date": deal.get("expected_close_date"),
         "actual_close_date": deal.get("actual_close_date"),
         "close_reason": deal.get("close_reason"),
+        "qualification_framework": qualification.framework_key,
+        "qualification_health_pct": qualification_latest.get("health_pct"),
+        "qualification_quality_pct": qualification.quality_pct,
+        "qualification_coverage_pct": qualification.coverage_pct,
+        "qualification_gaps": qualification.gaps,
         "health_pct": (
-            float(meddpicc_latest["health_pct"])
-            if is_health_assessed(meddpicc_latest)
+            float(qualification_latest["health_pct"])
+            if is_health_assessed(qualification_latest)
             else None
         ),
         "health_band": health_band.value,
-        "meddpicc_gaps": _list_strings(meddpicc_latest.get("gaps")),
+        "meddpicc_gaps": qualification.gaps if qualification.is_meddpicc else [],
         "interaction_count": len(interactions),
         "last_interaction_date": _last_interaction_date(interactions),
         "data_quality_flags": _data_quality_flags(
@@ -318,6 +345,11 @@ def _closed_row(row: dict) -> dict:
             row.get("created_at"),
             row.get("actual_close_date"),
         ),
+        "final_qualification_framework": row.get("qualification_framework"),
+        "final_qualification_health_pct": row.get("qualification_health_pct"),
+        "final_qualification_quality_pct": row.get("qualification_quality_pct"),
+        "final_qualification_coverage_pct": row.get("qualification_coverage_pct"),
+        "final_qualification_gaps": row.get("qualification_gaps"),
         "final_health_pct": row.get("health_pct"),
         "final_health_band": row.get("health_band"),
         "final_meddpicc_gaps": row.get("meddpicc_gaps"),
@@ -413,12 +445,6 @@ def _ledger_sort_key(row: dict) -> tuple:
         row.get("expected_close_date") or "9999-12-31",
         str(row.get("company") or ""),
     )
-
-
-def _list_strings(value: Any) -> list[str]:
-    if not isinstance(value, list):
-        return []
-    return [str(item) for item in value]
 
 
 def _int(value: Any) -> int:

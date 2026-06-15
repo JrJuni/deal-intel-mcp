@@ -1171,6 +1171,7 @@ def crosscheck_weekly_dashboard(
             "stage_breakdown",
             "health_bands",
             "attention_deals",
+            "qualification_gap_distribution",
             "meddpicc_gap_distribution",
         )
     }

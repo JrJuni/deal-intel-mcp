@@ -9,6 +9,8 @@ import pytest
 from deal_intel.reports.csv_export import save_report_csv
 from deal_intel.reports.markdown_summary import build_weekly_pipeline_markdown
 from deal_intel.reports.weekly_pipeline import build_weekly_pipeline_rows
+from deal_intel.schema.qualification import compute_qualification_latest
+from deal_intel.schema.qualification_framework import get_qualification_template
 
 AS_OF = date(2026, 6, 10)
 GENERATED_AT = datetime(2026, 6, 10, 1, 2, 3, tzinfo=UTC)
@@ -89,6 +91,15 @@ def _themes() -> list[dict]:
             "subject": "Ops lead interview",
         },
     ]
+
+
+def _simple_b2b_latest(*, score: int = 1, stage: str = "proposal") -> dict:
+    return compute_qualification_latest(
+        [{"qualification": {"business_need": {"score": score}}}],
+        framework=get_qualification_template("simple_b2b"),
+        evidence_fields=("qualification",),
+        deal_stage=stage,
+    )
 
 
 def test_weekly_pipeline_markdown_summarizes_kpis_and_matches_csv(tmp_path) -> None:
@@ -307,6 +318,27 @@ def test_weekly_pipeline_markdown_keeps_judgment_gaps_out_of_ctas() -> None:
     )
     assert "| GreenLogistics | Competition | Observation |" in markdown
     assert "ask_in_next_meeting" not in markdown
+
+
+def test_weekly_pipeline_markdown_uses_generic_qualification_gap_language() -> None:
+    deal = _deal(
+        "custom",
+        company="CustomCo",
+        stage="proposal",
+        health_pct=95,
+        meddpicc_gaps=[],
+    )
+    deal["qualification_latest"] = _simple_b2b_latest(score=1, stage="proposal")
+    report = build_weekly_pipeline_rows([deal], as_of=AS_OF)
+
+    markdown = build_weekly_pipeline_markdown(
+        report,
+        generated_at=GENERATED_AT,
+    )["markdown"]
+
+    assert "| CustomCo | Buyer Owner | Observation |" in markdown
+    assert "Qualification gap remains open: Buyer Owner." in markdown
+    assert "MEDDPICC gap remains open" not in markdown
 
 
 def test_weekly_pipeline_markdown_validates_input_contract() -> None:

@@ -4,7 +4,6 @@ from collections.abc import Iterable
 from datetime import date, datetime
 from typing import Any
 
-from deal_intel.schema.deal_gaps import MEDDPICC_FIELD_LABELS
 from deal_intel.schema.evidence_sources import evidence_source_label
 from deal_intel.schema.gap_actionability import (
     CTA_POLICY_ALLOWED,
@@ -23,6 +22,12 @@ from deal_intel.schema.metrics import (
     build_attention_reasons,
     classify_health,
     is_health_assessed,
+)
+from deal_intel.schema.qualification_read import (
+    QualificationReadSnapshot,
+    dimension_label,
+    qualification_summary,
+    select_qualification_snapshot,
 )
 
 REPORT_TYPE = "weekly_pipeline"
@@ -45,6 +50,13 @@ COLUMNS = [
     "close_date_status",
     "is_overdue",
     "overdue_days",
+    "qualification_framework",
+    "qualification_framework_display_name",
+    "qualification_source_field",
+    "qualification_health_pct",
+    "qualification_quality_pct",
+    "qualification_coverage_pct",
+    "qualification_gaps",
     "health_pct",
     "health_band",
     "meddpicc_gaps",
@@ -121,18 +133,21 @@ def _build_row(
     health_thresholds: HealthBandThresholds,
     timing_settings: PipelineTimingSettings,
 ) -> dict:
-    meddpicc_latest = deal.get("meddpicc_latest") or {}
-    health_band = classify_health(meddpicc_latest, health_thresholds)
+    qualification = select_qualification_snapshot(deal)
+    qualification_latest = qualification.snapshot
+    qualification_gaps = qualification.gaps
+    qualification_meta = qualification_summary(qualification)
+    health_band = classify_health(qualification_latest, health_thresholds)
     timing = assess_pipeline_timing(deal, as_of=as_of, settings=timing_settings)
     attention_reasons = build_attention_reasons(
         stage=deal.get("deal_stage"),
         health_band=health_band,
         timing=timing,
     )
-    meddpicc_gaps = _meddpicc_gaps(meddpicc_latest)
     attention_gaps = _attention_gap_rows(
         timing=timing,
         attention_reasons=attention_reasons,
+        qualification=qualification,
     )
     themes = _theme_candidates(deal)
     return {
@@ -151,13 +166,20 @@ def _build_row(
         "close_date_status": timing.close_date_status.value,
         "is_overdue": timing.is_overdue,
         "overdue_days": timing.overdue_days,
+        "qualification_framework": qualification.framework_key,
+        "qualification_framework_display_name": qualification.framework_display_name,
+        "qualification_source_field": qualification.source_field,
+        "qualification_health_pct": qualification_meta["health_pct"],
+        "qualification_quality_pct": qualification_meta["quality_pct"],
+        "qualification_coverage_pct": qualification_meta["coverage_pct"],
+        "qualification_gaps": qualification_gaps,
         "health_pct": (
-            float(meddpicc_latest["health_pct"])
-            if is_health_assessed(meddpicc_latest)
+            float(qualification_latest["health_pct"])
+            if is_health_assessed(qualification_latest)
             else None
         ),
         "health_band": health_band.value,
-        "meddpicc_gaps": meddpicc_gaps,
+        "meddpicc_gaps": qualification_gaps if qualification.is_meddpicc else [],
         "last_meeting_date": _last_meeting_date(deal),
         "primary_pain": _select_primary_theme(themes, THEME_DIMENSION_PAIN),
         "primary_decision_criteria": _select_primary_theme(
@@ -174,33 +196,28 @@ def _build_row(
                 for gap in attention_gaps
                 if gap["cta_policy"] != CTA_POLICY_ALLOWED
             ],
-            *_meddpicc_gap_observations(meddpicc_gaps),
+            *_qualification_gap_observations(qualification),
         ],
         "data_quality": assess_deal_data_quality(deal).to_dict(),
     }
 
 
-def _meddpicc_gaps(meddpicc_latest: dict) -> list[str]:
-    gaps = meddpicc_latest.get("gaps", [])
-    if not isinstance(gaps, list):
-        return []
-    return [str(item) for item in gaps]
-
-
-def _meddpicc_gap_observations(gaps: list[str]) -> list[dict]:
+def _qualification_gap_observations(
+    qualification: QualificationReadSnapshot,
+) -> list[dict]:
     rows = []
-    for gap_name in gaps:
-        label = MEDDPICC_FIELD_LABELS.get(gap_name, gap_name)
+    for gap_name in qualification.gaps:
+        label = dimension_label(qualification, gap_name)
         rows.append(
             annotate_gap_actionability(
                 {
-                    "gap_id": f"meddpicc:{gap_name}",
-                    "field": f"meddpicc.{gap_name}",
+                    "gap_id": f"{qualification.field_prefix}:{gap_name}",
+                    "field": f"{qualification.field_prefix}.{gap_name}",
                     "label": label,
                     "status": "missing",
                     "impact_area": "sales_action",
                     "severity": "medium",
-                    "reason": f"MEDDPICC gap remains open: {label}.",
+                    "reason": f"Qualification gap remains open: {label}.",
                 }
             )
         )
@@ -211,6 +228,7 @@ def _attention_gap_rows(
     *,
     timing: Any,
     attention_reasons: list[str],
+    qualification: QualificationReadSnapshot,
 ) -> list[dict]:
     rows = []
     if "overdue" in attention_reasons:
@@ -269,13 +287,13 @@ def _attention_gap_rows(
             annotate_gap_actionability(
                 {
                     "gap_id": "attention:at_risk",
-                    "field": "meddpicc.health",
+                    "field": f"{qualification.field_prefix}.health",
                     "label": "At-risk health",
                     "status": "weak_signal",
                     "impact_area": "sales_action",
                     "severity": "high",
                     "reason": (
-                        "MEDDPICC health is at risk; review the underlying "
+                        "Qualification health is at risk; review the underlying "
                         "evidence before prescribing an action."
                     ),
                 }

@@ -66,7 +66,7 @@ Two ways to look at the deal data you've accumulated.
 
 ![Atlas Charts Weekly Pipeline Review dashboard](docs/images/atlas-dashboard.png)
 
-Active/Attention deal counts, pipeline value by stage, MEDDPICC health-band distribution, gap distribution, and open pipeline value - all on one screen. Each chart's aggregation pipeline is generated with the `render-atlas-dashboard` CLI and pasted into Atlas Charts (see the "Atlas Charts Dashboard" section below).
+Active/Attention deal counts, pipeline value by stage, qualification health-band distribution, gap distribution, and open pipeline value - all on one screen. Each chart's aggregation pipeline is generated with the `render-atlas-dashboard` CLI and pasted into Atlas Charts (see the "Atlas Charts Dashboard" section below).
 
 ### 2. Claude / Codex in-chat rendered analysis
 
@@ -835,7 +835,7 @@ To paste a single chart into the Atlas Query bar:
 ~/miniconda3/envs/deal-intel/python.exe -m deal_intel.cli render-atlas-dashboard --as-of 2026-06-09 --chart-id pipeline_kpis
 ```
 
-The five managed chart ids are `pipeline_kpis`, `stage_breakdown`, `health_bands`, `attention_deals`, `meddpicc_gap_distribution`.
+The six managed chart ids are `pipeline_kpis`, `stage_breakdown`, `health_bands`, `attention_deals`, `qualification_gap_distribution`, and legacy-compatible `meddpicc_gap_distribution`.
 
 Cross-check the dashboard numbers:
 

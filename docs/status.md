@@ -10,7 +10,57 @@ Read the newest section first. Older sections are retained as an archive for
 traceability and should be searched by topic, milestone, or file path rather
 than loaded wholesale.
 
-## Latest Update - 2026-06-15
+## Latest Update - 2026-06-16
+
+### QF-6 report/export/Atlas qualification read path
+
+Implemented:
+
+- `weekly_pipeline` report rows now select the active qualification snapshot
+  through `schema/qualification_read.py`, preferring `qualification_latest` and
+  falling back to legacy `meddpicc_latest`.
+- Weekly report rows expose canonical qualification fields:
+  `qualification_framework`, `qualification_framework_display_name`,
+  `qualification_source_field`, `qualification_health_pct`,
+  `qualification_quality_pct`, `qualification_coverage_pct`, and
+  `qualification_gaps`.
+- Existing `health_pct`, `health_band`, and `meddpicc_gaps` aliases are
+  preserved. `meddpicc_gaps` is only populated for MEDDPICC-backed rows.
+- `export_data` open/all/closed datasets now include qualification columns so
+  Excel/CSV ledgers can follow custom frameworks without losing legacy health
+  aliases.
+- Weekly Markdown report wording now says qualification gap/health where the
+  active framework may not be MEDDPICC.
+- Weekly Atlas chart specs now read `qualification_latest.health_pct`,
+  `qualification_latest.filled_count`, and `qualification_latest.gaps` first,
+  with `meddpicc_latest` fallback for old/sample data.
+- Added `qualification_gap_distribution` while keeping
+  `meddpicc_gap_distribution` as a legacy-compatible chart id.
+
+Design notes:
+
+- This migrates the human report, CSV ledger, and weekly Atlas dashboard
+  surfaces. Analytics snapshots and MEDDPICC-specific `get_insights` aggregation
+  modes remain separate follow-up work.
+- `export_report` still returns deterministic data packs and host-app polish
+  prompts; it does not call an LLM.
+
+Validation:
+
+- `pytest tests/test_weekly_pipeline_report.py tests/test_weekly_pipeline_markdown.py tests/test_export_data.py -q --basetemp .tmp\pytest-qf6-report-targeted`:
+  25 passed.
+- `pytest tests/test_weekly_pipeline_report.py tests/test_weekly_pipeline_markdown.py tests/test_export_data.py tests/test_export_report.py tests/test_atlas_charts.py tests/test_cli_atlas_charts.py -q --basetemp .tmp\pytest-qf6-targeted`:
+  59 passed, 1 warning.
+- `pytest tests/test_weekly_pipeline_report.py tests/test_weekly_pipeline_markdown.py tests/test_export_data.py tests/test_export_report.py tests/test_atlas_charts.py tests/test_cli_atlas_charts.py tests/test_dashboard_crosscheck.py tests/test_pipeline_metrics_summary.py tests/test_get_metrics.py tests/test_data_quality_reporting.py -q --basetemp .tmp\pytest-qf6-wide`:
+  92 passed, 1 warning.
+- `pytest -q --basetemp .tmp\pytest-qf6-full`:
+  636 passed, 1 warning.
+- `ruff check .`:
+  passed.
+- `git diff --check`:
+  no whitespace errors; Windows LF/CRLF warnings only.
+
+### QF-5c pipeline metrics qualification read path
 
 ### QF-5c pipeline metrics qualification read path
 

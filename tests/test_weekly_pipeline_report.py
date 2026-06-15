@@ -7,6 +7,8 @@ import pytest
 
 from deal_intel.reports.weekly_pipeline import build_weekly_pipeline_rows
 from deal_intel.schema.metrics import PipelineTimingSettings
+from deal_intel.schema.qualification import compute_qualification_latest
+from deal_intel.schema.qualification_framework import get_qualification_template
 
 AS_OF = date(2026, 6, 10)
 
@@ -87,6 +89,15 @@ def _theme(
     if subject:
         theme["subject"] = subject
     return theme
+
+
+def _simple_b2b_latest(*, score: int = 1, stage: str = "proposal") -> dict:
+    return compute_qualification_latest(
+        [{"qualification": {"business_need": {"score": score}}}],
+        framework=get_qualification_template("simple_b2b"),
+        evidence_fields=("qualification",),
+        deal_stage=stage,
+    )
 
 
 def test_weekly_pipeline_rows_include_open_deals_only_and_safe_fields() -> None:
@@ -217,6 +228,37 @@ def test_weekly_pipeline_rows_split_objective_actions_from_gap_observations() ->
     )
     assert observation["actionability"] == "needs_human_judgment"
     assert observation["cta_policy"] == "observation_only"
+
+
+def test_weekly_pipeline_rows_use_active_qualification_snapshot() -> None:
+    deal = _deal(
+        "custom-framework",
+        stage="proposal",
+        health_pct=95,
+        meddpicc_gaps=[],
+    )
+    deal["qualification_latest"] = _simple_b2b_latest(score=1, stage="proposal")
+
+    result = build_weekly_pipeline_rows([deal], as_of=AS_OF)
+
+    row = result["rows"][0]
+    assert row["qualification_framework"] == "simple_b2b"
+    assert row["qualification_framework_display_name"] == "Simple B2B Qualification"
+    assert row["qualification_source_field"] == "qualification_latest"
+    assert row["health_pct"] == row["qualification_health_pct"] == 6.7
+    assert row["qualification_quality_pct"] == 20.0
+    assert row["qualification_coverage_pct"] == 33.3
+    assert row["health_band"] == "at_risk"
+    assert row["meddpicc_gaps"] == []
+    assert row["qualification_gaps"] == ["business_need", "buyer_owner", "next_step"]
+
+    observation = next(
+        item for item in row["gap_observations"]
+        if item["field"] == "qualification.buyer_owner"
+    )
+    assert observation["gap_id"] == "qualification:buyer_owner"
+    assert observation["label"] == "Buyer Owner"
+    assert observation["actionability"] == "needs_human_judgment"
 
 
 def test_stage_and_industry_filters_apply_before_row_generation() -> None:

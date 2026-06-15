@@ -24,6 +24,7 @@ REQUIRED_CHART_IDS = {
     "stage_breakdown",
     "health_bands",
     "attention_deals",
+    "qualification_gap_distribution",
     "meddpicc_gap_distribution",
 }
 TREND_CHART_IDS = {
@@ -140,6 +141,12 @@ def test_weekly_pipeline_dashboard_render_replaces_config_tokens() -> None:
         },
     }
     assert rendered["rendered_parameters"]["healthy_min"] == 75.0
+    payload = json.dumps(rendered, ensure_ascii=False)
+    assert "$qualification_latest.health_pct" in payload
+    assert "$qualification_latest.filled_count" in payload
+    assert "$qualification_latest.gaps" in payload
+    assert "$meddpicc_latest.health_pct" in payload
+    assert "$meddpicc_latest.gaps" in payload
 
 
 def test_pipeline_trend_dashboard_render_replaces_window_tokens() -> None:

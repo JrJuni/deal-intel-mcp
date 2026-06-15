@@ -1349,14 +1349,18 @@ def _format_reason(value: Any, language: str) -> str:
     ):
         return "현재 활성 스테이지에 기준일보다 오래 머물러 있습니다."
     if raw == (
-        "MEDDPICC health is at risk; review the underlying evidence before "
+        "Qualification health is at risk; review the underlying evidence before "
         "prescribing an action."
     ):
-        return "MEDDPICC 헬스가 위험 구간입니다. 액션을 정하기 전에 근거를 확인하세요."
-    gap_prefix = "MEDDPICC gap remains open: "
+        return "평가 헬스가 위험 구간입니다. 액션을 정하기 전에 근거를 확인하세요."
+    legacy_gap_prefix = "MEDDPICC gap remains open: "
+    if raw.startswith(legacy_gap_prefix) and raw.endswith("."):
+        label = raw.removeprefix(legacy_gap_prefix).removesuffix(".")
+        return f"평가 갭이 남아 있습니다: {_format_field_label(label, language)}."
+    gap_prefix = "Qualification gap remains open: "
     if raw.startswith(gap_prefix) and raw.endswith("."):
         label = raw.removeprefix(gap_prefix).removesuffix(".")
-        return f"MEDDPICC 갭이 남아 있습니다: {_format_field_label(label, language)}."
+        return f"평가 갭이 남아 있습니다: {_format_field_label(label, language)}."
     return raw
 
 

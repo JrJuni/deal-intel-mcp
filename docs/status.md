@@ -12,6 +12,46 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-15
 
+### QF-3 generic qualification snapshot engine
+
+Implemented:
+
+- Added `src/deal_intel/schema/qualification.py` with the pure
+  `compute_qualification_latest(...)` engine.
+- Added `src/deal_intel/schema/stages.py` so qualification framework validation
+  and MEDDPICC compatibility can share stage constants without circular imports.
+- Reworked `compute_meddpicc_latest(...)` into a compatibility wrapper over the
+  generic engine while preserving the existing `meddpicc_latest` output shape.
+- Added `compute_meddpicc_qualification_latest(...)` for future canonical
+  `qualification_latest` consumers.
+- Added `tests/test_qualification_snapshot.py` covering:
+  - legacy MEDDPICC shape/math compatibility;
+  - quality vs coverage vs uncertainty separation;
+  - generic `qualification` evidence fields;
+  - stage-aware gap rules and won-stage gap suppression;
+  - disabled dimensions;
+  - no mutation of framework templates.
+
+Validation:
+
+- `pytest tests/test_qualification_snapshot.py tests/test_qualification_framework.py tests/test_add_interaction.py tests/test_analytics_snapshots.py --basetemp .tmp\pytest-qf3-targeted -q`:
+  49 passed, 1 warning.
+- `pytest tests/test_metric_contract.py tests/test_pipeline_metrics_summary.py tests/test_deal_review.py tests/test_deal_gaps.py tests/test_get_metrics.py tests/test_export_report.py tests/test_export_data.py tests/test_weekly_pipeline_report.py tests/test_weekly_pipeline_markdown.py --basetemp .tmp\pytest-qf3-regression -q`:
+  106 passed, 1 warning.
+- `pytest -q --basetemp .tmp\pytest-qf3-full`:
+  591 passed, 1 warning.
+- `ruff check src/deal_intel/schema/qualification.py src/deal_intel/schema/meddpicc.py src/deal_intel/schema/qualification_framework.py src/deal_intel/schema/stages.py tests/test_qualification_snapshot.py`:
+  passed.
+- `ruff check .`:
+  passed.
+
+Notes:
+
+- This unit intentionally does not write `qualification_latest` into deals yet.
+  Existing read/report/metric paths still consume `meddpicc_latest`.
+- The next QF step should decide whether to persist `qualification_latest` in
+  write paths first or adapt deterministic read paths first.
+
 ### QF-2 qualification framework config tools
 
 Implemented:

@@ -39,6 +39,7 @@ mcpb/*.mcpb
 .tmp/
 .pytest_cache/
 .pytest-temp/
+.pytest-*/
 .coverage
 htmlcov/
 

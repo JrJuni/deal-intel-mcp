@@ -2,9 +2,9 @@
 
 from pydantic import BaseModel, Field
 
-VALID_STAGES = frozenset({
-    "discovery", "qualification", "proposal", "negotiation", "won", "lost", "stalled",
-})
+from deal_intel.schema.qualification import compute_qualification_latest
+from deal_intel.schema.qualification_framework import get_qualification_template
+from deal_intel.schema.stages import VALID_STAGES as VALID_STAGES
 
 _DIMS = [
     "metrics", "economic_buyer", "decision_criteria",
@@ -58,14 +58,8 @@ class Meeting(BaseModel):
 
 # ---------- deal-level MEDDPICC snapshot ----------
 
-# Stage-aware gap logic constants.
-# identify_pain declining in late active stages = pain being resolved = positive signal.
-_LATE_ACTIVE_STAGES = {"proposal", "negotiation"}
-_PAIN_LATE_THRESHOLD = 1  # score >= 1 is OK in late stages (0 = completely lost urgency)
-
-# won = terminal success; gap list is meaningless for a closed deal.
-# lost = terminal failure; keep gaps for post-mortem / pattern analysis.
-_NO_GAP_STAGES = {"won"}
+# Stage-aware gap logic now lives in the bundled MEDDPICC qualification
+# framework template and is interpreted by compute_qualification_latest().
 
 
 def compute_meddpicc_latest(
@@ -87,62 +81,57 @@ def compute_meddpicc_latest(
         sum(avg_score_i * weight_i for filled dims) / sum(5 * weight_i for ALL dims) * 100
     Unfilled dimensions count as 0 in the denominator — missing info is a real risk signal.
     """
-    dim_scores: dict[str, list[int]] = {d: [] for d in _DIMS}
-
-    for m in meetings:
-        meddpicc = m.get("meddpicc") or {}
-        for dim in _DIMS:
-            val = meddpicc.get(dim)
-            if isinstance(val, dict):
-                raw = val.get("score")
-                if isinstance(raw, (int, float)):
-                    dim_scores[dim].append(int(raw))
-
-    dims_out: dict = {}
-    for dim in _DIMS:
-        scores = dim_scores[dim]
-        if not scores:
-            continue
-        avg = sum(scores) / len(scores)
-        trend: str | None = None
-        if len(scores) >= 2:
-            if scores[-1] > scores[-2]:
-                trend = "up"
-            elif scores[-1] < scores[-2]:
-                trend = "down"
-            else:
-                trend = "flat"
-        dims_out[dim] = {"score": round(avg, 2), "trend": trend}
-
-    total_weight = sum(weights.get(d, 1.0) for d in _DIMS)
-    weighted_score = sum(
-        dims_out[d]["score"] * weights.get(d, 1.0) for d in _DIMS if d in dims_out
+    qualification = compute_meddpicc_qualification_latest(
+        meetings,
+        weights=weights,
+        gap_threshold=gap_threshold,
+        deal_stage=deal_stage,
     )
-    max_possible = 5.0 * total_weight
-    health_pct = round(weighted_score / max_possible * 100, 1) if max_possible > 0 else 0.0
-
-    # Stage-aware gap classification.
-    if deal_stage in _NO_GAP_STAGES:
-        gaps: list[str] = []
-    else:
-        late = deal_stage in _LATE_ACTIVE_STAGES
-        gaps = []
-        for dim in _DIMS:
-            if dim not in dims_out:
-                gaps.append(dim)
-            elif dim == "identify_pain" and late:
-                if dims_out[dim]["score"] < _PAIN_LATE_THRESHOLD:
-                    gaps.append(dim)
-            elif dims_out[dim]["score"] < gap_threshold:
-                gaps.append(dim)
-
+    dims_out = {
+        dim: {
+            "score": qualification["dimensions"][dim]["score"],
+            "trend": qualification["dimensions"][dim]["trend"],
+        }
+        for dim in _DIMS
+        if dim in qualification["dimensions"]
+    }
     return {
         **dims_out,
-        "total_weighted_score": round(weighted_score, 2),
-        "health_pct": health_pct,
+        "total_weighted_score": qualification["total_weighted_score"],
+        "health_pct": qualification["health_pct"],
         "filled_count": len(dims_out),
-        "gaps": gaps,
+        "gaps": qualification["gaps"],
     }
+
+
+def compute_meddpicc_qualification_latest(
+    meetings: list[dict],
+    weights: dict[str, float],
+    gap_threshold: int = 2,
+    deal_stage: str = "discovery",
+) -> dict:
+    """Compute the canonical qualification snapshot for MEDDPICC evidence."""
+    return compute_qualification_latest(
+        meetings,
+        framework=_meddpicc_framework_for_legacy_compute(weights, gap_threshold),
+        evidence_fields=("meddpicc",),
+        deal_stage=deal_stage,
+    )
+
+
+def _meddpicc_framework_for_legacy_compute(
+    weights: dict[str, float],
+    gap_threshold: int,
+):
+    framework = get_qualification_template("meddpicc").model_copy(deep=True)
+    for dim in _DIMS:
+        dimension = framework.dimensions[dim]
+        # Preserve the historical function contract: missing weight keys
+        # default to 1.0 even though the bundled MEDDPICC template carries the
+        # product's default configured weights.
+        dimension.weight = float(weights.get(dim, 1.0))
+        dimension.gap_threshold = int(gap_threshold)
+    return framework
 
 
 # ---------- top-level Deal document ----------

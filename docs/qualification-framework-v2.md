@@ -236,6 +236,39 @@ Corner cases:
 
 ### QF-3. Generic Qualification Snapshot Engine
 
+Status:
+
+- Partially implemented as the pure calculation layer.
+- Added `src/deal_intel/schema/qualification.py` with
+  `compute_qualification_latest(...)`.
+- Moved stage constants into `src/deal_intel/schema/stages.py` to break the
+  MEDDPICC/framework import cycle.
+- Kept `compute_meddpicc_latest(...)` as the compatibility wrapper used by
+  existing write paths.
+- Added `compute_meddpicc_qualification_latest(...)` so future write/read paths
+  can consume the canonical qualification snapshot without changing current
+  `meddpicc_latest` consumers.
+
+Contract:
+
+- Input:
+  - iterable evidence items;
+  - a validated `QualificationFramework`;
+  - one or more evidence field names such as `qualification` or `meddpicc`;
+  - current deal stage.
+- Output:
+  - `framework_key`, `framework_display_name`, `score_scale`;
+  - nested `dimensions` with score, trend, evidence count, and weight;
+  - `quality_pct`, `coverage_pct`, `uncertainty_level`;
+  - compatibility `health_pct`, `filled_count`, `total_count`, and `gaps`.
+- Score math uses the framework score scale and enabled dimension weights.
+- Side effects: none. No config reads, DB access, LLM calls, embeddings, file
+  writes, or historical recomputation.
+- Compatibility:
+  - existing `compute_meddpicc_latest(...)` output shape remains unchanged;
+  - existing `meddpicc_latest` read/report/metric paths still work;
+  - this unit does not yet write `qualification_latest` to deals.
+
 Purpose:
 
 - Generalize `compute_meddpicc_latest` into framework-based scoring.

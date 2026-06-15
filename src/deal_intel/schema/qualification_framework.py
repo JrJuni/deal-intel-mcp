@@ -9,7 +9,7 @@ from deal_intel.schema.gap_actionability import (
     CTA_POLICY_ALLOWED,
     CTA_POLICY_OBSERVATION_ONLY,
 )
-from deal_intel.schema.meddpicc import VALID_STAGES
+from deal_intel.schema.stages import VALID_STAGES
 from deal_intel.user_memory import detect_secret_patterns
 
 FrameworkIssueSeverity = Literal["error", "warning"]

@@ -409,7 +409,52 @@ Verification gate:
 - Mongo validator includes `qualification_latest`.
 - Existing MEDDPICC read paths keep using `meddpicc_latest`.
 
-### QF-4. Interaction Extraction Generalization
+### QF-4a. Generic Extraction Contract
+
+Purpose:
+
+- Define the active-framework extraction contract before changing the
+  `add_interaction` LLM prompt.
+- Keep the boundary permissive for LLM output but strict for stored
+  qualification evidence.
+
+Implemented:
+
+- Added `src/deal_intel/schema/qualification_extraction.py`.
+- `build_qualification_extraction_contract(framework)` returns a serializable
+  prompt contract containing enabled dimension keys, labels, descriptions,
+  extraction hints, score scale, output schema, and safety rules.
+- `render_qualification_extraction_prompt_block(framework)` renders a compact
+  prompt block for the future interaction extraction prompt.
+- `normalize_qualification_extraction(payload, framework=...)` normalizes
+  LLM-like output into:
+  - `qualification.<dimension>.score`
+  - optional short `evidence`
+  - optional short `reason`
+  - optional `confidence`
+- Missing dimensions remain missing. They are not converted into neutral scores.
+- Unknown dimensions, disabled dimensions, invalid scores, fractional scores,
+  out-of-range scores, invalid confidence, long evidence, and secret-like text
+  are handled with structured warnings.
+- `normalize_interaction_record()` now preserves stored
+  `interaction.qualification` and `interaction.unconfirmed_qualification` so
+  custom framework evidence survives the `scoring_interactions()` read path.
+
+Verification gate:
+
+- Contract includes enabled dimensions only.
+- Prompt block includes active framework dimensions and output hints.
+- Wrapped and direct dimension maps normalize into the same storage shape.
+- Unknown, disabled, invalid, fractional, and out-of-range dimensions are
+  dropped without contaminating the score engine.
+- Secret-like text is redacted and long evidence is bounded.
+- Normalized evidence feeds `compute_qualification_latest()` without neutral
+  filler scores.
+- Stored `interaction.qualification` survives normalization into
+  `rebuild_latest_snapshots()`.
+- Existing `add_interaction` regression tests remain green.
+
+### QF-4b. Interaction Extraction Generalization
 
 Purpose:
 

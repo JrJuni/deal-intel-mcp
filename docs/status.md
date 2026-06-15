@@ -12,6 +12,43 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-15
 
+### QF-4a generic qualification extraction contract
+
+Implemented:
+
+- Added `src/deal_intel/schema/qualification_extraction.py` as the pure
+  framework-aware extraction contract layer.
+- Added `build_qualification_extraction_contract()` and
+  `render_qualification_extraction_prompt_block()` so future LLM prompts can be
+  generated from the active qualification framework.
+- Added `normalize_qualification_extraction()` to normalize LLM-like output
+  into stored `interaction.qualification` evidence while dropping unsafe or
+  invalid dimension data with structured warnings.
+- Preserved `interaction.qualification` and `interaction.unconfirmed_qualification`
+  through `normalize_interaction_record()`. This closes the storage/read-path
+  gap between QF-3 snapshots and future QF-4 extraction.
+
+Design notes:
+
+- QF-4a does not yet change the `add_interaction` LLM prompt or write
+  `interaction.qualification` at runtime.
+- Missing dimensions stay missing rather than receiving a neutral score.
+- Secret-like text is not echoed in normalized evidence or warnings.
+- Invalid LLM output is handled at the boundary so
+  `compute_qualification_latest()` receives only clean score evidence.
+
+Validation:
+
+- `pytest tests/test_qualification_extraction.py tests/test_qualification_snapshot.py tests/test_add_interaction.py -q --basetemp .tmp\pytest-qf4a-targeted`:
+  29 passed, 1 warning.
+- `pytest tests/test_qualification_extraction.py tests/test_qualification_snapshot.py tests/test_qualification_framework.py tests/test_qualification_config.py tests/test_add_interaction.py -q --basetemp .tmp\pytest-qf4a-wide`:
+  80 passed, 1 warning.
+- `pytest -q --basetemp .tmp\pytest-qf4a-full`:
+  625 passed, 1 warning.
+- `ruff check .`:
+  passed.
+- MCP registration smoke was not required because QF-4a adds no MCP tools.
+
 ### QF-2c immutable qualification presets
 
 Implemented:

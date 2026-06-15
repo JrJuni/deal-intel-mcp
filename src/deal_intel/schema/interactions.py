@@ -242,8 +242,10 @@ def normalize_interaction_record(interaction: dict) -> dict:
         "subject": str(interaction.get("subject") or "")[:200],
         "summary": str(interaction.get("summary") or ""),
         "raw_content": raw_content,
+        "qualification": interaction.get("qualification") or {},
         "meddpicc": interaction.get("meddpicc") or {},
         "customer_themes": interaction.get("customer_themes") or [],
+        "unconfirmed_qualification": interaction.get("unconfirmed_qualification") or {},
         "unconfirmed_meddpicc": interaction.get("unconfirmed_meddpicc") or {},
         "unconfirmed_customer_themes": (
             interaction.get("unconfirmed_customer_themes") or []

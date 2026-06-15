@@ -72,7 +72,7 @@ Active/Attention deal counts, pipeline value by stage, qualification health-band
 
 ![Claude in-chat rendered dashboard](docs/images/chat-dashboard.png)
 
-It takes the raw MCP tool output and renders win rate, the stage funnel, Won vs Lost MEDDPICC gaps, data-quality coverage, and attention items right inside the conversation. It all starts from pasting in a single meeting note - no extra app.
+It takes the raw MCP tool output and renders win rate, the stage funnel, qualification gap patterns, data-quality coverage, and attention items right inside the conversation. It all starts from pasting in a single meeting note - no extra app.
 
 ### Cost-aware LLM boundary
 
@@ -91,9 +91,11 @@ LLM-free so the host app can do the final narration without extra API cost.
 
 ## How deal health works
 
-Internally, the project uses MEDDPICC, a B2B deal-qualification framework, to
-turn messy evidence into comparable deal signals. You do not need to be a
-sales expert to use the tool; the user-facing output is framed as health,
+Internally, the project uses an active qualification framework to turn messy
+evidence into comparable deal signals. MEDDPICC is the bundled default B2B
+framework, and QF-v2 adds guarded custom framework support so teams can copy a
+preset and adapt the criteria to their own sales motion. You do not need to be
+a sales expert to use the tool; the user-facing output is framed as health,
 missing information, risk signals, customer themes, and next questions.
 
 | Dimension | What it measures |
@@ -472,7 +474,7 @@ of writes.
 
 ### 2. `add_interaction` - add a customer interaction
 
-**When to use**: Right after a customer meeting, email reply, user interview, call summary, or internal note. Paste the content as-is and the server-side LLM extracts MEDDPICC/customer themes with source-aware scoring.
+**When to use**: Right after a customer meeting, email reply, user interview, call summary, or internal note. Paste the content as-is and the server-side LLM extracts active-framework qualification signals and customer themes with source-aware scoring. MEDDPICC is the default built-in framework.
 
 Cost note: this is intentionally one of the few places where the MCP server
 uses its own LLM provider, because the extracted result is persisted as product
@@ -509,18 +511,19 @@ end of June.
 | `source_confidence` | optional | Override source confidence when needed |
 
 **What the result includes**:
-- `meddpicc` - scores + evidence extracted from this interaction
-- `meddpicc_latest` - the deal's cumulative health_pct + per-dimension trend
+- `qualification` - active-framework scores + evidence extracted from this interaction
+- `qualification_latest` - the deal's cumulative health_pct + per-dimension trend
+- `meddpicc` / `meddpicc_latest` - compatibility aliases used when the active framework is MEDDPICC or legacy records are read
 - `summary` - a 2-3 sentence LLM-generated summary
 - `customer_themes` - customer concerns / selection criteria extracted from this interaction
-- `scoring_applied` - whether this source updated MEDDPICC health/customer themes
+- `scoring_applied` - whether this source updated qualification health/customer themes
 - `source_policy` - why this source was treated as confirmed evidence or stored as unconfirmed context
 - `stage_suggestion` - filled only when the content explicitly implies a stage transition (e.g., contract signed -> won, lost deal -> lost); otherwise `null`
 - `embedding_stored` - whether the similar-deal-search embedding was stored
 
 Source-aware scoring is deliberately conservative:
 
-- `direction=inbound` defaults to `source_confidence=customer_stated`, so explicit customer replies, interviews, and meeting notes can update MEDDPICC/customer themes.
+- `direction=inbound` defaults to `source_confidence=customer_stated`, so explicit customer replies, interviews, and meeting notes can update qualification/customer themes.
 - `direction=outbound` defaults to `source_confidence=outbound_unconfirmed`, so seller-only emails are stored but do not improve health scores.
 - `interaction_type=internal_note` or `direction=internal` defaults to `source_confidence=internal`, so internal hypotheses stay out of confirmed scoring.
 - `direction=mixed` is allowed for email threads or calls with both sides represented; only explicit customer statements should be treated as evidence.
@@ -531,7 +534,7 @@ Source-aware scoring is deliberately conservative:
 
 ### 3. `get_deal` - view deal details
 
-**When to use**: To check a specific deal's full history, MEDDPICC scores, and interaction records.
+**When to use**: To check a specific deal's full history, qualification scores, and interaction records.
 
 **Example**:
 ```
@@ -539,7 +542,8 @@ Show me the full Hyundai Precision deal. deal_id is a3f9...
 ```
 
 You get stored interactions, any legacy meeting records, per-interaction
-MEDDPICC extraction, and the cumulative health_pct.
+qualification extraction, and the cumulative health_pct. Legacy
+`meddpicc_latest` fields are still returned for compatibility when present.
 
 ---
 
@@ -567,7 +571,7 @@ discovery -> qualification -> proposal -> negotiation -> won / lost / stalled
 - `actual_close_date` - the real close date for Won/Lost
 - `days_in_previous_stage` - how long it spent in the previous stage
 - `stuck_threshold_days` - the stuck threshold for a new Active stage; otherwise `null`
-- MEDDPICC gaps are recomputed per stage (e.g., a drop in Identify Pain at the proposal stage is not a gap - it's a positive signal that the pain is being resolved)
+- Qualification gaps are recomputed per stage (e.g., under the default MEDDPICC framework, a drop in Identify Pain at the proposal stage is not a gap - it's a positive signal that the pain is being resolved)
 
 ---
 
@@ -610,7 +614,7 @@ Show me only the deals in the proposal stage.
 ```
 
 **Result**:
-- `health_pct` - overall MEDDPICC score (0-100)
+- `health_pct` - overall qualification score (0-100; MEDDPICC by default)
 - `gaps` - list of weak, low-scoring dimensions
 - `is_stuck` - whether the Active-stage dwell time exceeds the per-stage threshold
 - `is_overdue` / `overdue_days` - whether an Open deal passed its expected close date
@@ -637,7 +641,7 @@ Generate a BD strategy memo for the Hyundai Precision deal.
 ```
 
 The result includes:
-- a summary of current MEDDPICC health
+- a summary of current qualification health
 - concrete responses per weak dimension
 - a recommended agenda for the next meeting
 - persisted `bd_strategy` when the tool succeeds
@@ -861,8 +865,8 @@ You can specify `as_of`; the response includes `timezone` and a UTC `generated_a
 | query_type | What it tells you |
 |---|---|
 | `pipeline_overview` | Deal count / avg health / total size by stage |
-| `win_patterns` | Average MEDDPICC scores of Won deals |
-| `loss_patterns` | Average MEDDPICC scores of Lost deals |
+| `win_patterns` | Average legacy/default-framework scores of Won deals |
+| `loss_patterns` | Average legacy/default-framework scores of Lost deals |
 | `compare_won_lost` | Per-dimension score gap between Won and Lost |
 | `gap_frequency` | The dimensions most often missing in active deals |
 | `industry_benchmark` | Avg health / win rate / deal size by industry |
@@ -873,7 +877,7 @@ You can specify `as_of`; the response includes `timezone` and a UTC `generated_a
 Show me the whole pipeline overview.
 ```
 ```
-What's the MEDDPICC pattern difference between deals we win and deals we lose'
+What's the qualification pattern difference between deals we win and deals we lose'
 ```
 ```
 Which dimension is most often missing'
@@ -1080,10 +1084,10 @@ src/deal_intel/
     mongodb.py          MongoDBClient - CRUD + aggregation + semantic-search storage
   tools/
     create_deal.py
-    add_interaction.py  canonical interaction intake + MEDDPICC extraction
+    add_interaction.py  canonical interaction intake + qualification extraction
     add_meeting.py      deprecated compatibility alias for meeting interactions
     get_deal.py
-    update_stage.py     stage_history logging + MEDDPICC recompute
+    update_stage.py     stage_history logging + qualification recompute
     update_deal.py      edit deal value and limited metadata after user confirmation
     list_deals.py       health_pct / gaps / stuck-flag aggregation
     get_metrics.py      pipeline_health KPIs / stage aggregation / warnings
@@ -1096,11 +1100,15 @@ src/deal_intel/
     get_insights.py     7 BI queries plus legacy insight query
     get_customer_themes.py
                         aggregates customer concerns by unique deal count
-    analyze_deal.py     MEDDPICC gap analysis + BD strategy via LLM
+    analyze_deal.py     qualification gap analysis + BD strategy via LLM
     search_deals.py     Python cosine by default / Atlas semantic search optional
 ```
 
-### How MEDDPICC health_pct is computed
+### How qualification health_pct is computed
+
+MEDDPICC is the default active framework, so the example below uses the
+bundled MEDDPICC dimensions and weights. Custom frameworks use the same
+weighted formula with their own enabled dimensions.
 
 ```
 health_pct = sum(dim_avg x weight) / sum(5 x weight) x 100
@@ -1121,7 +1129,7 @@ Weights (tunable in `config/defaults.yaml`):
 
 **Health-band configuration**:
 
-Defaults are Healthy >=70, Watch >=40, At Risk <40. These classify the level of MEDDPICC validation, not win probability, and can be changed in `~/.deal-intel/config.yaml` once you've accumulated operational data.
+Defaults are Healthy >=70, Watch >=40, At Risk <40. These classify the level of qualification validation, not win probability, and can be changed in `~/.deal-intel/config.yaml` once you've accumulated operational data.
 
 ```yaml
 metrics:

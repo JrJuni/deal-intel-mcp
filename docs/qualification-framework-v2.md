@@ -889,6 +889,17 @@ Verification:
 
 ### QF-8. Compatibility Cleanup
 
+Status:
+
+- Implemented as the public-surface wording cleanup pass.
+- MCP docstrings, MCPB manifest descriptions, README, AI_START_HERE, and
+  baseline docs now describe MEDDPICC as the bundled default qualification
+  framework instead of the permanent hardcoded model.
+- Compatibility field names such as `meddpicc`, `meddpicc_latest`, and
+  `unconfirmed_meddpicc` remain intentionally documented because old records
+  and default-framework records still expose them.
+- Broad tool renaming and namespace reshaping remain deferred to QF-9.
+
 Purpose:
 
 - Reduce MEDDPICC-only naming after generic framework paths are stable.

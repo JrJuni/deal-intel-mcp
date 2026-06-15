@@ -263,9 +263,10 @@ def update_qualification_framework(
     copy_as_key creates a user-configured copy under the new key. Defaults to
     dry_run=true. Actual config writes require confirmed_by_user=true.
 
-    It does not recompute existing deals, call LLMs, write MongoDB, or change
-    current MEDDPICC runtime scoring yet. A restart is required for future
-    framework-aware runtime paths to load newly written config.
+    It does not recompute existing deals, call LLMs, or write MongoDB. Runtime
+    paths load the active framework from config on the next tool call or
+    process restart, but historical deals keep their old extracted evidence
+    until backfill_qualification or backfill_qualification_reextract is run.
     """
     try:
         from deal_intel.qualification_config import update_qualification_framework_config
@@ -531,12 +532,13 @@ def add_interaction(
     source_confidence: str = "",
     custom_fields_json: str = "",
 ) -> dict:
-    """Add a customer interaction and extract MEDDPICC signals.
+    """Add a customer interaction and extract qualification signals.
 
     Use this when the user provides new evidence such as a meeting note,
     customer email reply, user interview, call summary, or internal note. This
     is one of the few write tools that calls the configured server-side LLM
-    because the extracted scoring/themes are persisted as deal data.
+    because active-framework qualification scoring and customer themes are
+    persisted as deal data. MEDDPICC is the default built-in framework.
 
     interaction_type: meeting, email_thread, user_interview, call_summary,
     internal_note, or a configured custom interaction type. direction:
@@ -868,7 +870,7 @@ def migrate_local_data(
 
 @app.tool()
 def get_deal(deal_id: str) -> dict:
-    """Retrieve one deal's stored details, interactions, and MEDDPICC scores.
+    """Retrieve one deal's stored details, interactions, and qualification scores.
 
     Use this when the user asks to inspect the raw stored deal record or history.
     For synthesized risk/action review, prefer get_deal_review. For missing
@@ -924,10 +926,10 @@ def get_insights(query_type: str, as_of: str = "") -> dict:
 
     query_type options:
     - pipeline_overview   : deal count, average health, and value by stage
-    - win_patterns        : average MEDDPICC scores across won deals
-    - loss_patterns       : average MEDDPICC scores across lost deals
-    - compare_won_lost    : compare win and loss MEDDPICC score patterns
-    - gap_frequency       : most frequent MEDDPICC gap dimensions in active deals
+    - win_patterns        : legacy/default-framework scores across won deals
+    - loss_patterns       : legacy/default-framework scores across lost deals
+    - compare_won_lost    : compare win/loss qualification score patterns
+    - gap_frequency       : most frequent qualification gap dimensions in active deals
     - industry_benchmark  : average health, win rate, and deal value by industry
     - stage_velocity      : average days in stage from stage_history
     """

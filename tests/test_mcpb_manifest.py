@@ -41,6 +41,24 @@ def test_mcpb_manifest_tools_match_registered_surface_contracts() -> None:
     assert len(manifest_tool_names) == 38
 
 
+def test_mcpb_manifest_describes_meddpicc_as_default_framework() -> None:
+    manifest = _manifest()
+    manifest_text = json.dumps(manifest, ensure_ascii=False).lower()
+    tool_descriptions = {
+        tool["name"]: tool["description"].lower() for tool in manifest["tools"]
+    }
+
+    assert "qualification-framework" in manifest["description"].lower()
+    assert "meddpicc as the default" in manifest["description"].lower()
+    assert "meddpicc-structured" not in manifest_text
+    assert "source-aware meddpicc extraction" not in manifest_text
+    assert "meddpicc scores" not in manifest_text
+    assert "active-framework qualification extraction" in tool_descriptions[
+        "add_interaction"
+    ]
+    assert "active-framework qualification scores" in tool_descriptions["get_deal"]
+
+
 def test_mcpb_manifest_user_config_defaults_to_full_and_is_secret_safe() -> None:
     manifest = _manifest()
     user_config = manifest["user_config"]

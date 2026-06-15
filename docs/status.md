@@ -12,6 +12,36 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-16
 
+### QF-8 compatibility cleanup
+
+Implemented:
+
+- Updated public MCP tool docstrings so active-framework qualification is the
+  generic concept and MEDDPICC is described as the bundled default framework.
+- Updated MCPB manifest descriptions for `add_interaction`, `get_deal`, and
+  package metadata to avoid MEDDPICC-only product positioning.
+- Updated README, AI_START_HERE, and baseline contracts to separate canonical
+  qualification language from legacy/default-framework `meddpicc*`
+  compatibility fields.
+- Kept storage fields and old compatibility contracts intact. Broad namespace
+  cleanup remains deferred to QF-9.
+
+Validation:
+
+- `pytest tests/test_tool_surfaces.py tests/test_mcpb_manifest.py -q --basetemp .tmp\pytest-qf8-targeted`:
+  41 passed, 1 warning.
+- `mcpb validate mcpb\manifest.json`:
+  passed.
+- Stale public wording scan for MEDDPICC-only current-language phrases:
+  no active public-surface hits; remaining hits are QF plan examples or older
+  status archive entries.
+- `pytest -q --basetemp .tmp\pytest-qf8-full`:
+  661 passed, 1 warning.
+- `ruff check .`:
+  passed.
+- `deal-intel smoke-natural-questions --as-of 2026-06-10`:
+  OK true, 12/12 questions passed.
+
 ### QF-7c qualification backfill MCP surface
 
 Implemented:

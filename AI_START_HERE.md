@@ -181,8 +181,9 @@ For new evidence, use `add_interaction` as the single public intake:
 - internal notes: `interaction_type=internal_note`
 
 Check the returned `source_policy`. Customer-stated inbound evidence can update
-MEDDPICC/customer themes. Outbound-only or internal-only content is retained as
-context but should not be described as confirmed deal health.
+qualification/customer themes. MEDDPICC is the default framework, but custom
+qualification frameworks may be active. Outbound-only or internal-only content
+is retained as context but should not be described as confirmed deal health.
 
 ## User Memory
 

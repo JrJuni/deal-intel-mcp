@@ -280,7 +280,13 @@ def test_high_traffic_tool_descriptions_guide_tool_selection(monkeypatch) -> Non
         "get_customer_theme_evidence": ["show examples/evidence", "get_customer_themes"],
         "search_deals": ["similar past deals", "get_customer_themes"],
         "analyze_deal": ["optional", "server-side llm", "get_deal_review"],
-        "add_interaction": ["new evidence", "get_deal_review"],
+        "add_interaction": [
+            "new evidence",
+            "qualification scoring",
+            "meddpicc is the default",
+            "get_deal_review",
+        ],
+        "get_deal": ["qualification scores", "get_deal_review"],
         "update_stage": ["user confirms", "add_interaction"],
         "update_deal": ["confirmed corrections", "update_stage"],
         "get_qualification_templates": [
@@ -292,6 +298,7 @@ def test_high_traffic_tool_descriptions_guide_tool_selection(monkeypatch) -> Non
             "dry_run=true",
             "confirmed_by_user=true",
             "copy_as_key",
+            "backfill_qualification",
         ],
         "list_qualification_frameworks": ["currently active", "read-only"],
         "set_active_qualification_framework": ["dry_run=true", "confirmed_by_user=true"],

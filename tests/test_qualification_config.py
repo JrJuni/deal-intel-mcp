@@ -7,6 +7,7 @@ import yaml
 from deal_intel import _env, mcp_server
 from deal_intel.qualification_config import (
     build_qualification_templates_payload,
+    resolve_active_qualification_framework,
     update_qualification_framework_config,
     validate_framework_input,
 )
@@ -67,6 +68,89 @@ def test_validate_framework_input_rejects_ambiguous_or_missing_input() -> None:
     assert both["error_code"] == "INVALID_INPUT"
     assert missing["ok"] is False
     assert missing["error_code"] == "INVALID_INPUT"
+
+
+def test_resolve_active_qualification_framework_defaults_to_meddpicc() -> None:
+    framework = resolve_active_qualification_framework({})
+
+    assert framework.key == "meddpicc"
+    assert framework.display_name == "MEDDPICC"
+
+
+def test_resolve_active_meddpicc_applies_legacy_weight_overrides() -> None:
+    framework = resolve_active_qualification_framework(
+        {
+            "meddpicc": {
+                "weights": {"champion": 3.0},
+                "gap_threshold": 1,
+            }
+        }
+    )
+
+    assert framework.key == "meddpicc"
+    assert framework.dimensions["champion"].weight == 3.0
+    assert framework.dimensions["metrics"].weight == 1.0
+    assert {dimension.gap_threshold for dimension in framework.dimensions.values()} == {1}
+
+
+def test_resolve_active_qualification_framework_uses_built_in_active_template() -> None:
+    framework = resolve_active_qualification_framework(
+        {"qualification": {"active_framework": "simple_b2b"}}
+    )
+
+    assert framework.key == "simple_b2b"
+    assert sorted(framework.dimensions) == [
+        "business_need",
+        "buyer_owner",
+        "next_step",
+    ]
+
+
+def test_resolve_active_qualification_framework_uses_configured_framework() -> None:
+    payload = validate_framework_input(template_key="simple_b2b")["framework"]
+    payload["key"] = "custom_simple"
+    payload["display_name"] = "Custom Simple"
+
+    framework = resolve_active_qualification_framework(
+        {
+            "qualification": {
+                "active_framework": "custom_simple",
+                "frameworks": {"custom_simple": payload},
+            }
+        }
+    )
+
+    assert framework.key == "custom_simple"
+    assert framework.display_name == "Custom Simple"
+
+
+def test_resolve_active_qualification_framework_keeps_explicit_framework_weights() -> None:
+    payload = validate_framework_input(template_key="meddpicc")["framework"]
+    payload["dimensions"]["champion"]["weight"] = 4.0
+
+    framework = resolve_active_qualification_framework(
+        {
+            "meddpicc": {"weights": {"champion": 1.0}},
+            "qualification": {
+                "active_framework": "meddpicc",
+                "frameworks": {"meddpicc": payload},
+            },
+        }
+    )
+
+    assert framework.key == "meddpicc"
+    assert framework.dimensions["champion"].weight == 4.0
+
+
+def test_resolve_active_qualification_framework_rejects_missing_active_framework() -> None:
+    try:
+        resolve_active_qualification_framework(
+            {"qualification": {"active_framework": "missing_framework"}}
+        )
+    except ValueError as exc:
+        assert "missing_framework" in str(exc)
+    else:
+        raise AssertionError("missing active framework should fail")
 
 
 def test_update_qualification_framework_dry_run_does_not_write(tmp_path) -> None:

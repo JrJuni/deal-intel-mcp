@@ -8,6 +8,7 @@ from deal_intel.schema.meddpicc import (
 )
 from deal_intel.schema.qualification import compute_qualification_latest
 from deal_intel.schema.qualification_framework import get_qualification_template
+from deal_intel.tools.qualification_snapshot import rebuild_latest_snapshots
 
 
 def test_meddpicc_wrapper_preserves_legacy_shape_and_math() -> None:
@@ -147,3 +148,45 @@ def test_generic_snapshot_does_not_mutate_framework_template() -> None:
     )
 
     assert framework.model_dump(mode="json") == before
+
+
+def test_rebuild_latest_snapshots_keeps_legacy_and_canonical_meddpicc() -> None:
+    deal = {
+        "deal_stage": "discovery",
+        "interactions": [
+            {
+                "scoring_applied": True,
+                "meddpicc": {"champion": {"score": 5}},
+            }
+        ],
+        "meetings": [],
+    }
+
+    snapshots = rebuild_latest_snapshots(deal, {"meddpicc": {"weights": {}}})
+
+    assert snapshots["meddpicc_latest"]["champion"]["score"] == 5.0
+    assert snapshots["qualification_latest"]["framework_key"] == "meddpicc"
+    assert snapshots["qualification_latest"]["dimensions"]["champion"]["score"] == 5.0
+
+
+def test_rebuild_latest_snapshots_does_not_map_meddpicc_into_other_frameworks() -> None:
+    deal = {
+        "deal_stage": "discovery",
+        "interactions": [
+            {
+                "scoring_applied": True,
+                "meddpicc": {"champion": {"score": 5}},
+            }
+        ],
+        "meetings": [],
+    }
+
+    snapshots = rebuild_latest_snapshots(
+        deal,
+        {"qualification": {"active_framework": "simple_b2b"}},
+    )
+
+    assert snapshots["meddpicc_latest"]["champion"]["score"] == 5.0
+    assert snapshots["qualification_latest"]["framework_key"] == "simple_b2b"
+    assert snapshots["qualification_latest"]["filled_count"] == 0
+    assert snapshots["qualification_latest"]["coverage_pct"] == 0.0

@@ -308,6 +308,40 @@ Corner cases:
 - A won deal should not show open gaps.
 - A lost deal may keep gaps for postmortem.
 
+### QF-3b. Persist Canonical Qualification Snapshot
+
+Status:
+
+- Implemented write-path persistence for `qualification_latest`.
+- `create_deal` initializes `qualification_latest: {}`.
+- `add_interaction` rebuilds both:
+  - legacy `meddpicc_latest`;
+  - canonical `qualification_latest`.
+- `update_stage` rebuilds both snapshots when scoring evidence exists so
+  stage-aware gap classification stays aligned.
+- MongoDB deals schema recognizes optional `qualification_latest`.
+
+Contract:
+
+- `meddpicc_latest` remains the compatibility read-path contract for existing
+  BI, reports, Atlas charts, and deal review.
+- `qualification_latest` is the new framework-aware snapshot for future read
+  paths.
+- When no explicit `qualification.frameworks.meddpicc` is configured, the
+  default MEDDPICC framework mirrors legacy `meddpicc.weights` and
+  `meddpicc.gap_threshold` so the two snapshots do not drift.
+- When a non-MEDDPICC framework is active, `qualification_latest` reads only
+  `interaction.qualification` evidence. QF-4 will generate that evidence.
+- MEDDPICC evidence is not force-mapped into unrelated custom frameworks.
+
+Verification gate:
+
+- `create_deal` persists an empty canonical snapshot slot.
+- `add_interaction` stores and returns `qualification_latest`.
+- `update_stage` recomputes canonical gaps for terminal stage changes.
+- Mongo validator includes `qualification_latest`.
+- Existing MEDDPICC read paths keep using `meddpicc_latest`.
+
 ### QF-4. Interaction Extraction Generalization
 
 Purpose:

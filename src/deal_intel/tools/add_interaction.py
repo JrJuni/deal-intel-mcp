@@ -18,15 +18,14 @@ from deal_intel.schema.interactions import (
     parse_participants,
     resolve_source_confidence,
     scoring_applies,
-    scoring_interactions,
     source_policy_summary,
 )
-from deal_intel.schema.meddpicc import compute_meddpicc_latest
 from deal_intel.storage.mongodb import MongoDBClient
 from deal_intel.tools.analytics_snapshot import (
     record_analytics_snapshot,
     snapshot_event_id,
 )
+from deal_intel.tools.qualification_snapshot import rebuild_latest_snapshots
 from deal_intel.usage import build_llm_usage_metadata, summarize_usage
 
 _SYSTEM = "You are a B2B sales expert specializing in MEDDPICC deal qualification."
@@ -262,13 +261,17 @@ def handle(
     deal.setdefault("interactions", []).append(interaction_record)
     deal["customer_themes"] = rebuild_deal_customer_themes(deal)
 
-    meddpicc_cfg = cfg.get("meddpicc", {})
-    deal["meddpicc_latest"] = compute_meddpicc_latest(
-        scoring_interactions(deal),
-        weights=meddpicc_cfg.get("weights", {}),
-        gap_threshold=int(meddpicc_cfg.get("gap_threshold", 2)),
-        deal_stage=deal.get("deal_stage", "discovery"),
-    )
+    try:
+        snapshots = rebuild_latest_snapshots(deal, cfg)
+    except ValueError as exc:
+        raise MCPError(
+            error_code=ErrorCode.CONFIG_ERROR,
+            stage=Stage.PREFLIGHT,
+            message=str(exc),
+            retryable=False,
+        ) from exc
+    deal["meddpicc_latest"] = snapshots["meddpicc_latest"]
+    deal["qualification_latest"] = snapshots["qualification_latest"]
 
     if embedding_provider is not None:
         deal_text = build_deal_text(deal)
@@ -320,6 +323,7 @@ def handle(
         "meddpicc": scored_meddpicc,
         "unconfirmed_meddpicc": meddpicc_raw if not scoring_applied else {},
         "meddpicc_latest": deal["meddpicc_latest"],
+        "qualification_latest": deal["qualification_latest"],
         "customer_themes": scored_customer_themes,
         "unconfirmed_customer_themes": customer_themes if not scoring_applied else [],
         "scoring_applied": scoring_applied,

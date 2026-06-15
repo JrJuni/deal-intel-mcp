@@ -94,6 +94,10 @@
         "meddpicc_latest": {
           "bsonType": ["object", "null"]
         },
+        "qualification_latest": {
+          "bsonType": ["object", "null"],
+          "description": "Framework-aware qualification snapshot. meddpicc_latest remains the legacy compatibility snapshot."
+        },
         "summary_embedding": {
           "bsonType": ["array", "null"]
         },

@@ -153,6 +153,7 @@ class Deal(BaseModel):
     meetings: list[dict] = Field(default_factory=list)
     customer_themes: list[dict] = Field(default_factory=list)
     meddpicc_latest: dict = Field(default_factory=dict)  # compute_meddpicc_latest output
+    qualification_latest: dict = Field(default_factory=dict)
     stage_history: list[dict] = Field(default_factory=list)  # StageHistoryEntry dicts
     deal_stage: str = "discovery"
     expected_close_date: str | None = None  # ISO-8601 date

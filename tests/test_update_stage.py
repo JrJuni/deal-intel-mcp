@@ -93,6 +93,61 @@ def test_reopening_a_terminal_deal_clears_actual_close_date() -> None:
     assert mongo.saved["actual_close_date"] is None
 
 
+def test_update_stage_recomputes_qualification_latest_gap_context() -> None:
+    deal = _deal(stage="negotiation")
+    deal["interactions"] = [
+        {
+            "interaction_id": "int-1",
+            "date": "2026-06-10",
+            "scoring_applied": True,
+            "meddpicc": {"champion": {"score": 1}},
+        }
+    ]
+    mongo = FakeMongo(deal)
+
+    result = update_stage.handle(
+        mongo=mongo,
+        cfg={"meddpicc": {"weights": {}}},
+        deal_id="deal-1",
+        new_stage="won",
+        actual_close_date="2026-06-02",
+    )
+
+    assert result["ok"] is True
+    assert mongo.saved is not None
+    assert mongo.saved["meddpicc_latest"]["gaps"] == []
+    assert mongo.saved["qualification_latest"]["framework_key"] == "meddpicc"
+    assert mongo.saved["qualification_latest"]["gaps"] == []
+    assert mongo.saved["qualification_latest"]["dimensions"]["champion"]["score"] == 1.0
+
+
+def test_update_stage_returns_config_error_for_invalid_active_framework() -> None:
+    deal = _deal(stage="negotiation")
+    deal["interactions"] = [
+        {
+            "interaction_id": "int-1",
+            "date": "2026-06-10",
+            "scoring_applied": True,
+            "meddpicc": {"champion": {"score": 1}},
+        }
+    ]
+    mongo = FakeMongo(deal)
+
+    with pytest.raises(MCPError) as exc_info:
+        update_stage.handle(
+            mongo=mongo,
+            cfg={"qualification": {"active_framework": "missing_framework"}},
+            deal_id="deal-1",
+            new_stage="won",
+            actual_close_date="2026-06-02",
+        )
+
+    assert exc_info.value.error_code == ErrorCode.CONFIG_ERROR
+    assert exc_info.value.stage == Stage.PREFLIGHT
+    assert "missing_framework" in exc_info.value.message
+    assert mongo.saved is None
+
+
 @pytest.mark.parametrize("actual_close_date", ["06/02/2026", "2026-02-30", ""])
 def test_invalid_actual_close_date_fails_explicitly(actual_close_date: str) -> None:
     mongo = FakeMongo(_deal())

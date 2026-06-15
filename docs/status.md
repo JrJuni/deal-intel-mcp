@@ -12,6 +12,39 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-15
 
+### QF-3b persist canonical qualification snapshot
+
+Implemented:
+
+- Added `resolve_active_qualification_framework(cfg)` so write paths can resolve
+  the active framework from effective config without reading files directly.
+- Added `src/deal_intel/tools/qualification_snapshot.py` as the shared write-path
+  helper for rebuilding legacy `meddpicc_latest` and canonical
+  `qualification_latest` together.
+- `create_deal` now initializes `qualification_latest: {}`.
+- `add_interaction` now persists and returns `qualification_latest`.
+- `update_stage` now recomputes `qualification_latest` when stage changes
+  affect gap context.
+- MongoDB deals schema now documents optional `qualification_latest`.
+
+Design notes:
+
+- Existing BI/report/review read paths continue to use `meddpicc_latest`.
+- Default MEDDPICC canonical snapshots mirror legacy `meddpicc.weights` and
+  `meddpicc.gap_threshold` unless an explicit `qualification.frameworks.meddpicc`
+  is configured.
+- Non-MEDDPICC frameworks consume `interaction.qualification` evidence only.
+  MEDDPICC evidence is not force-mapped into unrelated custom frameworks.
+
+Validation:
+
+- `pytest tests/test_qualification_config.py tests/test_qualification_snapshot.py tests/test_add_interaction.py tests/test_update_stage.py tests/test_pipeline_timing.py tests/test_mongo_contracts.py --basetemp .tmp\pytest-qf4-targeted -q`:
+  102 passed, 1 warning.
+- `pytest -q --basetemp .tmp\pytest-qf3b-full`:
+  602 passed, 1 warning.
+- `ruff check .`:
+  passed.
+
 ### QF-3 generic qualification snapshot engine
 
 Implemented:

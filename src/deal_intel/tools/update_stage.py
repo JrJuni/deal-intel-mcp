@@ -4,7 +4,7 @@ from datetime import UTC, date, datetime
 
 from deal_intel.errors import ErrorCode, MCPError, Stage
 from deal_intel.schema.interactions import scoring_interactions
-from deal_intel.schema.meddpicc import VALID_STAGES, compute_meddpicc_latest
+from deal_intel.schema.meddpicc import VALID_STAGES
 from deal_intel.schema.metrics import (
     ACTIVE_STAGES,
     PipelineTimingSettings,
@@ -15,6 +15,7 @@ from deal_intel.tools.analytics_snapshot import (
     record_analytics_snapshot,
     snapshot_event_id,
 )
+from deal_intel.tools.qualification_snapshot import rebuild_latest_snapshots
 
 
 def handle(
@@ -88,17 +89,21 @@ def handle(
         "entered_at": now,
     })
 
-    # Recompute meddpicc_latest with the new stage so gap classification
-    # reflects the updated stage context (e.g., won → gaps cleared).
+    # Recompute snapshots with the new stage so gap classification reflects
+    # the updated stage context (e.g., won -> gaps cleared).
     evidence = scoring_interactions(deal)
     if evidence:
-        meddpicc_cfg = cfg.get("meddpicc", {})
-        deal["meddpicc_latest"] = compute_meddpicc_latest(
-            evidence,
-            weights=meddpicc_cfg.get("weights", {}),
-            gap_threshold=int(meddpicc_cfg.get("gap_threshold", 2)),
-            deal_stage=new_stage,
-        )
+        try:
+            snapshots = rebuild_latest_snapshots(deal, cfg)
+        except ValueError as exc:
+            raise MCPError(
+                error_code=ErrorCode.CONFIG_ERROR,
+                stage=Stage.PREFLIGHT,
+                message=str(exc),
+                retryable=False,
+            ) from exc
+        deal["meddpicc_latest"] = snapshots["meddpicc_latest"]
+        deal["qualification_latest"] = snapshots["qualification_latest"]
 
     try:
         mongo.upsert_deal(deal)

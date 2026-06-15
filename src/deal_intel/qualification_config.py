@@ -76,6 +76,69 @@ def validate_framework_input(
     return result
 
 
+def resolve_active_qualification_framework(cfg: dict[str, Any] | None) -> QualificationFramework:
+    """Resolve the active qualification framework from effective config.
+
+    The default remains the bundled MEDDPICC template. User config can add
+    custom frameworks under `qualification.frameworks` and select one through
+    `qualification.active_framework`.
+    """
+    config = cfg or {}
+    qualification = config.get("qualification", {})
+    if not isinstance(qualification, dict):
+        raise ValueError("qualification config must be a mapping")
+
+    active_key = str(qualification.get("active_framework") or "meddpicc").strip()
+    if not active_key:
+        active_key = "meddpicc"
+
+    configured_frameworks = qualification.get("frameworks", {})
+    if configured_frameworks is None:
+        configured_frameworks = {}
+    if not isinstance(configured_frameworks, dict):
+        raise ValueError("qualification.frameworks must be a mapping")
+
+    if active_key in configured_frameworks:
+        payload = configured_frameworks[active_key]
+        if not isinstance(payload, dict):
+            raise ValueError(f"qualification.frameworks.{active_key} must be a mapping")
+        return QualificationFramework.model_validate(payload)
+
+    try:
+        framework = get_qualification_template(active_key)
+    except ValueError as exc:
+        raise ValueError(
+            f"qualification.active_framework {active_key!r} is not defined"
+        ) from exc
+    if active_key == "meddpicc":
+        return _apply_legacy_meddpicc_overrides(framework, config)
+    return framework
+
+
+def _apply_legacy_meddpicc_overrides(
+    framework: QualificationFramework,
+    cfg: dict[str, Any],
+) -> QualificationFramework:
+    meddpicc_cfg = cfg.get("meddpicc", {})
+    if not isinstance(meddpicc_cfg, dict):
+        return framework
+
+    target = framework.model_copy(deep=True)
+    weights = meddpicc_cfg.get("weights", {})
+    if "weights" in meddpicc_cfg:
+        if not isinstance(weights, dict):
+            raise ValueError("meddpicc.weights must be a mapping")
+        for key, dimension in target.dimensions.items():
+            dimension.weight = weights.get(key, 1.0)
+
+    if "gap_threshold" in meddpicc_cfg:
+        threshold = meddpicc_cfg["gap_threshold"]
+        for dimension in target.dimensions.values():
+            dimension.gap_threshold = threshold
+
+    return QualificationFramework.model_validate(target.model_dump(mode="python"))
+
+
 def update_qualification_framework_config(
     *,
     config_path: Path | None = None,

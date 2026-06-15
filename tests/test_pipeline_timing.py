@@ -354,6 +354,7 @@ def test_create_deal_applies_default_close_date_and_records_source() -> None:
     assert mongo.saved["deal_size_low_amount"] is None
     assert mongo.saved["deal_size_high_amount"] is None
     assert mongo.saved["deal_size_note"] is None
+    assert mongo.saved["qualification_latest"] == {}
 
 
 def test_create_deal_accepts_classified_value_range_and_note() -> None:

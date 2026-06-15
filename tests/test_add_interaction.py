@@ -122,8 +122,12 @@ def test_add_interaction_stores_canonical_customer_evidence() -> None:
     }
     assert result["meddpicc"]["identify_pain"]["score"] == 4
     assert result["meddpicc_latest"]["filled_count"] == 1
+    assert result["qualification_latest"]["framework_key"] == "meddpicc"
+    assert result["qualification_latest"]["dimensions"]["identify_pain"]["score"] == 4.0
+    assert result["qualification_latest"]["coverage_pct"] == 14.3
 
     assert mongo.saved is not None
+    assert mongo.saved["qualification_latest"] == result["qualification_latest"]
     interaction = mongo.saved["interactions"][0]
     assert mongo.saved["meetings"] == []
     assert interaction["interaction_id"] == result["interaction_id"]
@@ -157,6 +161,8 @@ def test_outbound_only_interaction_is_stored_but_not_scored() -> None:
     assert result["meddpicc"] == {}
     assert result["unconfirmed_meddpicc"]["identify_pain"]["score"] == 5
     assert result["meddpicc_latest"]["filled_count"] == 0
+    assert result["qualification_latest"]["filled_count"] == 0
+    assert result["qualification_latest"]["coverage_pct"] == 0.0
 
     assert mongo.saved is not None
     interaction = mongo.saved["interactions"][0]
@@ -198,6 +204,30 @@ def test_add_interaction_preserves_legacy_meeting_evidence_in_latest_snapshot() 
     assert result["meddpicc_latest"]["filled_count"] == 2
     assert "metrics" in result["meddpicc_latest"]
     assert "identify_pain" in result["meddpicc_latest"]
+    assert result["qualification_latest"]["filled_count"] == 2
+    assert "metrics" in result["qualification_latest"]["dimensions"]
+    assert "identify_pain" in result["qualification_latest"]["dimensions"]
+
+
+def test_add_interaction_returns_config_error_for_invalid_active_framework() -> None:
+    mongo = FakeMongo(_deal())
+    llm = FakeLLM([_analysis(), "summary"])
+
+    with pytest.raises(MCPError) as exc_info:
+        add_interaction.handle(
+            mongo=mongo,
+            llm=llm,
+            cfg={"qualification": {"active_framework": "missing_framework"}},
+            deal_id="deal-1",
+            date="2026-06-11",
+            interaction_type="email_thread",
+            direction="inbound",
+            content="Customer reply: manual reporting takes too long.",
+        )
+
+    assert exc_info.value.error_code == ErrorCode.CONFIG_ERROR
+    assert "missing_framework" in exc_info.value.message
+    assert mongo.saved is None
 
 
 @pytest.mark.parametrize(

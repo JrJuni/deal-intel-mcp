@@ -102,6 +102,7 @@ def handle(
         "interactions": [],
         "meetings": [],
         "meddpicc_latest": {},
+        "qualification_latest": {},
         "stage_history": [{"stage": "discovery", "entered_at": now}],
         "deal_stage": "discovery",
         "expected_close_date": resolved_close_date,

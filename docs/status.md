@@ -12,6 +12,54 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-15
 
+### QF-5a deal review qualification read path
+
+Implemented:
+
+- Updated deterministic `build_deal_review()` so it prefers canonical
+  `qualification_latest` when present and falls back to legacy
+  `meddpicc_latest` for old data.
+- Added a top-level `qualification` summary to deal-review responses with the
+  active framework key, display name, source field, health, quality, coverage,
+  filled count, total count, and open gaps.
+- Kept legacy compatibility aliases such as `legacy_health_pct`,
+  `filled_meddpicc_count`, and `total_meddpicc_count` while adding generic
+  `qualification_*` interpretation fields.
+- Generalized scorecard, known signals, confirmed risks, and recommended
+  questions to use custom framework dimension labels and metadata.
+- For non-MEDDPICC frameworks, deal-review gap observations now use
+  `qualification.<dimension>` fields instead of fabricating `meddpicc.*`
+  fields.
+- Extended qualification snapshots with safe dimension metadata so review
+  output can preserve labels, suggested questions, CTA policy, and weighting.
+- Updated data-quality health assessment so a valid `qualification_latest`
+  counts as structured qualification evidence even when `meddpicc_latest` is
+  empty.
+
+Design notes:
+
+- This is intentionally scoped to `get_deal_review` / `build_deal_review`.
+  `get_deal_gaps`, `list_deals`, metrics, reports, and charts still need their
+  own QF migration passes.
+- Existing MEDDPICC review payloads remain compatible. The new generic fields
+  are additive.
+- Custom framework qualitative gaps remain observation-oriented unless an
+  objective timing/data-quality gap is present. This preserves the current
+  CTA-safety policy.
+
+Validation:
+
+- `pytest tests/test_deal_review.py tests/test_qualification_snapshot.py -q --basetemp .tmp\pytest-qf5a-targeted`:
+  23 passed, 1 warning.
+- `pytest tests/test_deal_review.py tests/test_cli_deal_review_smoke.py tests/test_zero_config_sample_fixture.py tests/test_deal_gaps.py tests/test_metric_contract.py tests/test_pipeline_metrics_summary.py tests/test_add_interaction.py tests/test_update_stage.py -q --basetemp .tmp\pytest-qf5a-wide`:
+  107 passed, 1 warning.
+- `pytest -q --basetemp .tmp\pytest-qf5a-full`:
+  628 passed, 1 warning.
+- `ruff check src/deal_intel/schema/deal_review.py src/deal_intel/schema/qualification.py src/deal_intel/schema/metrics.py tests/test_deal_review.py`:
+  passed.
+- `ruff check .`:
+  passed.
+
 ### QF-4b interaction extraction generalization
 
 Implemented:

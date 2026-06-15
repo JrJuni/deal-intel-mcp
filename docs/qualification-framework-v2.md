@@ -556,6 +556,53 @@ Corner cases:
 - A report asks for "MEDDPICC gaps" while the active framework is not
   MEDDPICC.
 
+#### QF-5a. Deal Review Read Path
+
+Status: implemented.
+
+Implemented:
+
+- `build_deal_review()` now chooses `qualification_latest` as the canonical
+  review snapshot when available, with `meddpicc_latest` as the legacy fallback.
+- Deal-review responses include a top-level `qualification` summary with:
+  `framework_key`, `framework_display_name`, `source_field`, `health_pct`,
+  `quality_pct`, `coverage_pct`, `filled_count`, `total_count`, and `gaps`.
+- Existing MEDDPICC compatibility fields remain present while generic
+  `qualification_*` interpretation fields are added.
+- Scorecards, known signals, confirmed risks, and recommended questions now use
+  framework-aware dimension labels and fields.
+- Non-MEDDPICC review gaps are rendered as `qualification.<dimension>` instead
+  of `meddpicc.<dimension>`.
+- `compute_qualification_latest()` now stores secret-safe dimension metadata so
+  read paths can preserve labels and suggested questions without reloading the
+  full framework config.
+- Data-quality health assessment accepts valid `qualification_latest` snapshots.
+
+Boundaries:
+
+- This subtask does not migrate `get_deal_gaps`, `list_deals`, metrics,
+  reports, or Atlas chart specs.
+- Custom framework qualitative gaps remain observations by default; objective
+  timing/data-quality gaps still drive CTA-safe action rows.
+
+Verification:
+
+- `pytest tests/test_deal_review.py tests/test_qualification_snapshot.py -q --basetemp .tmp\pytest-qf5a-targeted`:
+  23 passed, 1 warning.
+- `pytest tests/test_deal_review.py tests/test_cli_deal_review_smoke.py tests/test_zero_config_sample_fixture.py tests/test_deal_gaps.py tests/test_metric_contract.py tests/test_pipeline_metrics_summary.py tests/test_add_interaction.py tests/test_update_stage.py -q --basetemp .tmp\pytest-qf5a-wide`:
+  107 passed, 1 warning.
+- `pytest -q --basetemp .tmp\pytest-qf5a-full`:
+  628 passed, 1 warning.
+- `ruff check src/deal_intel/schema/deal_review.py src/deal_intel/schema/qualification.py src/deal_intel/schema/metrics.py tests/test_deal_review.py`:
+  passed.
+- `ruff check .`:
+  passed.
+
+Next:
+
+- QF-5b should migrate `get_deal_gaps` and `list_deals` so routine missing
+  information and list views stop assuming MEDDPICC-only fields.
+
 ### QF-6. Reports, Data Exports, And Atlas Specs
 
 Purpose:

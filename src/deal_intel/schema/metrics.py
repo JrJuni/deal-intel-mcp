@@ -1073,6 +1073,9 @@ def _meeting_quality_status(deal: dict) -> DataQualityStatus:
 def _health_quality_status(deal: dict) -> DataQualityStatus:
     if deal.get("deal_stage") not in QUALIFIED_OR_LATER_STAGES:
         return DataQualityStatus.NOT_APPLICABLE
+    qualification_snapshot = deal.get("qualification_latest")
+    if is_health_assessed(qualification_snapshot):
+        return DataQualityStatus.VALID
     snapshot = deal.get("meddpicc_latest")
     if snapshot is None or snapshot == {}:
         return DataQualityStatus.MISSING

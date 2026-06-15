@@ -10,6 +10,8 @@ import pytest
 from deal_intel import _context, mcp_server
 from deal_intel.errors import ErrorCode, MCPError, Stage
 from deal_intel.schema.deal_review import build_deal_review
+from deal_intel.schema.qualification import compute_qualification_latest
+from deal_intel.schema.qualification_framework import get_qualification_template
 from deal_intel.tools import get_deal_review
 
 AS_OF = date(2026, 6, 10)
@@ -107,6 +109,33 @@ def _deal(
     }
 
 
+def _custom_qualification_deal() -> dict:
+    framework = get_qualification_template("simple_b2b")
+    deal = _deal(
+        "custom-1",
+        stage="proposal",
+        health_pct=None,
+        scores={},
+        gaps=[],
+    )
+    deal["company"] = "Custom Framework Co"
+    deal["meddpicc_latest"] = {}
+    deal["qualification_latest"] = compute_qualification_latest(
+        [
+            {
+                "qualification": {
+                    "business_need": {"score": 5},
+                    "buyer_owner": {"score": 2},
+                }
+            }
+        ],
+        framework=framework,
+        evidence_fields=("qualification",),
+        deal_stage="proposal",
+    )
+    return deal
+
+
 def test_high_health_low_coverage_is_promising_but_unproven() -> None:
     review = build_deal_review(
         _deal(
@@ -128,6 +157,43 @@ def test_high_health_low_coverage_is_promising_but_unproven() -> None:
     payload = json.dumps(review, ensure_ascii=False)
     assert "probability_estimate" not in payload
     assert "65%" not in payload
+
+
+def test_deal_review_uses_active_qualification_snapshot_when_available() -> None:
+    deal = _custom_qualification_deal()
+
+    review = build_deal_review(deal, as_of=AS_OF)
+
+    assert review["qualification"]["framework_key"] == "simple_b2b"
+    assert review["qualification"]["framework_display_name"] == "Simple B2B Qualification"
+    assert review["qualification"]["source_field"] == "qualification_latest"
+    assert review["qualification"]["health_pct"] == deal["qualification_latest"]["health_pct"]
+    assert review["health_interpretation"]["legacy_health_pct"] is None
+    assert review["health_interpretation"]["qualification_framework"] == "simple_b2b"
+    assert review["health_interpretation"]["filled_qualification_count"] == 2
+    assert review["health_interpretation"]["total_qualification_count"] == 3
+    assert review["data_quality"]["field_statuses"]["health_assessment"] == "valid"
+
+    scorecard = {row["dimension"]: row for row in review["scorecard"]}
+    assert set(scorecard) == {"business_need", "buyer_owner", "next_step"}
+    assert scorecard["business_need"]["label"] == "Business Need"
+    assert scorecard["business_need"]["field"] == "qualification.business_need"
+    assert scorecard["next_step"]["status"] == "unknown"
+    assert scorecard["next_step"]["is_gap"] is True
+
+    gap = next(
+        item for item in review["gap_observations"]
+        if item["field"] == "qualification.next_step"
+    )
+    assert gap["gap_id"] == "qualification:next_step"
+    assert gap["actionability"] == "needs_human_judgment"
+    assert "Simple B2B Qualification" in gap["reason"]
+    assert "What is the next agreed action and by when?" in review["recommended_questions"]
+    assert any(
+        signal["field"] == "qualification.business_need"
+        for signal in review["known_signals"]
+    )
+    assert "invalid_data_quality" not in review["warnings"]
 
 
 def test_high_coverage_low_health_is_confirmed_alert() -> None:

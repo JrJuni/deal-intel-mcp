@@ -53,6 +53,17 @@ def compute_qualification_latest(
             "weight": enabled_dimensions[key].weight,
         }
 
+    dimension_metadata = {
+        key: {
+            "label": dimension.label,
+            "description": dimension.description,
+            "suggested_question": dimension.suggested_question,
+            "cta_policy": dimension.cta_policy,
+            "weight": dimension.weight,
+            "gap_threshold": dimension.gap_threshold,
+        }
+        for key, dimension in enabled_dimensions.items()
+    }
     total_weight = sum(dimension.weight for dimension in enabled_dimensions.values())
     filled_weight = sum(enabled_dimensions[key].weight for key in dimensions_out)
     weighted_score = sum(
@@ -79,6 +90,7 @@ def compute_qualification_latest(
         "framework_display_name": framework.display_name,
         "score_scale": framework.score_scale.model_dump(mode="json"),
         "dimensions": dimensions_out,
+        "dimension_metadata": dimension_metadata,
         "total_weighted_score": round(weighted_score, 2),
         "max_possible_score": round(max_possible, 2),
         "quality_pct": quality_pct,

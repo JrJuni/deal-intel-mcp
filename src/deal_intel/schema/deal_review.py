@@ -107,6 +107,41 @@ def _coerce_review_settings(
     raise ValueError("review_settings must be a DealReviewSettings, dict, or None")
 
 
+@dataclass(frozen=True)
+class QualificationReviewSnapshot:
+    framework_key: str
+    framework_display_name: str
+    source_field: str
+    snapshot: dict[str, Any]
+    dimensions: dict[str, dict[str, Any]]
+    dimension_metadata: dict[str, dict[str, Any]]
+    gaps: list[str]
+    filled_count: int
+    total_count: int
+    coverage_pct: float | None
+    quality_pct: float | None
+    field_prefix: str
+
+    @property
+    def is_meddpicc(self) -> bool:
+        return self.framework_key == "meddpicc"
+
+    @property
+    def dimension_keys(self) -> list[str]:
+        if self.is_meddpicc:
+            return list(MEDDPICC_DIMENSIONS)
+        keys: list[str] = []
+        for source in (
+            self.dimension_metadata.keys(),
+            self.dimensions.keys(),
+            self.gaps,
+        ):
+            for key in source:
+                if key not in keys:
+                    keys.append(str(key))
+        return keys
+
+
 def build_deal_review(
     deal: dict,
     *,
@@ -125,7 +160,8 @@ def build_deal_review(
 
     stage = deal.get("deal_stage")
     meddpicc_latest = deal.get("meddpicc_latest") or {}
-    health_band = classify_health(meddpicc_latest, health_thresholds)
+    review_snapshot = _review_snapshot(deal)
+    health_band = classify_health(review_snapshot.snapshot, health_thresholds)
     timing = assess_pipeline_timing(deal, as_of=as_of, settings=timing_settings)
     attention_reasons = build_attention_reasons(
         stage=stage,
@@ -134,10 +170,11 @@ def build_deal_review(
     )
     data_quality = assess_deal_data_quality(deal)
     value = assess_deal_value(deal)
-    coverage = _evidence_coverage(meddpicc_latest, settings=settings)
-    scorecard = _scorecard(meddpicc_latest)
+    coverage = _evidence_coverage(review_snapshot, settings=settings)
+    scorecard = _scorecard(review_snapshot)
     raw_gaps = _gap_rows(
         deal,
+        review_snapshot=review_snapshot,
         as_of=as_of,
         health_thresholds=health_thresholds,
         timing_settings=timing_settings,
@@ -151,7 +188,7 @@ def build_deal_review(
     ]
     missing_information = _missing_information(gaps)
     confirmed_risks = _confirmed_risks(
-        meddpicc_latest,
+        review_snapshot,
         health_band=health_band,
         coverage_pct=coverage["coverage_pct"],
         attention_reasons=attention_reasons,
@@ -211,12 +248,19 @@ def build_deal_review(
         "deal_size_currency": deal.get("deal_size_currency") or "KRW",
         "deal_size_status": deal.get("deal_size_status"),
         "expected_close_date": deal.get("expected_close_date"),
+        "qualification": _qualification_summary(review_snapshot),
         "assessment": assessment,
         "health_interpretation": {
             "legacy_health_pct": meddpicc_latest.get("health_pct"),
+            "qualification_framework": review_snapshot.framework_key,
+            "qualification_framework_display_name": review_snapshot.framework_display_name,
+            "qualification_health_pct": review_snapshot.snapshot.get("health_pct"),
+            "qualification_quality_pct": review_snapshot.quality_pct,
             "health_band": health_band.value,
             "evidence_coverage_pct": coverage["coverage_pct"],
             "evidence_coverage_level": coverage["coverage_level"],
+            "filled_qualification_count": coverage["filled_count"],
+            "total_qualification_count": coverage["total_count"],
             "filled_meddpicc_count": coverage["filled_count"],
             "total_meddpicc_count": coverage["total_count"],
             "uncertainty_level": uncertainty_level,
@@ -245,14 +289,104 @@ def build_deal_review(
     }
 
 
+def _review_snapshot(deal: dict) -> QualificationReviewSnapshot:
+    qualification_latest = deal.get("qualification_latest")
+    if _is_qualification_snapshot(qualification_latest):
+        return _snapshot_from_qualification(qualification_latest)
+    return _snapshot_from_legacy_meddpicc(deal.get("meddpicc_latest") or {})
+
+
+def _is_qualification_snapshot(value: Any) -> bool:
+    if not isinstance(value, dict) or not value:
+        return False
+    if not isinstance(value.get("framework_key"), str):
+        return False
+    if not isinstance(value.get("dimensions"), dict):
+        return False
+    return True
+
+
+def _snapshot_from_qualification(snapshot: dict) -> QualificationReviewSnapshot:
+    framework_key = str(snapshot.get("framework_key") or "qualification")
+    dimensions = _safe_dict_mapping(snapshot.get("dimensions"))
+    metadata = _safe_dict_mapping(snapshot.get("dimension_metadata"))
+    total_count = _safe_positive_int(snapshot.get("total_count")) or max(
+        len(metadata),
+        len(dimensions),
+        len(_safe_str_list(snapshot.get("gaps"))),
+    )
+    filled_count = _safe_non_negative_int(snapshot.get("filled_count")) or len(dimensions)
+    coverage_pct = _safe_number(snapshot.get("coverage_pct"))
+    if coverage_pct is None and total_count:
+        coverage_pct = round(filled_count / total_count * 100, 1)
+    return QualificationReviewSnapshot(
+        framework_key=framework_key,
+        framework_display_name=str(
+            snapshot.get("framework_display_name") or framework_key
+        ),
+        source_field="qualification_latest",
+        snapshot=snapshot,
+        dimensions=dimensions,
+        dimension_metadata=metadata,
+        gaps=_safe_str_list(snapshot.get("gaps")),
+        filled_count=max(0, min(filled_count, total_count)) if total_count else 0,
+        total_count=total_count,
+        coverage_pct=coverage_pct,
+        quality_pct=_safe_number(snapshot.get("quality_pct")),
+        field_prefix="meddpicc" if framework_key == "meddpicc" else "qualification",
+    )
+
+
+def _snapshot_from_legacy_meddpicc(snapshot: dict) -> QualificationReviewSnapshot:
+    dimensions = {
+        dim: item
+        for dim in MEDDPICC_DIMENSIONS
+        if isinstance((item := snapshot.get(dim)), dict)
+    }
+    filled_count = _filled_count(snapshot)
+    total_count = len(MEDDPICC_DIMENSIONS)
+    coverage_pct = round(filled_count / total_count * 100, 1) if total_count else None
+    return QualificationReviewSnapshot(
+        framework_key="meddpicc",
+        framework_display_name="MEDDPICC",
+        source_field="meddpicc_latest",
+        snapshot=snapshot,
+        dimensions=dimensions,
+        dimension_metadata={},
+        gaps=_safe_str_list(snapshot.get("gaps")),
+        filled_count=filled_count,
+        total_count=total_count,
+        coverage_pct=coverage_pct,
+        quality_pct=None,
+        field_prefix="meddpicc",
+    )
+
+
+def _qualification_summary(review_snapshot: QualificationReviewSnapshot) -> dict:
+    return {
+        "framework_key": review_snapshot.framework_key,
+        "framework_display_name": review_snapshot.framework_display_name,
+        "source_field": review_snapshot.source_field,
+        "health_pct": review_snapshot.snapshot.get("health_pct"),
+        "quality_pct": review_snapshot.quality_pct,
+        "coverage_pct": review_snapshot.coverage_pct,
+        "uncertainty_level": review_snapshot.snapshot.get("uncertainty_level"),
+        "filled_count": review_snapshot.filled_count,
+        "total_count": review_snapshot.total_count,
+        "gaps": review_snapshot.gaps,
+    }
+
+
 def _evidence_coverage(
-    meddpicc_latest: dict,
+    review_snapshot: QualificationReviewSnapshot,
     *,
     settings: DealReviewSettings,
 ) -> dict:
-    filled = _filled_count(meddpicc_latest)
-    total = len(MEDDPICC_DIMENSIONS)
-    coverage_pct = round(filled / total * 100, 1) if total else None
+    filled = review_snapshot.filled_count
+    total = review_snapshot.total_count
+    coverage_pct = review_snapshot.coverage_pct
+    if coverage_pct is None and total:
+        coverage_pct = round(filled / total * 100, 1)
     if coverage_pct is None:
         level = "unknown"
     elif coverage_pct < settings.coverage_low_max:
@@ -304,21 +438,24 @@ def _filled_count(meddpicc_latest: dict) -> int:
     return sum(1 for dim in MEDDPICC_DIMENSIONS if isinstance(meddpicc_latest.get(dim), dict))
 
 
-def _scorecard(meddpicc_latest: dict) -> list[dict]:
+def _scorecard(review_snapshot: QualificationReviewSnapshot) -> list[dict]:
     rows = []
-    gaps = _safe_str_set(meddpicc_latest.get("gaps"))
-    for dim in MEDDPICC_DIMENSIONS:
-        item = meddpicc_latest.get(dim)
+    gaps = set(review_snapshot.gaps)
+    for dim in review_snapshot.dimension_keys:
+        item = review_snapshot.dimensions.get(dim)
         score = _score(item)
         status = _signal_status(score)
         rows.append(
             {
                 "dimension": dim,
-                "label": MEDDPICC_FIELD_LABELS.get(dim, dim),
+                "label": _dimension_label(review_snapshot, dim),
+                "field": f"{review_snapshot.field_prefix}.{dim}",
+                "framework_key": review_snapshot.framework_key,
                 "status": status,
                 "score": score,
                 "trend": item.get("trend") if isinstance(item, dict) else None,
                 "is_gap": dim in gaps or status == "unknown",
+                "suggested_question": _dimension_question(review_snapshot, dim),
             }
         )
     return rows
@@ -346,6 +483,7 @@ def _signal_status(score: float | None) -> str:
 def _gap_rows(
     deal: dict,
     *,
+    review_snapshot: QualificationReviewSnapshot,
     as_of: date,
     health_thresholds: HealthBandThresholds,
     timing_settings: PipelineTimingSettings,
@@ -363,7 +501,53 @@ def _gap_rows(
     if not rows:
         return []
     gaps = rows[0].get("gaps") or []
-    return [gap for gap in gaps if isinstance(gap, dict)]
+    legacy_gaps = [gap for gap in gaps if isinstance(gap, dict)]
+    if review_snapshot.is_meddpicc:
+        return legacy_gaps
+    objective_gaps = [
+        gap
+        for gap in legacy_gaps
+        if not str(gap.get("gap_id") or "").startswith("meddpicc:")
+        and not str(gap.get("field") or "").startswith("meddpicc.")
+    ]
+    return _dedupe_gap_rows(
+        objective_gaps + _qualification_gap_rows(deal, review_snapshot)
+    )
+
+
+def _qualification_gap_rows(
+    deal: dict,
+    review_snapshot: QualificationReviewSnapshot,
+) -> list[dict]:
+    open_review_stages = {
+        "discovery",
+        "qualification",
+        "proposal",
+        "negotiation",
+        "stalled",
+    }
+    if deal.get("deal_stage") not in open_review_stages:
+        return []
+    rows = []
+    stage = deal.get("deal_stage")
+    for gap_name in review_snapshot.gaps:
+        label = _dimension_label(review_snapshot, gap_name)
+        rows.append(
+            {
+                "gap_id": f"qualification:{gap_name}",
+                "field": f"qualification.{gap_name}",
+                "status": "missing",
+                "impact_area": "sales_action",
+                "severity": "high" if stage in {"proposal", "negotiation"} else "medium",
+                "reason": (
+                    f"{review_snapshot.framework_display_name} qualification gap "
+                    f"remains open: {label}."
+                ),
+                "suggested_question": _dimension_question(review_snapshot, gap_name),
+                "recommended_action": "ask_in_next_interaction",
+            }
+        )
+    return rows
 
 
 def _with_gap_actionability(gap: dict) -> dict:
@@ -393,7 +577,7 @@ def _missing_information(gaps: list[dict]) -> list[dict]:
 
 
 def _confirmed_risks(
-    meddpicc_latest: dict,
+    review_snapshot: QualificationReviewSnapshot,
     *,
     health_band: HealthBand,
     coverage_pct: float | None,
@@ -409,8 +593,15 @@ def _confirmed_risks(
     if high_coverage and health_band == HealthBand.AT_RISK:
         risks.append(
             _risk(
-                "confirmed_meddpicc_risk",
-                "MEDDPICC information is mostly known and the resulting health band is at risk.",
+                (
+                    "confirmed_meddpicc_risk"
+                    if review_snapshot.is_meddpicc
+                    else "confirmed_qualification_risk"
+                ),
+                (
+                    f"{review_snapshot.framework_display_name} information is "
+                    "mostly known and the resulting health band is at risk."
+                ),
                 "alert",
             )
         )
@@ -418,21 +609,28 @@ def _confirmed_risks(
         risks.append(
             _risk(
                 "confirmed_watch_risk",
-                "MEDDPICC information is mostly known and the deal is still only watch-level.",
+                (
+                    f"{review_snapshot.framework_display_name} information is "
+                    "mostly known and the deal is still only watch-level."
+                ),
                 "watch",
             )
         )
 
-    for dim in MEDDPICC_DIMENSIONS:
-        score = _score(meddpicc_latest.get(dim))
+    for dim in review_snapshot.dimension_keys:
+        score = _score(review_snapshot.dimensions.get(dim))
         if score is None or score > NEGATIVE_SIGNAL_MAX or not medium_or_high:
             continue
         risks.append(
             _risk(
-                f"negative_meddpicc:{dim}",
-                f"{MEDDPICC_FIELD_LABELS.get(dim, dim)} has a confirmed low score ({score}/5).",
+                (
+                    f"negative_meddpicc:{dim}"
+                    if review_snapshot.is_meddpicc
+                    else f"negative_qualification:{dim}"
+                ),
+                f"{_dimension_label(review_snapshot, dim)} has a confirmed low score ({score}/5).",
                 "alert" if high_coverage else "watch",
-                field=f"meddpicc.{dim}",
+                field=f"{review_snapshot.field_prefix}.{dim}",
             )
         )
 
@@ -497,8 +695,8 @@ def _known_signals(
 ) -> list[dict]:
     signals = [
         {
-            "signal_id": f"meddpicc:{row['dimension']}",
-            "field": f"meddpicc.{row['dimension']}",
+            "signal_id": f"{row.get('framework_key', 'qualification')}:{row['dimension']}",
+            "field": row.get("field") or f"qualification.{row['dimension']}",
             "strength": "strong" if (row.get("score") or 0) >= STRONG_SIGNAL_MIN else "confirmed",
             "reason": (
                 f"{row['label']} has a confirmed score of {row['score']}/5."
@@ -530,7 +728,8 @@ def _recommended_questions(gaps: list[dict], scorecard: list[dict]) -> list[str]
             questions.append(
                 QUESTION_BY_MEDDPICC_GAP.get(
                     str(row["dimension"]),
-                    f"{row['label']}에 대해 무엇을 확인해야 하나요?",
+                    str(row.get("suggested_question") or "")
+                    or f"What should we verify for {row['label']}?",
                 )
             )
     return _dedupe_strings(questions)[:8]
@@ -735,6 +934,92 @@ def _safe_str_set(value: Any) -> set[str]:
     if not isinstance(value, Iterable) or isinstance(value, (str, bytes, dict)):
         return set()
     return {str(item) for item in value}
+
+
+def _safe_str_list(value: Any) -> list[str]:
+    if not isinstance(value, Iterable) or isinstance(value, (str, bytes, dict)):
+        return []
+    result: list[str] = []
+    for item in value:
+        text = str(item)
+        if text not in result:
+            result.append(text)
+    return result
+
+
+def _safe_dict_mapping(value: Any) -> dict[str, dict[str, Any]]:
+    if not isinstance(value, dict):
+        return {}
+    return {
+        str(key): item
+        for key, item in value.items()
+        if isinstance(item, dict)
+    }
+
+
+def _safe_number(value: Any) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return round(float(value), 2)
+
+
+def _safe_non_negative_int(value: Any) -> int | None:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        return None
+    return value
+
+
+def _safe_positive_int(value: Any) -> int | None:
+    parsed = _safe_non_negative_int(value)
+    if parsed is None or parsed <= 0:
+        return None
+    return parsed
+
+
+def _dimension_label(
+    review_snapshot: QualificationReviewSnapshot,
+    dimension: str,
+) -> str:
+    item = review_snapshot.dimensions.get(dimension) or {}
+    metadata = review_snapshot.dimension_metadata.get(dimension) or {}
+    if isinstance(item.get("label"), str) and item["label"].strip():
+        return str(item["label"])
+    if isinstance(metadata.get("label"), str) and metadata["label"].strip():
+        return str(metadata["label"])
+    if review_snapshot.is_meddpicc:
+        return MEDDPICC_FIELD_LABELS.get(dimension, dimension)
+    return dimension.replace("_", " ").title()
+
+
+def _dimension_question(
+    review_snapshot: QualificationReviewSnapshot,
+    dimension: str,
+) -> str:
+    metadata = review_snapshot.dimension_metadata.get(dimension) or {}
+    question = metadata.get("suggested_question")
+    if isinstance(question, str) and question.strip():
+        return question.strip()
+    if review_snapshot.is_meddpicc:
+        return QUESTION_BY_MEDDPICC_GAP.get(
+            dimension,
+            (
+                f"{_dimension_label(review_snapshot, dimension)}에 대해 "
+                "다음 미팅에서 무엇을 확인해야 하나요?"
+            ),
+        )
+    return f"What should we verify for {_dimension_label(review_snapshot, dimension)}?"
+
+
+def _dedupe_gap_rows(gaps: list[dict]) -> list[dict]:
+    seen = set()
+    result = []
+    for gap in gaps:
+        key = gap.get("gap_id")
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(gap)
+    return result
 
 
 def _dedupe_strings(items: list[str]) -> list[str]:

@@ -179,7 +179,7 @@ model.
 | Namespace | User intent | Current tools | Main modules | Side effects | v2 notes |
 |---|---|---|---|---|---|
 | Config / Diagnostics | Setup, profile, tool discovery, safe config changes | `config_doctor`, `get_tool_catalog`, `update_config` | `config_doctor.py`, `config_writer.py`, `tool_surfaces.py`, `mcp_server.py` | `update_config` writes non-secret local config only | Keep these stable and visible in every profile; they are the first-run recovery path. |
-| Intake | Turn new customer evidence into structured deal intelligence | `create_deal`, `add_interaction`, developer-only `add_meeting` alias | `tools/create_deal.py`, `tools/add_interaction.py`, `schema/interactions.py`, `schema/qualification_extraction.py`, `schema/meddpicc.py`, `schema/customer_themes.py` | DB writes; `add_interaction` calls server-side LLM and may update embeddings in Mongo mode | Active framework extraction now happens here. Read/review/report paths still need later framework migration work. |
+| Intake | Turn new customer evidence into structured deal intelligence | `create_deal`, `add_interaction`, developer-only `add_meeting` alias | `tools/create_deal.py`, `tools/add_interaction.py`, `schema/interactions.py`, `schema/qualification_extraction.py`, `schema/meddpicc.py`, `schema/customer_themes.py` | DB writes; `add_interaction` calls server-side LLM and may update embeddings in Mongo mode | Active framework extraction now happens here. Deal review now reads `qualification_latest`; gap, list, metric, and report paths still need later framework migration work. |
 | Lifecycle / CRUD | Correct, move, archive, restore, delete, or migrate deal records | `update_stage`, `update_deal`, `archive_deal`, `restore_deal`, `delete_deal`, `migrate_local_data` | `tools/update_stage.py`, `tools/update_deal.py`, `tools/deal_lifecycle.py`, `tools/migrate_local_data.py` | DB writes; destructive paths require confirmation/dry-run/audit constraints | Keep confirmation policy explicit. Framework abstraction should not weaken lifecycle safety gates. |
 | Read / Query | Answer routine deal, pipeline, gap, and usage questions | `get_deal`, `list_deals`, `get_metrics`, `get_deal_gaps`, `get_deal_review`, `get_usage`, legacy `get_insights` | `tools/get_*.py`, `schema/metrics.py`, `schema/pipeline_metrics.py`, `schema/deal_gaps.py`, `schema/deal_review.py`, `usage.py` | Read-only; no LLM calls | This is the default host-app answer surface. Keep deterministic and projection-safe. |
 | Export / Artifacts | Produce local report or spreadsheet files | `export_report`, `export_data` | `tools/export_report.py`, `tools/export_data.py`, `reports/*` | Local file writes; no DB writes; no LLM calls | `export_report` is human narrative/data-pack; `export_data` is CSV ledger. Do not collapse them back together. |
@@ -287,7 +287,12 @@ QF-v2 separates four concerns:
    `tools/qualification_snapshot.py` rebuilds legacy `meddpicc_latest` and
    canonical `qualification_latest` together. `schema/qualification.py`
    computes generic framework health, coverage, uncertainty, and gaps from
-   stored evidence.
+   stored evidence. The snapshot also stores safe dimension metadata for
+   read-path labels and suggested questions.
+5. Deal review:
+   `schema/deal_review.py` prefers `qualification_latest` when available and
+   falls back to `meddpicc_latest` for older data. It keeps legacy MEDDPICC
+   aliases while adding generic `qualification` and `qualification_*` fields.
 
 Current compatibility rule:
 

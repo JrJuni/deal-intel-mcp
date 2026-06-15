@@ -68,20 +68,35 @@ def build_usage_report(
             if not isinstance(interaction, dict):
                 continue
             metadata = _mapping(interaction.get("llm_usage"))
-            if not metadata:
-                continue
             entry_date = str(interaction.get("date") or "")[:10]
-            if not _date_in_range(entry_date, since=since, until=until):
-                continue
-            entries.append(
-                _entry_from_metadata(
-                    metadata,
-                    deal=deal,
-                    date=entry_date or None,
-                    source_kind="interaction",
-                    interaction_type=interaction.get("interaction_type"),
+            if metadata and _date_in_range(entry_date, since=since, until=until):
+                entries.append(
+                    _entry_from_metadata(
+                        metadata,
+                        deal=deal,
+                        date=entry_date or None,
+                        source_kind="interaction",
+                        interaction_type=interaction.get("interaction_type"),
+                    )
                 )
-            )
+
+            backfill_metadata = _mapping(interaction.get("qualification_backfill_usage"))
+            if backfill_metadata and _date_in_range(
+                str(backfill_metadata.get("generated_at") or "")[:10] or entry_date,
+                since=since,
+                until=until,
+            ):
+                entries.append(
+                    _entry_from_metadata(
+                        backfill_metadata,
+                        deal=deal,
+                        date=str(backfill_metadata.get("generated_at") or "")[:10]
+                        or entry_date
+                        or None,
+                        source_kind="qualification_backfill",
+                        interaction_type=interaction.get("interaction_type"),
+                    )
+                )
 
         strategy_usage = _mapping(deal.get("bd_strategy_usage"))
         if strategy_usage:

@@ -308,6 +308,15 @@ QF-v2 separates four concerns:
    documents. Apply mode uses the storage-level
    `update_deal_qualification_snapshots(...)` patch method so restricted BI
    projections cannot accidentally erase raw content, contacts, or embeddings.
+7. Historical re-extraction:
+   `tools/backfill_qualification_reextract.py` is the explicit maintenance
+   path for old interactions that need active-framework evidence regenerated
+   from `interactions.raw_content`. It uses
+   `list_deals_for_qualification_reextract(...)`, not BI/report readers, and
+   defaults to dry-run with a 30-call LLM cap. Apply mode patches interaction
+   qualification fields plus current snapshots through
+   `update_deal_qualification_reextraction(...)` and records usage under
+   `interaction.qualification_backfill_usage`.
 
 Current compatibility rule:
 

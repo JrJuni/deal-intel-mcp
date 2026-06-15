@@ -32,6 +32,12 @@ class SampleReadStorageBackend(Protocol):
 
     def list_deals_for_metrics(self) -> list[dict]: ...
 
+    def list_deals_for_qualification_reextract(
+        self,
+        *,
+        limit: int = 0,
+    ) -> list[dict]: ...
+
     def list_analytics_snapshots(
         self,
         *,
@@ -134,6 +140,16 @@ STORAGE_METHOD_CONTRACTS: tuple[StorageMethodContract, ...] = (
         notes="Backfill is a maintainer workflow, not a zero-config sample workflow.",
     ),
     StorageMethodContract(
+        name="list_deals_for_qualification_reextract",
+        mode="read",
+        local_sample_mvp=False,
+        consumers=("backfill-qualification-reextract",),
+        notes=(
+            "Maintenance LLM path that intentionally reads interactions.raw_content "
+            "for historical qualification extraction; keep out of BI/reporting paths."
+        ),
+    ),
+    StorageMethodContract(
         name="upsert_deal",
         mode="write",
         local_sample_mvp=False,
@@ -157,6 +173,16 @@ STORAGE_METHOD_CONTRACTS: tuple[StorageMethodContract, ...] = (
         notes=(
             "Patch-only recompute path for meddpicc_latest and "
             "qualification_latest; avoids replacing restricted deal projections."
+        ),
+    ),
+    StorageMethodContract(
+        name="update_deal_qualification_reextraction",
+        mode="write",
+        local_sample_mvp=False,
+        consumers=("backfill-qualification-reextract",),
+        notes=(
+            "Patch-only historical re-extraction path for interactions and "
+            "qualification snapshots; avoids replacing unrelated deal fields."
         ),
     ),
     StorageMethodContract(

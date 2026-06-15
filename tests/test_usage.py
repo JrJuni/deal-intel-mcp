@@ -127,6 +127,36 @@ def test_usage_report_summarizes_persisted_metadata_without_raw_content() -> Non
     assert "must not appear" not in str(report)
 
 
+def test_usage_report_includes_qualification_backfill_usage() -> None:
+    metadata = build_llm_usage_metadata(
+        {"llm": {"provider": "chatgpt_oauth"}},
+        source_tool="backfill_qualification_reextract",
+        calls=[{"operation": "reextract_qualification", "usage": {"input_tokens": 12}}],
+    )
+    report = build_usage_report(
+        cfg={},
+        deals=[
+            {
+                "deal_id": "deal-1",
+                "company": "Acme",
+                "interactions": [
+                    {
+                        "date": "2026-06-11",
+                        "interaction_type": "meeting",
+                        "raw_content": "must not appear",
+                        "qualification_backfill_usage": metadata,
+                    }
+                ],
+            }
+        ],
+    )
+
+    assert report["summary"]["usage_entries"] == 1
+    assert report["by_tool"][0]["source_tool"] == "backfill_qualification_reextract"
+    assert report["by_operation"][0]["operation"] == "reextract_qualification"
+    assert "must not appear" not in str(report)
+
+
 def test_get_usage_tool_filters_dates_and_returns_empty_warning() -> None:
     metadata = build_llm_usage_metadata(
         {"llm": {"provider": "chatgpt_oauth"}},

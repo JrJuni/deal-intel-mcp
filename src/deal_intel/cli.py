@@ -689,6 +689,83 @@ def backfill_qualification(
         raise typer.Exit(code=1)
 
 
+@app.command("backfill-qualification-reextract")
+def backfill_qualification_reextract(
+    limit: int = typer.Option(
+        0,
+        "--limit",
+        min=0,
+        max=5000,
+        help="Maximum deals to scan. 0 means scan all readable deals.",
+    ),
+    max_llm_calls: int = typer.Option(
+        30,
+        "--max-llm-calls",
+        min=1,
+        max=1000,
+        help="Maximum interaction-level LLM calls in one apply run.",
+    ),
+    include_unconfirmed: bool = typer.Option(
+        False,
+        "--include-unconfirmed",
+        help="Also re-extract internal/outbound-unconfirmed context into unconfirmed fields.",
+    ),
+    include_unhashed: bool = typer.Option(
+        False,
+        "--include-unhashed",
+        help="Also re-extract existing evidence that has no framework fingerprint.",
+    ),
+    apply: bool = typer.Option(
+        False,
+        "--apply",
+        help="Run LLM re-extraction and patch interactions. Without this flag, dry-run only.",
+    ),
+    confirmed_by_user: bool = typer.Option(
+        False,
+        "--confirmed-by-user",
+        help="Required with --apply to confirm LLM calls and storage writes.",
+    ),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Print structured JSON instead of concise text.",
+    ),
+) -> None:
+    """Re-extract qualification evidence from historical interaction raw_content."""
+
+    from deal_intel import _context
+    from deal_intel.errors import MCPError
+    from deal_intel.tools import backfill_qualification_reextract as _t
+
+    try:
+        payload = _t.handle(
+            mongo=_context.mongo(),
+            llm=_context.llm_provider() if apply else None,
+            cfg=_context.config(),
+            limit=limit,
+            max_llm_calls=max_llm_calls,
+            include_unconfirmed=include_unconfirmed,
+            include_unhashed=include_unhashed,
+            dry_run=not apply,
+            confirmed_by_user=confirmed_by_user,
+        )
+    except MCPError as exc:
+        payload = exc.to_envelope()
+        if json_output:
+            typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+        else:
+            typer.echo(_format_qualification_reextract_result(payload))
+        raise typer.Exit(code=1) from exc
+
+    if json_output:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+    else:
+        typer.echo(_format_qualification_reextract_result(payload))
+
+    if not payload["ok"]:
+        raise typer.Exit(code=1)
+
+
 @mongo_app.command("doctor")
 def mongo_doctor(
     json_output: bool = typer.Option(
@@ -1987,6 +2064,97 @@ def _format_qualification_backfill_result(payload: dict) -> str:
         for error in errors:
             lines.append(
                 f"- {error.get('company')} ({error.get('deal_id')}): "
+                f"{error.get('error')}"
+            )
+    return "\n".join(lines)
+
+
+def _format_qualification_reextract_result(payload: dict) -> str:
+    if not payload.get("ok") and payload.get("error_code"):
+        return (
+            "Qualification LLM re-extraction: not applied\n"
+            f"Error: {payload.get('error_code')} - {payload.get('message')}"
+        )
+
+    summary = payload["summary"]
+    framework = payload.get("framework") or {}
+    mode = "dry-run" if payload.get("dry_run") else "apply"
+    lines = [
+        f"Qualification LLM re-extraction: {mode}",
+        (
+            "Framework: "
+            f"{framework.get('display_name') or framework.get('key') or '-'} "
+            f"({framework.get('key') or '-'})"
+        ),
+        (
+            "Interactions: "
+            f"{summary['interactions_scanned']} scanned across "
+            f"{summary['deals_scanned']} deal(s), "
+            f"{summary['candidate_count']} candidate(s), "
+            f"{summary['selected_count']} selected"
+        ),
+        (
+            "LLM calls: "
+            f"estimated {summary['estimated_llm_calls']} / "
+            f"max {summary['max_llm_calls']}"
+        ),
+    ]
+    if summary.get("estimated_input_chars"):
+        lines.append(f"Estimated input chars: {summary['estimated_input_chars']}")
+    if summary.get("issue_counts"):
+        issue_text = ", ".join(
+            f"{key}={value}" for key, value in summary["issue_counts"].items()
+        )
+        lines.append(f"Issue/action counts: {issue_text}")
+
+    if payload.get("dry_run"):
+        lines.append(
+            "No LLM calls or storage writes were made. Re-run with "
+            "--apply --confirmed-by-user after reviewing selected_count."
+        )
+    else:
+        lines.append(
+            f"Applied: {summary['applied_count']} interaction(s), "
+            f"errors: {summary['error_count']}"
+        )
+
+    candidates = payload.get("selected_candidates") or payload.get("candidates") or []
+    if candidates:
+        lines.append("")
+        lines.append("Selected candidates:")
+        for row in candidates[:20]:
+            lines.append(
+                "- "
+                f"{row.get('company')} ({row.get('deal_id')}) "
+                f"interaction={row.get('interaction_id') or row.get('interaction_index')} "
+                f"reason={row.get('reason')} target={row.get('target_field')}"
+            )
+        if len(candidates) > 20:
+            lines.append(f"... +{len(candidates) - 20} more selected candidate(s)")
+
+    results = payload.get("results") or []
+    if results:
+        lines.append("")
+        lines.append("Results:")
+        for row in results[:20]:
+            lines.append(
+                "- "
+                f"{row.get('company')} ({row.get('deal_id')}) "
+                f"interaction={row.get('interaction_id') or row.get('interaction_index')} "
+                f"dimensions={row.get('dimension_count')} "
+                f"warnings={row.get('warning_count')}"
+            )
+        if len(results) > 20:
+            lines.append(f"... +{len(results) - 20} more result(s)")
+
+    errors = payload.get("errors") or []
+    if errors:
+        lines.append("")
+        lines.append("Errors:")
+        for error in errors:
+            lines.append(
+                f"- {error.get('company')} ({error.get('deal_id')}) "
+                f"interaction={error.get('interaction_id') or error.get('interaction_index')}: "
                 f"{error.get('error')}"
             )
     return "\n".join(lines)

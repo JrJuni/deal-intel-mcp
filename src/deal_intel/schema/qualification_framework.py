@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from typing import Any, Literal
 
@@ -219,6 +221,14 @@ def get_qualification_template(key: str) -> QualificationFramework:
         return templates[key]
     except KeyError as exc:
         raise ValueError("unknown qualification framework template: " + key) from exc
+
+
+def qualification_framework_fingerprint(framework: QualificationFramework) -> str:
+    """Return a stable fingerprint for extraction-affecting framework settings."""
+
+    payload = framework.model_dump(mode="json")
+    encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()[:16]
 
 
 def validate_qualification_framework(payload: dict[str, Any]) -> dict[str, Any]:

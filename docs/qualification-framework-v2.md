@@ -762,18 +762,57 @@ Boundaries:
 
 #### QF-7b. LLM Re-Extraction
 
+Status:
+
+- Implemented as core + CLI.
+- Added command: `deal-intel backfill-qualification-reextract`.
+- MCP exposure remains deferred to QF-7c.
+
 Purpose:
 
 - Re-extract active-framework evidence from historical `interaction.raw_content`
   when stored evidence is missing for the active framework.
 
+Decisions:
+
+- Default scope is scoring-eligible interactions only. Internal and
+  outbound-unconfirmed context is excluded unless explicitly requested.
+- Default one-run LLM cap is 30 calls.
+- This unit exposes core + CLI first. MCP exposure is deferred to QF-7c after
+  the raw-content and cost contract has been proven.
+
 Implementation:
 
 - Add an explicit raw-content re-extraction path for new or changed extraction
   hints.
+- Use a dedicated maintenance storage read path. Do not reuse BI/reporting
+  readers that intentionally exclude `interactions.raw_content`.
+- Store a framework fingerprint beside extracted evidence so future framework
+  changes can distinguish clean evidence from stale evidence.
 - Dry-run by default.
-- Report estimated affected deals/interactions.
-- Connect usage/cost warning for LLM re-extraction.
+- Report affected deals/interactions, selected call count, input-character
+  estimate, and cost warnings.
+- Apply mode requires explicit confirmation.
+- Patch only interaction qualification evidence and deal-level qualification
+  snapshots. Do not replace unrelated deal fields.
+- Track usage under `interaction.qualification_backfill_usage` so `get_usage`
+  can report re-extraction cost without overwriting original interaction usage.
+
+Implemented:
+
+- Added `tools/backfill_qualification_reextract.py`.
+- Added `list_deals_for_qualification_reextract(...)` storage read path that
+  intentionally includes `interactions.raw_content` while excluding contacts,
+  vectors, and legacy meeting raw notes.
+- Added `update_deal_qualification_reextraction(...)` patch write path for
+  interactions plus current qualification snapshots.
+- Added `qualification_framework_fingerprint(...)` and persist
+  `qualification_framework_hash` on new `add_interaction` writes.
+- Re-extraction stores:
+  - `interaction.meddpicc` for active MEDDPICC;
+  - `interaction.qualification` for active custom frameworks;
+  - unconfirmed fields only when explicitly requested.
+- `get_usage` now includes `qualification_backfill_usage`.
 
 Verification gate:
 

@@ -95,6 +95,25 @@ class LocalPersonalStore:
             return True
         return False
 
+    def update_deal_interactions_and_snapshots(
+        self,
+        deal_id: str,
+        *,
+        interactions: list[dict],
+        meddpicc_latest: dict,
+        qualification_latest: dict,
+        updated_at: str,
+    ) -> bool:
+        return self.update_deal_fields(
+            deal_id,
+            {
+                "interactions": deepcopy(interactions),
+                "meddpicc_latest": deepcopy(meddpicc_latest),
+                "qualification_latest": deepcopy(qualification_latest),
+                "updated_at": updated_at,
+            },
+        )
+
     def load_delete_audit_logs(self) -> list[dict]:
         if not self.delete_audit_logs_path.exists():
             return []

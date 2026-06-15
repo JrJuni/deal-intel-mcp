@@ -12,6 +12,43 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-16
 
+### QF-7b qualification LLM re-extraction backfill
+
+Implemented:
+
+- User decisions:
+  - default scope is scoring-eligible interactions only;
+  - one apply run defaults to at most 30 LLM calls;
+  - expose core + CLI first, defer MCP surface to QF-7c.
+- Added framework fingerprints so newly extracted evidence can be checked for
+  stale framework definitions later.
+- `add_interaction` now stores `qualification_framework_hash` beside newly
+  extracted evidence.
+- Added dedicated raw-content maintenance read/write storage methods:
+  `list_deals_for_qualification_reextract(...)` and
+  `update_deal_qualification_reextraction(...)`.
+- Added core module `tools/backfill_qualification_reextract.py`.
+- Added CLI command: `deal-intel backfill-qualification-reextract`.
+- The command defaults to dry-run. Actual LLM calls and writes require
+  `--apply --confirmed-by-user`.
+- Default `--max-llm-calls` is 30.
+- The dry-run response reports selected interaction count and estimated input
+  characters without exposing raw content.
+- Apply mode stores usage under `interaction.qualification_backfill_usage`, and
+  `get_usage` now includes that cost/usage metadata.
+- MCP exposure is intentionally deferred to QF-7c.
+
+Validation:
+
+- `pytest tests/test_backfill_qualification_reextract.py tests/test_usage.py -q --basetemp .tmp\pytest-qf7b-targeted-rerun`:
+  15 passed.
+- `pytest tests/test_backfill_qualification_reextract.py tests/test_backfill_qualification.py tests/test_add_interaction.py tests/test_usage.py tests/test_storage_backend_contract.py tests/test_local_sample_backend.py tests/test_qualification_snapshot.py -q --basetemp .tmp\pytest-qf7b-wide`:
+  70 passed, 1 warning.
+- `pytest -q --basetemp .tmp\pytest-qf7b-full-rerun`:
+  655 passed, 1 warning.
+- `ruff check .`:
+  passed.
+
 ### QF-7a qualification snapshot recompute backfill
 
 Implemented:

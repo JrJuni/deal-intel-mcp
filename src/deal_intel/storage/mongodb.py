@@ -201,6 +201,29 @@ class MongoDBClient:
         )
         return bool(result.matched_count)
 
+    def update_deal_qualification_reextraction(
+        self,
+        deal_id: str,
+        *,
+        interactions: list[dict],
+        meddpicc_latest: dict,
+        qualification_latest: dict,
+        updated_at: str,
+    ) -> bool:
+        db = self._get_db()
+        result = db.deals.update_one(
+            with_unarchived_deal_filter({"deal_id": deal_id}),
+            {
+                "$set": {
+                    "interactions": interactions,
+                    "meddpicc_latest": meddpicc_latest,
+                    "qualification_latest": qualification_latest,
+                    "updated_at": updated_at,
+                }
+            },
+        )
+        return bool(result.matched_count)
+
     def get_deal(self, deal_id: str) -> dict | None:
         db = self._get_db()
         return db.deals.find_one({"deal_id": deal_id}, {"_id": 0})
@@ -230,6 +253,19 @@ class MongoDBClient:
             "summary_embedding": 0,
         }
         cursor = db.deals.find(with_unarchived_deal_filter(), projection)
+        return list(cursor)
+
+    def list_deals_for_qualification_reextract(self, *, limit: int = 0) -> list[dict]:
+        db = self._get_db()
+        projection = {
+            "_id": 0,
+            "meetings.raw_notes": 0,
+            "contacts": 0,
+            "summary_embedding": 0,
+        }
+        cursor = db.deals.find(with_unarchived_deal_filter(), projection)
+        if limit > 0:
+            cursor = cursor.limit(limit)
         return list(cursor)
 
     def count_deals(self, query: dict) -> int:

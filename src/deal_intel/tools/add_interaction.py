@@ -26,6 +26,9 @@ from deal_intel.schema.qualification_extraction import (
     normalize_qualification_extraction,
     render_qualification_extraction_prompt_block,
 )
+from deal_intel.schema.qualification_framework import (
+    qualification_framework_fingerprint,
+)
 from deal_intel.storage.mongodb import MongoDBClient
 from deal_intel.tools.analytics_snapshot import (
     record_analytics_snapshot,
@@ -218,6 +221,7 @@ def handle(
             message=str(exc),
             retryable=False,
         ) from exc
+    active_framework_hash = qualification_framework_fingerprint(active_framework)
 
     try:
         resp = llm.chat_once(
@@ -300,6 +304,7 @@ def handle(
         "meddpicc": scored_meddpicc,
         "qualification": scored_qualification,
         "qualification_framework": active_framework.key,
+        "qualification_framework_hash": active_framework_hash,
         "customer_themes": scored_customer_themes,
         "scoring_applied": scoring_applied,
         "llm_usage": llm_usage,
@@ -380,6 +385,7 @@ def handle(
         "meddpicc": scored_meddpicc,
         "unconfirmed_meddpicc": meddpicc_raw if not scoring_applied else {},
         "active_qualification_framework": active_framework.key,
+        "active_qualification_framework_hash": active_framework_hash,
         "qualification": scored_qualification,
         "unconfirmed_qualification": qualification_raw if not scoring_applied else {},
         "qualification_extraction_warnings": qualification_warnings,

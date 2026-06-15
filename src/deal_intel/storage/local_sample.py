@@ -110,6 +110,12 @@ class LocalSampleClient:
     def list_deals_for_metrics(self) -> list[dict]:
         return _restricted_deals(self._active_deals())
 
+    def list_deals_for_qualification_reextract(self, *, limit: int = 0) -> list[dict]:
+        deals = _maintenance_deals(self._active_deals())
+        if limit > 0:
+            deals = deals[:limit]
+        return deals
+
     def list_analytics_snapshots(
         self,
         *,
@@ -157,6 +163,27 @@ class LocalSampleClient:
                 "qualification_latest": qualification_latest,
                 "updated_at": updated_at,
             },
+        )
+        self._local_deals = store.load_deals()
+        return updated
+
+    def update_deal_qualification_reextraction(
+        self,
+        deal_id: str,
+        *,
+        interactions: list[dict],
+        meddpicc_latest: dict,
+        qualification_latest: dict,
+        updated_at: str,
+    ) -> bool:
+        self._raise_if_fixture_deal(deal_id)
+        store = self._ensure_personal_store()
+        updated = store.update_deal_interactions_and_snapshots(
+            deal_id,
+            interactions=interactions,
+            meddpicc_latest=meddpicc_latest,
+            qualification_latest=qualification_latest,
+            updated_at=updated_at,
         )
         self._local_deals = store.load_deals()
         return updated
@@ -229,3 +256,18 @@ def _restricted_deals(deals: list[dict]) -> list[dict]:
                 if isinstance(interaction, dict):
                     interaction.pop("raw_content", None)
     return restricted
+
+
+def _maintenance_deals(deals: list[dict]) -> list[dict]:
+    maintained = deepcopy(deals)
+    for deal in maintained:
+        if not isinstance(deal, dict):
+            continue
+        deal.pop("contacts", None)
+        deal.pop("summary_embedding", None)
+        meetings = deal.get("meetings")
+        if isinstance(meetings, list):
+            for meeting in meetings:
+                if isinstance(meeting, dict):
+                    meeting.pop("raw_notes", None)
+    return maintained

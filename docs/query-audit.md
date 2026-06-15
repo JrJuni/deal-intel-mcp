@@ -36,6 +36,7 @@ O1 was an audit only. Follow-up hardening has started in O2/O3:
 | `get_deals_for_search()` | `search_deals` Python cosine | `archived != true`, `summary_embedding exists` | allowlist including `summary_embedding` for scoring | no dedicated embedding-exists index | Intentional vector read. Standard/pro only. O(n) Python cosine is acceptable until larger data or Atlas Vector Search. |
 | `search_by_embedding()` | `search_deals` Atlas mode | `$vectorSearch`, then `archived != true` | allowlist output | Atlas Vector Search index | Pro/M10+ path. Keep out of sample/full default unless intentionally configured. |
 | `list_deals_for_theme_backfill()` | maintainer backfill CLI | `archived != true` | `_id` excluded only | `archived_updated` | Intentional heavy LLM maintenance path because it needs raw notes. Not a BI path. |
+| `list_deals_for_qualification_reextract()` | `backfill-qualification-reextract` CLI | `archived != true`, optional limit | excludes `_id`, `meetings.raw_notes`, `contacts`, `summary_embedding`; intentionally includes `interactions.raw_content` | `archived_updated` | Intentional QF-v2 LLM maintenance path for historical active-framework extraction. Not a BI/reporting path. |
 
 ## MCP Read Path Map
 
@@ -55,6 +56,7 @@ O1 was an audit only. Follow-up hardening has started in O2/O3:
 | Themes legacy | `get_customer_themes` | `count_deals`, `aggregate_deals` | Aggregation path is curated; keep raw fields out of projection stages. |
 | Search | `search_deals` | `get_deals_for_search` or `search_by_embedding` | Intentional embedding read for scoring; output strips vectors. |
 | Maintenance | `backfill-customer-themes` | `list_deals_for_theme_backfill` | Intentional raw-note LLM path; keep out of BI/sample-first flow. |
+| Maintenance | `backfill-qualification-reextract` | `list_deals_for_qualification_reextract` | Intentional raw-content LLM path; dry-run first and response must not expose raw content. |
 
 ## Atlas Charts Findings
 

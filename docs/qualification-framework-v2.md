@@ -89,6 +89,26 @@ Corner cases to keep visible:
 
 ### QF-1. Framework Contract, Templates, And Static Validator
 
+Status:
+
+- Implemented in `src/deal_intel/schema/qualification_framework.py`.
+- Covered by `tests/test_qualification_framework.py`.
+- Runtime-neutral: no MCP tool, storage schema, extraction, metric, report, or
+  existing MEDDPICC behavior changed.
+
+Contract:
+
+- Input: a qualification framework payload with `key`, `display_name`, fixed
+  `score_scale`, and `dimensions`.
+- Output: a validated framework model or a secret-safe validation report with
+  `ok`, `framework`, `errors`, and `warnings`.
+- Side effects: none. No config writes, DB access, LLM calls, embedding work, or
+  MCP registration.
+- Security: secret-shaped strings are rejected and never echoed in validation
+  messages.
+- Out of scope: applying framework changes, recomputing existing deals, and
+  changing current MEDDPICC scoring behavior.
+
 Purpose:
 
 - Define what a valid qualification framework is.

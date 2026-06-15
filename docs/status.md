@@ -12,6 +12,34 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-15
 
+### QF-1 framework contract and validator
+
+Implemented:
+
+- Added `src/deal_intel/schema/qualification_framework.py` with the v2
+  qualification framework contract.
+- Added validated built-in templates: `meddpicc`, `simple_b2b`, `pilot_poc`,
+  `enterprise_procurement`, and `product_led_sales`.
+- Added static validation for framework keys, dimension keys, required labels
+  and extraction hints, positive weights, fixed v2 score scale `0-5`, minimum
+  enabled dimension count, CTA policy, secret-shaped strings, invalid stage
+  rules, and unscorable extraction hints.
+- Added `tests/test_qualification_framework.py` covering the validator failure
+  modes and confirming the MEDDPICC template matches the v1 default weights.
+
+Validation:
+
+- `pytest tests/test_qualification_framework.py -q`: 24 passed.
+- `ruff check src/deal_intel/schema/qualification_framework.py tests/test_qualification_framework.py`:
+  passed.
+
+Notes:
+
+- This is still runtime-neutral. No MCP tool, storage schema, extraction prompt,
+  metric, report, or existing `meddpicc_latest` behavior changed.
+- The next recommended unit is QF-2: template/validator MCP tools and safe
+  config update workflow.
+
 ### Qualification framework v2 execution plan
 
 Implemented:

@@ -12,6 +12,43 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-15
 
+### QF-2b qualification framework manager tools
+
+Implemented:
+
+- Added safe framework lifecycle helpers in `src/deal_intel/qualification_config.py`:
+  - list built-in and user-configured frameworks;
+  - switch `qualification.active_framework`;
+  - delete stored custom frameworks.
+- Added MCP tools:
+  - `list_qualification_frameworks`
+  - `set_active_qualification_framework`
+  - `delete_qualification_framework`
+- Added the tools to the standard/developer surfaces and MCPB manifest while
+  keeping the sample surface unchanged.
+- Updated current tool counts to `sample=23`, `standard=33`,
+  `developer=36`.
+
+Design notes:
+
+- Framework manager writes are dry-run-first and require
+  `confirmed_by_user=true`.
+- Built-in templates cannot be deleted.
+- Active frameworks cannot be deleted until another framework is selected.
+- These tools only update non-secret user config. They do not call LLMs, touch
+  MongoDB, update embeddings, or recompute historical deals.
+
+Validation:
+
+- `pytest tests/test_qualification_config.py tests/test_tool_surfaces.py tests/test_mcpb_manifest.py tests/test_config_doctor.py tests/test_sample_data.py --basetemp .tmp\pytest-qf2b-targeted -q`:
+  82 passed, 1 warning.
+- `pytest -q --basetemp .tmp\pytest-qf2b-full`:
+  611 passed, 1 warning.
+- `ruff check .`:
+  passed.
+- Tool surface smoke:
+  `sample=23`, `standard=33`, `developer=36`, registered contracts `36`.
+
 ### QF-3b persist canonical qualification snapshot
 
 Implemented:

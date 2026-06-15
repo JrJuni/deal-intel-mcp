@@ -276,6 +276,337 @@ def update_qualification_framework_config(
     return payload
 
 
+def list_qualification_frameworks_config(
+    *,
+    cfg: dict[str, Any] | None = None,
+    config_path: Path | None = None,
+    include_dimensions: bool = False,
+) -> dict[str, Any]:
+    """List built-in and user-configured qualification frameworks."""
+    path = config_path or _env.user_config_path()
+    config = cfg if cfg is not None else _read_user_config_or_empty(path)
+    if not isinstance(config, dict):
+        return _update_error(
+            path=path,
+            dry_run=True,
+            confirmed_by_user=False,
+            command="list_qualification_frameworks",
+            code="CONFIG_INVALID",
+            message="User config must be a YAML mapping.",
+        )
+
+    qualification = config.get("qualification", {}) or {}
+    if not isinstance(qualification, dict):
+        return _update_error(
+            path=path,
+            dry_run=True,
+            confirmed_by_user=False,
+            command="list_qualification_frameworks",
+            code="CONFIG_INVALID",
+            message="qualification config must be a YAML mapping.",
+        )
+
+    configured_frameworks = qualification.get("frameworks", {}) or {}
+    if not isinstance(configured_frameworks, dict):
+        return _update_error(
+            path=path,
+            dry_run=True,
+            confirmed_by_user=False,
+            command="list_qualification_frameworks",
+            code="CONFIG_INVALID",
+            message="qualification.frameworks must be a YAML mapping.",
+        )
+
+    built_ins = built_in_qualification_templates()
+    active_key = _active_framework_key(qualification)
+    keys = sorted(set(built_ins) | set(configured_frameworks))
+    frameworks = [
+        _framework_listing(
+            key,
+            built_ins=built_ins,
+            configured_frameworks=configured_frameworks,
+            active_key=active_key,
+            include_dimensions=include_dimensions,
+        )
+        for key in keys
+    ]
+    warnings = []
+    if active_key not in keys:
+        warnings.append(
+            {
+                "code": "active_framework_not_defined",
+                "message": (
+                    "qualification.active_framework is not defined in built-in "
+                    "templates or user config."
+                ),
+                "framework_key": active_key,
+            }
+        )
+    invalid_keys = [
+        framework["key"]
+        for framework in frameworks
+        if framework.get("valid") is False
+    ]
+    if invalid_keys:
+        warnings.append(
+            {
+                "code": "invalid_configured_frameworks",
+                "message": "Some configured frameworks failed validation.",
+                "framework_keys": invalid_keys,
+            }
+        )
+
+    return {
+        "ok": True,
+        "command": "list_qualification_frameworks",
+        "user_config_path": str(path),
+        "user_config_exists": path.exists(),
+        "active_framework": active_key,
+        "active_framework_defined": active_key in keys,
+        "framework_count": len(frameworks),
+        "available_frameworks": keys,
+        "frameworks": frameworks,
+        "warnings": warnings,
+        "usage_hint": (
+            "Use update_qualification_framework to create or revise a framework, "
+            "set_active_qualification_framework to switch the active framework, "
+            "and delete_qualification_framework to remove a stored custom "
+            "framework after dry-run review."
+        ),
+    }
+
+
+def set_active_qualification_framework_config(
+    *,
+    framework_key: str,
+    config_path: Path | None = None,
+    dry_run: bool = True,
+    confirmed_by_user: bool = False,
+    timestamp: str | None = None,
+) -> dict[str, Any]:
+    """Preview or apply the active qualification framework selection."""
+    path = config_path or _env.user_config_path()
+    requested_key = framework_key.strip()
+    if not requested_key:
+        return _update_error(
+            path=path,
+            dry_run=dry_run,
+            confirmed_by_user=confirmed_by_user,
+            command="set_active_qualification_framework",
+            code="INVALID_INPUT",
+            message="framework_key is required.",
+        )
+
+    loaded = _load_mutable_user_config(
+        path=path,
+        dry_run=dry_run,
+        confirmed_by_user=confirmed_by_user,
+        command="set_active_qualification_framework",
+    )
+    if not loaded["ok"]:
+        return loaded
+    existing = loaded["config"]
+    qualification = loaded["qualification"]
+    configured_frameworks = loaded["frameworks"]
+    built_ins = built_in_qualification_templates()
+    available = sorted(set(built_ins) | set(configured_frameworks))
+    if requested_key not in available:
+        return _update_error(
+            path=path,
+            dry_run=dry_run,
+            confirmed_by_user=confirmed_by_user,
+            command="set_active_qualification_framework",
+            code="UNKNOWN_FRAMEWORK",
+            message="Unknown qualification framework.",
+            extra={"available_frameworks": available},
+        )
+    if requested_key in configured_frameworks:
+        validation = validate_qualification_framework(configured_frameworks[requested_key])
+        if not validation["ok"]:
+            return _update_error(
+                path=path,
+                dry_run=dry_run,
+                confirmed_by_user=confirmed_by_user,
+                command="set_active_qualification_framework",
+                code="INVALID_FRAMEWORK",
+                message="Configured framework validation failed.",
+                extra={"validation": validation},
+            )
+
+    target = deepcopy(existing)
+    target_qualification = target.setdefault("qualification", {})
+    target_qualification["active_framework"] = requested_key
+    previous_key = _active_framework_key(qualification)
+    changed_fields = []
+    if previous_key != requested_key:
+        changed_fields.append(
+            {
+                "field": "qualification.active_framework",
+                "changed": True,
+                "before": previous_key,
+                "after": requested_key,
+            }
+        )
+    backup_path = (
+        _backup_path(path, timestamp=timestamp)
+        if path.exists() and changed_fields
+        else None
+    )
+    payload = _config_write_payload(
+        command="set_active_qualification_framework",
+        path=path,
+        exists=path.exists(),
+        dry_run=dry_run,
+        confirmed_by_user=confirmed_by_user,
+        backup_path=backup_path,
+        changed_fields=changed_fields,
+        extra={
+            "framework_key": requested_key,
+            "previous_framework": previous_key,
+            "restart_required": bool(changed_fields),
+        },
+    )
+
+    if not changed_fields:
+        payload["message"] = "Requested framework is already active."
+        return payload
+    if dry_run:
+        payload["message"] = "Dry run only; no config file was written."
+        return payload
+    if not confirmed_by_user:
+        payload.update(
+            {
+                "ok": False,
+                "error_code": "REQUIRES_CONFIRMATION",
+                "message": (
+                    "Writing user config requires confirmed_by_user=true. "
+                    "Run with dry_run=true first, then apply after user approval."
+                ),
+                "requires_confirmation": True,
+            }
+        )
+        return payload
+
+    _apply_config_write(path, target, payload, backup_path=backup_path)
+    payload["message"] = "Active qualification framework updated."
+    return payload
+
+
+def delete_qualification_framework_config(
+    *,
+    framework_key: str,
+    config_path: Path | None = None,
+    dry_run: bool = True,
+    confirmed_by_user: bool = False,
+    timestamp: str | None = None,
+) -> dict[str, Any]:
+    """Preview or delete a stored custom qualification framework."""
+    path = config_path or _env.user_config_path()
+    requested_key = framework_key.strip()
+    if not requested_key:
+        return _update_error(
+            path=path,
+            dry_run=dry_run,
+            confirmed_by_user=confirmed_by_user,
+            command="delete_qualification_framework",
+            code="INVALID_INPUT",
+            message="framework_key is required.",
+        )
+
+    loaded = _load_mutable_user_config(
+        path=path,
+        dry_run=dry_run,
+        confirmed_by_user=confirmed_by_user,
+        command="delete_qualification_framework",
+    )
+    if not loaded["ok"]:
+        return loaded
+    existing = loaded["config"]
+    qualification = loaded["qualification"]
+    configured_frameworks = loaded["frameworks"]
+    built_ins = built_in_qualification_templates()
+    if requested_key not in configured_frameworks:
+        code = (
+            "BUILT_IN_FRAMEWORK_NOT_DELETABLE"
+            if requested_key in built_ins
+            else "UNKNOWN_FRAMEWORK"
+        )
+        return _update_error(
+            path=path,
+            dry_run=dry_run,
+            confirmed_by_user=confirmed_by_user,
+            command="delete_qualification_framework",
+            code=code,
+            message=(
+                "Built-in frameworks cannot be deleted from user config."
+                if requested_key in built_ins
+                else "Unknown stored qualification framework."
+            ),
+            extra={"available_custom_frameworks": sorted(configured_frameworks)},
+        )
+    active_key = _active_framework_key(qualification)
+    if active_key == requested_key:
+        return _update_error(
+            path=path,
+            dry_run=dry_run,
+            confirmed_by_user=confirmed_by_user,
+            command="delete_qualification_framework",
+            code="ACTIVE_FRAMEWORK_NOT_DELETABLE",
+            message=(
+                "The active qualification framework cannot be deleted. Switch "
+                "to another framework first."
+            ),
+            extra={"active_framework": active_key},
+        )
+
+    deleted_payload = configured_frameworks[requested_key]
+    target = deepcopy(existing)
+    del target["qualification"]["frameworks"][requested_key]
+    changed_fields = [
+        {"field": f"qualification.frameworks.{requested_key}", "changed": True}
+    ]
+    backup_path = _backup_path(path, timestamp=timestamp) if path.exists() else None
+    payload = _config_write_payload(
+        command="delete_qualification_framework",
+        path=path,
+        exists=path.exists(),
+        dry_run=dry_run,
+        confirmed_by_user=confirmed_by_user,
+        backup_path=backup_path,
+        changed_fields=changed_fields,
+        extra={
+            "framework_key": requested_key,
+            "deleted_framework": _safe_framework_summary(
+                requested_key,
+                deleted_payload,
+                include_dimensions=False,
+            ),
+            "restart_required": True,
+        },
+    )
+
+    if dry_run:
+        payload["message"] = "Dry run only; no config file was written."
+        return payload
+    if not confirmed_by_user:
+        payload.update(
+            {
+                "ok": False,
+                "error_code": "REQUIRES_CONFIRMATION",
+                "message": (
+                    "Writing user config requires confirmed_by_user=true. "
+                    "Run with dry_run=true first, then apply after user approval."
+                ),
+                "requires_confirmation": True,
+            }
+        )
+        return payload
+
+    _apply_config_write(path, target, payload, backup_path=backup_path)
+    payload["message"] = "Stored qualification framework deleted."
+    return payload
+
+
 def _framework_from_input(
     *,
     template_key: str,
@@ -353,6 +684,80 @@ def _template_summary(
     return payload
 
 
+def _framework_listing(
+    key: str,
+    *,
+    built_ins: dict[str, QualificationFramework],
+    configured_frameworks: dict[str, Any],
+    active_key: str,
+    include_dimensions: bool,
+) -> dict[str, Any]:
+    if key in configured_frameworks:
+        summary = _safe_framework_summary(
+            key,
+            configured_frameworks[key],
+            include_dimensions=include_dimensions,
+        )
+        summary.update(
+            {
+                "source": "user_config",
+                "overrides_built_in": key in built_ins,
+                "active": key == active_key,
+            }
+        )
+        return summary
+
+    summary = _template_summary(built_ins[key], include_dimensions=include_dimensions)
+    summary.update(
+        {
+            "source": "built_in",
+            "overrides_built_in": False,
+            "active": key == active_key,
+            "valid": True,
+        }
+    )
+    return summary
+
+
+def _safe_framework_summary(
+    key: str,
+    payload: Any,
+    *,
+    include_dimensions: bool,
+) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        return {
+            "key": key,
+            "valid": False,
+            "error_code": "INVALID_FRAMEWORK",
+            "message": "Configured framework must be a mapping.",
+        }
+    validation = validate_qualification_framework(payload)
+    if not validation["ok"]:
+        return {
+            "key": str(payload.get("key") or key),
+            "display_name": str(payload.get("display_name") or key),
+            "valid": False,
+            "validation_errors": validation.get("errors", []),
+            "validation_warnings": validation.get("warnings", []),
+            "dimension_count": (
+                len(payload.get("dimensions"))
+                if isinstance(payload.get("dimensions"), dict)
+                else 0
+            ),
+            "dimension_keys": (
+                list(payload.get("dimensions"))
+                if isinstance(payload.get("dimensions"), dict)
+                else []
+            ),
+        }
+    framework = QualificationFramework.model_validate(validation["framework"])
+    summary = _template_summary(framework, include_dimensions=include_dimensions)
+    summary["valid"] = True
+    summary["validation_warnings"] = validation.get("warnings", [])
+    return summary
+
+
 def _qualification_changes(
     before: dict[str, Any],
     after: dict[str, Any],
@@ -378,11 +783,12 @@ def _update_error(
     confirmed_by_user: bool,
     code: str,
     message: str,
+    command: str = "update_qualification_framework",
     extra: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     payload = {
         "ok": False,
-        "command": "update_qualification_framework",
+        "command": command,
         "error_code": code,
         "message": message,
         "user_config_path": str(path),
@@ -395,6 +801,106 @@ def _update_error(
     if extra:
         payload.update(extra)
     return payload
+
+
+def _read_user_config_or_empty(path: Path) -> dict[str, Any]:
+    return _read_yaml_config(path) if path.exists() else {}
+
+
+def _load_mutable_user_config(
+    *,
+    path: Path,
+    dry_run: bool,
+    confirmed_by_user: bool,
+    command: str,
+) -> dict[str, Any]:
+    exists = path.exists()
+    if exists:
+        existing = _read_yaml_config(path)
+        if not isinstance(existing, dict):
+            return _update_error(
+                path=path,
+                dry_run=dry_run,
+                confirmed_by_user=confirmed_by_user,
+                command=command,
+                code="CONFIG_INVALID",
+                message="User config must be a YAML mapping.",
+            )
+    else:
+        existing = {}
+
+    qualification = existing.setdefault("qualification", {})
+    if not isinstance(qualification, dict):
+        return _update_error(
+            path=path,
+            dry_run=dry_run,
+            confirmed_by_user=confirmed_by_user,
+            command=command,
+            code="CONFIG_INVALID",
+            message="qualification config must be a YAML mapping.",
+        )
+    frameworks = qualification.setdefault("frameworks", {})
+    if not isinstance(frameworks, dict):
+        return _update_error(
+            path=path,
+            dry_run=dry_run,
+            confirmed_by_user=confirmed_by_user,
+            command=command,
+            code="CONFIG_INVALID",
+            message="qualification.frameworks must be a YAML mapping.",
+        )
+    return {
+        "ok": True,
+        "config": existing,
+        "qualification": qualification,
+        "frameworks": frameworks,
+    }
+
+
+def _active_framework_key(qualification: dict[str, Any]) -> str:
+    active_key = str(qualification.get("active_framework") or "meddpicc").strip()
+    return active_key or "meddpicc"
+
+
+def _config_write_payload(
+    *,
+    command: str,
+    path: Path,
+    exists: bool,
+    dry_run: bool,
+    confirmed_by_user: bool,
+    backup_path: Path | None,
+    changed_fields: list[dict[str, Any]],
+    extra: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "ok": True,
+        "command": command,
+        "user_config_path": str(path),
+        "user_config_exists_before": exists,
+        "dry_run": dry_run,
+        "confirmed_by_user": confirmed_by_user,
+        "requires_confirmation": False,
+        "storage_written": False,
+        "backup_path": str(backup_path) if backup_path else None,
+        "backup_written": False,
+        "changed_fields": changed_fields,
+        **extra,
+    }
+
+
+def _apply_config_write(
+    path: Path,
+    target: dict[str, Any],
+    payload: dict[str, Any],
+    *,
+    backup_path: Path | None,
+) -> None:
+    if backup_path is not None:
+        _backup_existing_config(path, backup_path)
+        payload["backup_written"] = True
+    _write_yaml_config(path, target)
+    payload["storage_written"] = True
 
 
 def _read_yaml_config(path: Path) -> Any:

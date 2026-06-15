@@ -30,7 +30,7 @@ def test_tool_surface_contract_covers_registered_mcp_tools(monkeypatch) -> None:
     contracted = {contract.name for contract in list_tool_surface_contracts()}
 
     assert registered == contracted
-    assert len(contracted) == 33
+    assert len(contracted) == 36
 
 
 def test_tool_surface_matrix_is_stable_and_serializable() -> None:
@@ -111,6 +111,9 @@ def test_sample_surface_is_zero_config_safe_local_personal() -> None:
         "get_qualification_templates",
         "validate_qualification_framework",
         "update_qualification_framework",
+        "list_qualification_frameworks",
+        "set_active_qualification_framework",
+        "delete_qualification_framework",
     ],
 )
 def test_sample_surface_hides_tools_that_break_first_run_expectations(
@@ -142,6 +145,9 @@ def test_sample_local_personal_target_promotes_safe_non_llm_writes() -> None:
         "get_qualification_templates",
         "validate_qualification_framework",
         "update_qualification_framework",
+        "list_qualification_frameworks",
+        "set_active_qualification_framework",
+        "delete_qualification_framework",
     }.isdisjoint(target_tools)
 
 
@@ -162,6 +168,9 @@ def test_standard_surface_keeps_real_operator_admin_tools() -> None:
         "get_qualification_templates",
         "validate_qualification_framework",
         "update_qualification_framework",
+        "list_qualification_frameworks",
+        "set_active_qualification_framework",
+        "delete_qualification_framework",
     }.issubset(standard_tools)
     assert "add_meeting" not in standard_tools
     assert "create_sample_data" not in standard_tools
@@ -274,6 +283,9 @@ def test_high_traffic_tool_descriptions_guide_tool_selection(monkeypatch) -> Non
         ],
         "validate_qualification_framework": ["candidate qualification framework", "no file writes"],
         "update_qualification_framework": ["dry_run=true", "confirmed_by_user=true"],
+        "list_qualification_frameworks": ["currently active", "read-only"],
+        "set_active_qualification_framework": ["dry_run=true", "confirmed_by_user=true"],
+        "delete_qualification_framework": ["built-in templates cannot be deleted", "dry_run=true"],
     }
 
     for tool_name, snippets in expected_snippets.items():

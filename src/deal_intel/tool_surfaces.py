@@ -121,6 +121,44 @@ MCP_TOOL_SURFACE_CONTRACTS: tuple[MCPToolSurfaceContract, ...] = (
         ),
     ),
     MCPToolSurfaceContract(
+        name="list_qualification_frameworks",
+        category="diagnostic",
+        surfaces=_STANDARD,
+        user_facing=True,
+        db_writes=False,
+        llm_calls=False,
+        notes=(
+            "Lists built-in and user-configured qualification frameworks and "
+            "the currently active framework. No config writes."
+        ),
+    ),
+    MCPToolSurfaceContract(
+        name="set_active_qualification_framework",
+        category="admin",
+        surfaces=_STANDARD,
+        user_facing=True,
+        db_writes=False,
+        llm_calls=False,
+        local_file_writes=True,
+        notes=(
+            "Dry-run-first user-config write for qualification.active_framework; "
+            "does not recompute existing deals."
+        ),
+    ),
+    MCPToolSurfaceContract(
+        name="delete_qualification_framework",
+        category="admin",
+        surfaces=_STANDARD,
+        user_facing=True,
+        db_writes=False,
+        llm_calls=False,
+        local_file_writes=True,
+        notes=(
+            "Dry-run-first deletion for stored custom frameworks only; built-ins "
+            "and active frameworks are protected."
+        ),
+    ),
+    MCPToolSurfaceContract(
         name="create_deal",
         category="core_write",
         surfaces=_SAMPLE,

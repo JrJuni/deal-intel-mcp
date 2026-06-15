@@ -280,6 +280,77 @@ def update_qualification_framework(
 
 
 @app.tool()
+def list_qualification_frameworks(include_dimensions: bool = False) -> dict:
+    """List built-in and saved qualification frameworks.
+
+    Use this when the user asks which deal scoring frameworks are available or
+    which one is currently active. Read-only: no DB access, no LLM calls, and no
+    file writes. For built-in starting templates, use get_qualification_templates.
+    For switching the active framework, use set_active_qualification_framework.
+    """
+    try:
+        from deal_intel import _context
+        from deal_intel.qualification_config import list_qualification_frameworks_config
+
+        return list_qualification_frameworks_config(
+            cfg=_context.config(),
+            include_dimensions=include_dimensions,
+        )
+    except Exception as exc:
+        return envelope_from_exception(exc, stage=Stage.PREFLIGHT)
+
+
+@app.tool()
+def set_active_qualification_framework(
+    framework_key: str,
+    dry_run: bool = True,
+    confirmed_by_user: bool = False,
+) -> dict:
+    """Preview or apply the active qualification framework selection.
+
+    Use this after the user chooses a saved or built-in framework. Defaults to
+    dry_run=true. Actual config writes require confirmed_by_user=true. This only
+    changes ~/.deal-intel/config.yaml and does not recompute existing deals,
+    call LLMs, write MongoDB, or change historical evidence.
+    """
+    try:
+        from deal_intel.qualification_config import set_active_qualification_framework_config
+
+        return set_active_qualification_framework_config(
+            framework_key=framework_key or "",
+            dry_run=dry_run,
+            confirmed_by_user=confirmed_by_user,
+        )
+    except Exception as exc:
+        return envelope_from_exception(exc, stage=Stage.PREFLIGHT)
+
+
+@app.tool()
+def delete_qualification_framework(
+    framework_key: str,
+    dry_run: bool = True,
+    confirmed_by_user: bool = False,
+) -> dict:
+    """Preview or delete a stored custom qualification framework.
+
+    Use this only for user-configured frameworks that are no longer needed.
+    Built-in templates cannot be deleted, and the active framework must be
+    switched first. Defaults to dry_run=true; actual config writes require
+    confirmed_by_user=true. No DB writes, LLM calls, or historical recompute.
+    """
+    try:
+        from deal_intel.qualification_config import delete_qualification_framework_config
+
+        return delete_qualification_framework_config(
+            framework_key=framework_key or "",
+            dry_run=dry_run,
+            confirmed_by_user=confirmed_by_user,
+        )
+    except Exception as exc:
+        return envelope_from_exception(exc, stage=Stage.PREFLIGHT)
+
+
+@app.tool()
 def create_deal(
     company: str,
     industry: str = "",

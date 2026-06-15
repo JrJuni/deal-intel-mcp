@@ -234,6 +234,56 @@ Corner cases:
 - Wizard suggests too many dimensions for a small team.
 - User wants to apply a framework change without confirmation.
 
+### QF-2b. Framework Manager Tools
+
+Status:
+
+- Implemented the non-LLM lifecycle manager for saved qualification frameworks.
+- Added MCP tools:
+  - `list_qualification_frameworks`
+  - `set_active_qualification_framework`
+  - `delete_qualification_framework`
+
+Contract:
+
+- `list_qualification_frameworks`
+  - Input: optional `include_dimensions`.
+  - Output: built-in templates, user-configured frameworks, validation state,
+    active framework, and warnings.
+  - Side effects: none. No file writes, DB access, LLM calls, embeddings, or
+    storage access.
+- `set_active_qualification_framework`
+  - Input: `framework_key`, `dry_run`, `confirmed_by_user`.
+  - Output: dry-run/apply result, changed fields, backup path when applicable,
+    previous framework, target framework, and `restart_required`.
+  - Side effects: dry-run by default. Actual writes require
+    `confirmed_by_user=true` and only update
+    `qualification.active_framework` in user config.
+- `delete_qualification_framework`
+  - Input: `framework_key`, `dry_run`, `confirmed_by_user`.
+  - Output: dry-run/apply result, deleted framework summary, changed fields,
+    backup path when applicable, and `restart_required`.
+  - Side effects: dry-run by default. Actual writes require
+    `confirmed_by_user=true` and delete only stored custom frameworks from user
+    config.
+
+Guardrails:
+
+- Built-in templates cannot be deleted.
+- The active framework cannot be deleted; switch active framework first.
+- Invalid configured frameworks can be listed with warnings but cannot be
+  activated.
+- These tools do not recompute existing deals. Historical recomputation remains
+  a separate backfill concern.
+
+Verification gate:
+
+- Targeted config tests for list, switch, delete, dry-run, confirmation gating,
+  backup creation, built-in delete protection, and active delete protection.
+- MCP wrapper test.
+- Tool surface and MCPB manifest alignment tests.
+- Ruff and full regression.
+
 ### QF-3. Generic Qualification Snapshot Engine
 
 Status:

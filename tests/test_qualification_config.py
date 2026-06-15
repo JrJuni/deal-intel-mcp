@@ -4,10 +4,13 @@ import json
 
 import yaml
 
-from deal_intel import _env, mcp_server
+from deal_intel import _context, _env, mcp_server
 from deal_intel.qualification_config import (
     build_qualification_templates_payload,
+    delete_qualification_framework_config,
+    list_qualification_frameworks_config,
     resolve_active_qualification_framework,
+    set_active_qualification_framework_config,
     update_qualification_framework_config,
     validate_framework_input,
 )
@@ -269,16 +272,190 @@ def test_update_qualification_framework_rejects_invalid_existing_config(tmp_path
     assert result["error_code"] == "CONFIG_INVALID"
 
 
+def test_list_qualification_frameworks_reports_built_ins_and_active_default() -> None:
+    result = list_qualification_frameworks_config(cfg={})
+
+    assert result["ok"] is True
+    assert result["active_framework"] == "meddpicc"
+    assert result["active_framework_defined"] is True
+    assert result["available_frameworks"] == [
+        "enterprise_procurement",
+        "meddpicc",
+        "pilot_poc",
+        "product_led_sales",
+        "simple_b2b",
+    ]
+    meddpicc = next(
+        framework for framework in result["frameworks"] if framework["key"] == "meddpicc"
+    )
+    assert meddpicc["source"] == "built_in"
+    assert meddpicc["active"] is True
+    assert "dimensions" not in meddpicc
+
+
+def test_list_qualification_frameworks_includes_saved_custom_framework() -> None:
+    custom = validate_framework_input(template_key="simple_b2b")["framework"]
+    custom["key"] = "custom_simple"
+    custom["display_name"] = "Custom Simple"
+
+    result = list_qualification_frameworks_config(
+        cfg={
+            "qualification": {
+                "active_framework": "custom_simple",
+                "frameworks": {"custom_simple": custom},
+            }
+        },
+        include_dimensions=True,
+    )
+
+    saved = next(
+        framework
+        for framework in result["frameworks"]
+        if framework["key"] == "custom_simple"
+    )
+    assert result["active_framework"] == "custom_simple"
+    assert saved["source"] == "user_config"
+    assert saved["active"] is True
+    assert saved["valid"] is True
+    assert "dimensions" in saved
+
+
+def test_set_active_qualification_framework_dry_run_and_apply(tmp_path) -> None:
+    user_config = tmp_path / "config.yaml"
+    user_config.write_text(
+        "qualification:\n"
+        "  active_framework: meddpicc\n",
+        encoding="utf-8",
+    )
+
+    dry_run = set_active_qualification_framework_config(
+        config_path=user_config,
+        framework_key="simple_b2b",
+    )
+    assert dry_run["ok"] is True
+    assert dry_run["dry_run"] is True
+    assert dry_run["storage_written"] is False
+    assert dry_run["changed_fields"][0]["before"] == "meddpicc"
+    assert _load(user_config)["qualification"]["active_framework"] == "meddpicc"
+
+    result = set_active_qualification_framework_config(
+        config_path=user_config,
+        framework_key="simple_b2b",
+        dry_run=False,
+        confirmed_by_user=True,
+        timestamp="20260615-020304",
+    )
+
+    data = _load(user_config)
+    backup = tmp_path / "config.yaml.bak.20260615-020304"
+    assert result["ok"] is True
+    assert result["storage_written"] is True
+    assert result["backup_written"] is True
+    assert backup.exists()
+    assert data["qualification"]["active_framework"] == "simple_b2b"
+
+
+def test_set_active_qualification_framework_rejects_unknown_key(tmp_path) -> None:
+    result = set_active_qualification_framework_config(
+        config_path=tmp_path / "config.yaml",
+        framework_key="missing",
+    )
+
+    assert result["ok"] is False
+    assert result["error_code"] == "UNKNOWN_FRAMEWORK"
+    assert "meddpicc" in result["available_frameworks"]
+
+
+def test_delete_qualification_framework_deletes_only_inactive_custom(tmp_path) -> None:
+    user_config = tmp_path / "config.yaml"
+    custom = validate_framework_input(template_key="simple_b2b")["framework"]
+    custom["key"] = "custom_simple"
+    custom["display_name"] = "Custom Simple"
+    user_config.write_text(
+        yaml.safe_dump(
+            {
+                "qualification": {
+                    "active_framework": "meddpicc",
+                    "frameworks": {"custom_simple": custom},
+                }
+            },
+            sort_keys=False,
+            allow_unicode=True,
+        ),
+        encoding="utf-8",
+    )
+
+    dry_run = delete_qualification_framework_config(
+        config_path=user_config,
+        framework_key="custom_simple",
+    )
+    assert dry_run["ok"] is True
+    assert dry_run["storage_written"] is False
+    assert "custom_simple" in _load(user_config)["qualification"]["frameworks"]
+
+    result = delete_qualification_framework_config(
+        config_path=user_config,
+        framework_key="custom_simple",
+        dry_run=False,
+        confirmed_by_user=True,
+        timestamp="20260615-030405",
+    )
+
+    data = _load(user_config)
+    assert result["ok"] is True
+    assert result["storage_written"] is True
+    assert result["backup_written"] is True
+    assert "custom_simple" not in data["qualification"]["frameworks"]
+
+
+def test_delete_qualification_framework_rejects_built_in_or_active_custom(tmp_path) -> None:
+    custom = validate_framework_input(template_key="simple_b2b")["framework"]
+    custom["key"] = "custom_simple"
+    user_config = tmp_path / "config.yaml"
+    user_config.write_text(
+        yaml.safe_dump(
+            {
+                "qualification": {
+                    "active_framework": "custom_simple",
+                    "frameworks": {"custom_simple": custom},
+                }
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+    built_in = delete_qualification_framework_config(
+        config_path=user_config,
+        framework_key="meddpicc",
+    )
+    active_custom = delete_qualification_framework_config(
+        config_path=user_config,
+        framework_key="custom_simple",
+    )
+
+    assert built_in["ok"] is False
+    assert built_in["error_code"] == "BUILT_IN_FRAMEWORK_NOT_DELETABLE"
+    assert active_custom["ok"] is False
+    assert active_custom["error_code"] == "ACTIVE_FRAMEWORK_NOT_DELETABLE"
+
+
 def test_mcp_qualification_framework_wrappers_use_shared_helpers(
     monkeypatch,
     tmp_path,
 ) -> None:
     user_config = tmp_path / "config.yaml"
     monkeypatch.setattr(_env, "_USER_CONFIG_PATH", user_config)
+    monkeypatch.setattr(_context, "config", lambda: {})
 
     templates = mcp_server.get_qualification_templates(template_key="meddpicc")
     validation = mcp_server.validate_qualification_framework(template_key="meddpicc")
     update = mcp_server.update_qualification_framework(template_key="meddpicc")
+    frameworks = mcp_server.list_qualification_frameworks()
+    set_active = mcp_server.set_active_qualification_framework(
+        framework_key="simple_b2b"
+    )
+    delete = mcp_server.delete_qualification_framework(framework_key="meddpicc")
 
     assert templates["ok"] is True
     assert templates["templates"][0]["key"] == "meddpicc"
@@ -286,4 +463,10 @@ def test_mcp_qualification_framework_wrappers_use_shared_helpers(
     assert validation["framework"]["key"] == "meddpicc"
     assert update["ok"] is True
     assert update["dry_run"] is True
+    assert frameworks["ok"] is True
+    assert frameworks["active_framework"] == "meddpicc"
+    assert set_active["ok"] is True
+    assert set_active["dry_run"] is True
+    assert delete["ok"] is False
+    assert delete["error_code"] == "BUILT_IN_FRAMEWORK_NOT_DELETABLE"
     assert user_config.exists() is False

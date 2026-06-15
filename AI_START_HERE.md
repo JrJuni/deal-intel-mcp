@@ -126,8 +126,8 @@ When installing the MCPB, recommend:
 Expected visible tool counts:
 
 - `sample`: 23 tools
-- `standard` / `full`: 27 tools
-- `developer`: 30 tools
+- `standard` / `full`: 30 tools
+- `developer`: 33 tools
 
 If the host app's tool search shows only a handful of tools, that is usually a
 host-side search limit rather than a server loading failure. Ask it to call

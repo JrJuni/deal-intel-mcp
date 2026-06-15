@@ -84,6 +84,43 @@ MCP_TOOL_SURFACE_CONTRACTS: tuple[MCPToolSurfaceContract, ...] = (
         ),
     ),
     MCPToolSurfaceContract(
+        name="get_qualification_templates",
+        category="diagnostic",
+        surfaces=_STANDARD,
+        user_facing=True,
+        db_writes=False,
+        llm_calls=False,
+        notes=(
+            "Lists built-in framework templates for MEDDPICC and custom deal "
+            "qualification models. No config writes."
+        ),
+    ),
+    MCPToolSurfaceContract(
+        name="validate_qualification_framework",
+        category="diagnostic",
+        surfaces=_STANDARD,
+        user_facing=True,
+        db_writes=False,
+        llm_calls=False,
+        notes=(
+            "Validates a template or JSON/YAML framework payload before config "
+            "writes. Rejects secret-shaped strings."
+        ),
+    ),
+    MCPToolSurfaceContract(
+        name="update_qualification_framework",
+        category="admin",
+        surfaces=_STANDARD,
+        user_facing=True,
+        db_writes=False,
+        llm_calls=False,
+        local_file_writes=True,
+        notes=(
+            "Dry-run-first user-config write for qualification.frameworks and "
+            "qualification.active_framework; does not recompute deals."
+        ),
+    ),
+    MCPToolSurfaceContract(
         name="create_deal",
         category="core_write",
         surfaces=_SAMPLE,

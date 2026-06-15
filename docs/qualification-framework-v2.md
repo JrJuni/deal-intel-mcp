@@ -165,6 +165,42 @@ Corner cases:
 
 ### QF-2. Framework Wizard And Config Update Tools
 
+Status:
+
+- Partially implemented as the non-LLM safe path.
+- Implemented MCP tools:
+  - `get_qualification_templates`
+  - `validate_qualification_framework`
+  - `update_qualification_framework`
+- Deferred to QF-2b:
+  - `suggest_qualification_framework`, because it needs separate LLM cost,
+    quality, and prompt-injection test coverage.
+
+Contract:
+
+- `get_qualification_templates`
+  - Input: optional `template_key`, optional `include_dimensions`.
+  - Output: bundled templates, summaries, and usage guidance.
+  - Side effects: none. No config writes, DB access, LLM calls, embeddings, or
+    storage access.
+- `validate_qualification_framework`
+  - Input: either `template_key` or a JSON/YAML `framework_json` payload.
+  - Output: static validation report with framework details, errors, and
+    warnings.
+  - Side effects: none. No file writes, DB access, LLM calls, embeddings, or
+    storage access.
+- `update_qualification_framework`
+  - Input: either `template_key` or `framework_json`, plus `dry_run`,
+    `confirmed_by_user`, and `set_active`.
+  - Output: dry-run/apply result, changed fields, validation report, backup
+    path when applicable, and `restart_required`.
+  - Side effects: dry-run by default. Actual writes require
+    `confirmed_by_user=true` and only update non-secret user config under
+    `~/.deal-intel/config.yaml`.
+  - Out of scope: recomputing historical deals, rewriting existing
+    interactions, changing extraction prompts, calling LLMs, touching MongoDB,
+    and updating embeddings.
+
 Purpose:
 
 - Make framework customization usable for non-developers.

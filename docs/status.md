@@ -12,6 +12,43 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-15
 
+### QF-2 qualification framework config tools
+
+Implemented:
+
+- Added `src/deal_intel/qualification_config.py` as the shared helper for
+  framework template listing, static validation, and dry-run-first config
+  writes.
+- Added three MCP tools:
+  - `get_qualification_templates`
+  - `validate_qualification_framework`
+  - `update_qualification_framework`
+- Added the tools to the standard/developer surfaces and MCPB manifest while
+  keeping the sample surface unchanged.
+- Added targeted tests for template listing, validation, dry-run/apply config
+  writes, confirmation gating, backup creation, secret rejection, invalid
+  existing config handling, MCP wrapper behavior, tool surfaces, and MCPB
+  manifest alignment.
+- Updated documented tool counts to `sample=23`, `standard=30`,
+  `developer=33`.
+
+Validation:
+
+- `pytest tests/test_qualification_framework.py tests/test_qualification_config.py tests/test_tool_surfaces.py tests/test_mcpb_manifest.py --basetemp .pytest-qf2 -q`:
+  70 passed.
+- `ruff check src/deal_intel/qualification_config.py src/deal_intel/schema/qualification_framework.py src/deal_intel/mcp_server.py src/deal_intel/tool_surfaces.py tests/test_qualification_config.py tests/test_qualification_framework.py tests/test_tool_surfaces.py tests/test_mcpb_manifest.py`:
+  passed.
+
+Notes:
+
+- This is the non-LLM safe path. `suggest_qualification_framework` is deferred
+  to QF-2b so LLM cost, prompt quality, and safety can be tested separately.
+- The new update tool writes only validated non-secret config and does not
+  recompute historical deal scores.
+- A plain pytest run hit the known Windows temp permission issue under
+  `%LOCALAPPDATA%\Temp\pytest-of-JuniBecky`; rerunning with a workspace
+  basetemp validated the tests themselves.
+
 ### QF-1 framework contract and validator
 
 Implemented:
@@ -91,7 +128,8 @@ Implemented:
 - This addresses host-app behavior where a tool search may show only the top
   few matching tools even though the MCP server loaded the full surface.
 - Bumped package and MCPB manifest version to `0.1.14`.
-- Updated visible tool counts to `sample=23`, `standard=27`, `developer=30`.
+- Tool-surface counts were updated for that release; current counts are
+  tracked in [baseline.md](baseline.md).
 
 Notes:
 

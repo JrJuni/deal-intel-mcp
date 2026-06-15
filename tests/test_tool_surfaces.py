@@ -30,7 +30,7 @@ def test_tool_surface_contract_covers_registered_mcp_tools(monkeypatch) -> None:
     contracted = {contract.name for contract in list_tool_surface_contracts()}
 
     assert registered == contracted
-    assert len(contracted) == 30
+    assert len(contracted) == 33
 
 
 def test_tool_surface_matrix_is_stable_and_serializable() -> None:
@@ -108,6 +108,9 @@ def test_sample_surface_is_zero_config_safe_local_personal() -> None:
         "add_meeting",
         "get_insights",
         "get_customer_themes",
+        "get_qualification_templates",
+        "validate_qualification_framework",
+        "update_qualification_framework",
     ],
 )
 def test_sample_surface_hides_tools_that_break_first_run_expectations(
@@ -136,6 +139,9 @@ def test_sample_local_personal_target_promotes_safe_non_llm_writes() -> None:
         "add_meeting",
         "create_sample_data",
         "delete_sample_data",
+        "get_qualification_templates",
+        "validate_qualification_framework",
+        "update_qualification_framework",
     }.isdisjoint(target_tools)
 
 
@@ -153,6 +159,9 @@ def test_standard_surface_keeps_real_operator_admin_tools() -> None:
         "migrate_local_data",
         "analyze_deal",
         "search_deals",
+        "get_qualification_templates",
+        "validate_qualification_framework",
+        "update_qualification_framework",
     }.issubset(standard_tools)
     assert "add_meeting" not in standard_tools
     assert "create_sample_data" not in standard_tools
@@ -259,6 +268,12 @@ def test_high_traffic_tool_descriptions_guide_tool_selection(monkeypatch) -> Non
         "add_interaction": ["new evidence", "get_deal_review"],
         "update_stage": ["user confirms", "add_interaction"],
         "update_deal": ["confirmed corrections", "update_stage"],
+        "get_qualification_templates": [
+            "qualification framework",
+            "validate_qualification_framework",
+        ],
+        "validate_qualification_framework": ["candidate qualification framework", "no file writes"],
+        "update_qualification_framework": ["dry_run=true", "confirmed_by_user=true"],
     }
 
     for tool_name, snippets in expected_snippets.items():

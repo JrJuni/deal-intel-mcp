@@ -193,6 +193,93 @@ def update_config(
 
 
 @app.tool()
+def get_qualification_templates(
+    template_key: str = "",
+    include_dimensions: bool = True,
+) -> dict:
+    """List built-in deal qualification framework templates.
+
+    Use this when the user wants to customize deal scoring beyond the default
+    MEDDPICC model but needs a safe starting point. Read-only: no DB access, no
+    LLM calls, and no config writes. For validating an edited template, use
+    validate_qualification_framework. For applying one, use
+    update_qualification_framework.
+
+    template_key can be empty for all templates or one of the returned template
+    keys such as meddpicc, simple_b2b, pilot_poc, enterprise_procurement, or
+    product_led_sales.
+    """
+    try:
+        from deal_intel.qualification_config import build_qualification_templates_payload
+
+        return build_qualification_templates_payload(
+            template_key=template_key or "",
+            include_dimensions=include_dimensions,
+        )
+    except Exception as exc:
+        return envelope_from_exception(exc, stage=Stage.PREFLIGHT)
+
+
+@app.tool()
+def validate_qualification_framework(
+    template_key: str = "",
+    framework_json: str = "",
+) -> dict:
+    """Validate a candidate qualification framework without writing config.
+
+    Use this before applying framework edits. Provide either template_key or a
+    JSON/YAML string in framework_json, not both. The validator checks required
+    labels, descriptions, extraction hints, weights, CTA policy, stage rules,
+    minimum enabled dimensions, and secret-shaped strings.
+
+    Read-only: no DB access, no LLM calls, and no file writes.
+    """
+    try:
+        from deal_intel.qualification_config import validate_framework_input
+
+        return validate_framework_input(
+            template_key=template_key or "",
+            framework_json=framework_json or "",
+        )
+    except Exception as exc:
+        return envelope_from_exception(exc, stage=Stage.PREFLIGHT)
+
+
+@app.tool()
+def update_qualification_framework(
+    template_key: str = "",
+    framework_json: str = "",
+    dry_run: bool = True,
+    confirmed_by_user: bool = False,
+    set_active: bool = True,
+) -> dict:
+    """Preview or apply a qualification framework to user config.
+
+    Use this after the user approves a framework template or edited framework.
+    Defaults to dry_run=true. Actual config writes require confirmed_by_user=true.
+    This writes only non-secret framework config under
+    ~/.deal-intel/config.yaml: qualification.frameworks.<key> and, when
+    set_active=true, qualification.active_framework.
+
+    It does not recompute existing deals, call LLMs, write MongoDB, or change
+    current MEDDPICC runtime scoring yet. A restart is required for future
+    framework-aware runtime paths to load newly written config.
+    """
+    try:
+        from deal_intel.qualification_config import update_qualification_framework_config
+
+        return update_qualification_framework_config(
+            template_key=template_key or "",
+            framework_json=framework_json or "",
+            dry_run=dry_run,
+            confirmed_by_user=confirmed_by_user,
+            set_active=set_active,
+        )
+    except Exception as exc:
+        return envelope_from_exception(exc, stage=Stage.PREFLIGHT)
+
+
+@app.tool()
 def create_deal(
     company: str,
     industry: str = "",

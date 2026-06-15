@@ -301,6 +301,13 @@ QF-v2 separates four concerns:
    and CSV ledger rows. These paths keep legacy health aliases while adding or
    preserving generic `qualification` metadata where the row surface supports
    it.
+6. Historical recompute:
+   `tools/backfill_qualification.py` recomputes stored `meddpicc_latest` and
+   `qualification_latest` snapshots from already stored scoring evidence. It
+   does not call LLMs, read raw interaction content, or replace whole deal
+   documents. Apply mode uses the storage-level
+   `update_deal_qualification_snapshots(...)` patch method so restricted BI
+   projections cannot accidentally erase raw content, contacts, or embeddings.
 
 Current compatibility rule:
 

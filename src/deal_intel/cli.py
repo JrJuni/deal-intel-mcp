@@ -633,6 +633,62 @@ def backfill_industry_tags(
         raise typer.Exit(code=1)
 
 
+@app.command("backfill-qualification")
+def backfill_qualification(
+    limit: int = typer.Option(
+        0,
+        "--limit",
+        min=0,
+        max=5000,
+        help="Maximum deals to scan. 0 means scan all readable deals.",
+    ),
+    apply: bool = typer.Option(
+        False,
+        "--apply",
+        help="Patch recomputed qualification snapshots. Without this flag, dry-run only.",
+    ),
+    confirmed_by_user: bool = typer.Option(
+        False,
+        "--confirmed-by-user",
+        help="Required with --apply to confirm snapshot patch writes.",
+    ),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Print structured JSON instead of concise text.",
+    ),
+) -> None:
+    """Recompute stored qualification snapshots without LLM re-extraction."""
+
+    from deal_intel import _context
+    from deal_intel.errors import MCPError
+    from deal_intel.tools import backfill_qualification as _t
+
+    try:
+        payload = _t.handle(
+            mongo=_context.mongo(),
+            cfg=_context.config(),
+            limit=limit,
+            dry_run=not apply,
+            confirmed_by_user=confirmed_by_user,
+        )
+    except MCPError as exc:
+        payload = exc.to_envelope()
+        if json_output:
+            typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+        else:
+            typer.echo(_format_qualification_backfill_result(payload))
+        raise typer.Exit(code=1) from exc
+
+    if json_output:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+    else:
+        typer.echo(_format_qualification_backfill_result(payload))
+
+    if not payload["ok"]:
+        raise typer.Exit(code=1)
+
+
 @mongo_app.command("doctor")
 def mongo_doctor(
     json_output: bool = typer.Option(
@@ -1829,6 +1885,109 @@ def _format_industry_tag_backfill_result(payload: dict) -> str:
             lines.append(
                 "- "
                 f"{row.get('company')} ({row.get('deal_id')}): {row.get('error')}"
+            )
+    return "\n".join(lines)
+
+
+def _format_qualification_backfill_result(payload: dict) -> str:
+    if not payload.get("ok") and payload.get("error_code"):
+        return (
+            "Qualification snapshot backfill: not applied\n"
+            f"Error: {payload.get('error_code')} - {payload.get('message')}"
+        )
+
+    summary = payload["summary"]
+    framework = payload.get("framework") or {}
+    mode = "dry-run" if payload.get("dry_run") else "apply"
+    lines = [
+        f"Qualification snapshot backfill: {mode}",
+        (
+            "Framework: "
+            f"{framework.get('display_name') or framework.get('key') or '-'} "
+            f"({framework.get('key') or '-'})"
+        ),
+        (
+            "Deals: "
+            f"{summary['deals_scanned']} scanned, "
+            f"{summary['candidate_count']} candidate(s), "
+            f"{summary.get('needs_reextraction_count', 0)} need re-extraction, "
+            f"{summary['clean_count']} clean, "
+            f"{summary['skipped_count']} skipped"
+        ),
+        "LLM calls: none",
+    ]
+    if summary.get("issue_counts"):
+        issue_text = ", ".join(
+            f"{key}={value}" for key, value in summary["issue_counts"].items()
+        )
+        lines.append(f"Issue/action counts: {issue_text}")
+
+    if payload.get("dry_run"):
+        lines.append(
+            "No storage writes were made. Re-run with --apply --confirmed-by-user "
+            "after reviewing the candidates."
+        )
+    else:
+        lines.append(
+            f"Applied: {summary['applied_count']} row(s), "
+            f"errors: {summary['error_count']}"
+        )
+
+    candidates = payload.get("candidates") or []
+    if candidates:
+        lines.append("")
+        lines.append("Candidates:")
+        for row in candidates[:20]:
+            lines.append(
+                "- "
+                f"{row.get('company')} ({row.get('deal_id')}) "
+                f"changed={row.get('changed_fields')}"
+            )
+            current = row.get("current_qualification") or {}
+            recomputed = row.get("recomputed_qualification") or {}
+            lines.append(
+                "  "
+                f"qualification health {current.get('health_pct')} -> "
+                f"{recomputed.get('health_pct')}, gaps "
+                f"{current.get('gap_count')} -> {recomputed.get('gap_count')}"
+            )
+        if len(candidates) > 20:
+            lines.append(f"... +{len(candidates) - 20} more candidate(s)")
+
+    reextraction = payload.get("needs_reextraction") or []
+    if reextraction:
+        lines.append("")
+        lines.append("Needs LLM re-extraction later:")
+        for row in reextraction[:10]:
+            lines.append(
+                "- "
+                f"{row.get('company')} ({row.get('deal_id')}): "
+                f"{row.get('reason')}"
+            )
+        if len(reextraction) > 10:
+            lines.append(f"... +{len(reextraction) - 10} more row(s)")
+
+    skipped = payload.get("skipped") or []
+    if skipped:
+        lines.append("")
+        lines.append("Skipped:")
+        for row in skipped[:10]:
+            lines.append(
+                "- "
+                f"{row.get('company')} ({row.get('deal_id')}): "
+                f"{row.get('reason')}"
+            )
+        if len(skipped) > 10:
+            lines.append(f"... +{len(skipped) - 10} more skipped row(s)")
+
+    errors = payload.get("errors") or []
+    if errors:
+        lines.append("")
+        lines.append("Errors:")
+        for error in errors:
+            lines.append(
+                f"- {error.get('company')} ({error.get('deal_id')}): "
+                f"{error.get('error')}"
             )
     return "\n".join(lines)
 

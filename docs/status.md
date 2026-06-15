@@ -12,6 +12,51 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-16
 
+### QF-7a qualification snapshot recompute backfill
+
+Implemented:
+
+- Added a recompute-only qualification backfill path:
+  `tools/backfill_qualification.py`.
+- Added CLI command: `deal-intel backfill-qualification`.
+- The command defaults to dry-run. Actual writes require `--apply` plus
+  `--confirmed-by-user`.
+- This path performs no LLM calls and does not read raw interaction content.
+  It recomputes `meddpicc_latest` and `qualification_latest` from already
+  stored scoring evidence.
+- Deals with no scoring evidence are skipped instead of writing a false
+  zero-health/all-gap snapshot.
+- Custom-framework deals that only have legacy MEDDPICC evidence are flagged as
+  `needs_reextraction` for the later QF-7b LLM re-extraction path.
+- Added patch-only storage method
+  `update_deal_qualification_snapshots(...)` for MongoDB and local personal
+  storage so restricted BI projections are never written back as whole deal
+  replacements.
+
+Design notes:
+
+- QF-7a is intentionally recompute-only. It covers weight, threshold, stage
+  context, and active-framework metadata changes when the required evidence is
+  already stored.
+- QF-7b remains separate because it must read `interaction.raw_content`, call
+  the configured server-side LLM, track usage/cost, and handle partial
+  extraction failures.
+
+Validation:
+
+- `pytest tests/test_backfill_qualification.py tests/test_storage_backend_contract.py -q --basetemp .tmp\pytest-qf7a-targeted`:
+  15 passed.
+- `pytest tests/test_backfill_qualification.py tests/test_qualification_snapshot.py tests/test_add_interaction.py tests/test_update_stage.py tests/test_storage_backend_contract.py tests/test_local_sample_backend.py -q --basetemp .tmp\pytest-qf7a-wide`:
+  65 passed, 1 warning.
+- `pytest -q --basetemp .tmp\pytest-qf7a-full`:
+  645 passed, 1 warning.
+- Targeted Ruff over touched QF-7a files:
+  passed.
+- `ruff check .`:
+  passed.
+- `git diff --check`:
+  no whitespace errors; Windows LF/CRLF warnings only.
+
 ### QF-6 report/export/Atlas qualification read path
 
 Implemented:

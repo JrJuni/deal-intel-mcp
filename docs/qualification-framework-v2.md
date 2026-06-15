@@ -724,11 +724,53 @@ Purpose:
 
 - Let users update historical deal snapshots when framework definitions change.
 
+#### QF-7a. Recompute-Only Qualification Snapshot Backfill
+
+Status:
+
+- Implemented.
+
+Implemented:
+
+- Added `tools/backfill_qualification.py`.
+- Added CLI command `deal-intel backfill-qualification`.
+- Dry-run is the default; writes require `--apply --confirmed-by-user`.
+- Recomputes `meddpicc_latest` and `qualification_latest` from already stored
+  scoring evidence only.
+- Performs no LLM calls, embedding work, raw-content reads, or full deal
+  replacement writes.
+- Added `update_deal_qualification_snapshots(...)` storage method so recompute
+  apply operations patch only snapshot fields and `updated_at`.
+- Skips deals with no scoring evidence so unassessed deals do not become false
+  low-health/all-gap records.
+- Flags active custom-framework records with only legacy MEDDPICC evidence as
+  `needs_reextraction`, leaving them for QF-7b.
+
+Verification:
+
+- `pytest tests/test_backfill_qualification.py tests/test_storage_backend_contract.py -q --basetemp .tmp\pytest-qf7a-targeted`:
+  15 passed.
+- Targeted Ruff over touched files:
+  passed.
+
+Boundaries:
+
+- This unit does not read `interaction.raw_content`.
+- This unit does not re-run extraction prompts.
+- This unit does not expose an MCP tool yet; QF-7c will decide final MCP
+  surface and tool contract after QF-7b.
+
+#### QF-7b. LLM Re-Extraction
+
+Purpose:
+
+- Re-extract active-framework evidence from historical `interaction.raw_content`
+  when stored evidence is missing for the active framework.
+
 Implementation:
 
-- Add a backfill/recompute path that can distinguish:
-  - no-LLM recompute for weight/threshold changes;
-  - LLM re-extraction for new or changed extraction hints.
+- Add an explicit raw-content re-extraction path for new or changed extraction
+  hints.
 - Dry-run by default.
 - Report estimated affected deals/interactions.
 - Connect usage/cost warning for LLM re-extraction.

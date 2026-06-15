@@ -140,6 +140,27 @@ class LocalSampleClient:
         store.upsert_deal(deal)
         self._local_deals = store.load_deals()
 
+    def update_deal_qualification_snapshots(
+        self,
+        deal_id: str,
+        *,
+        meddpicc_latest: dict,
+        qualification_latest: dict,
+        updated_at: str,
+    ) -> bool:
+        self._raise_if_fixture_deal(deal_id)
+        store = self._ensure_personal_store()
+        updated = store.update_deal_fields(
+            deal_id,
+            {
+                "meddpicc_latest": meddpicc_latest,
+                "qualification_latest": qualification_latest,
+                "updated_at": updated_at,
+            },
+        )
+        self._local_deals = store.load_deals()
+        return updated
+
     def insert_delete_audit_log(self, entry: dict) -> None:
         store = self._ensure_personal_store()
         store.insert_delete_audit_log(entry)

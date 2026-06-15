@@ -150,6 +150,16 @@ STORAGE_METHOD_CONTRACTS: tuple[StorageMethodContract, ...] = (
         notes="Local write support is deferred to the local personal sample target.",
     ),
     StorageMethodContract(
+        name="update_deal_qualification_snapshots",
+        mode="write",
+        local_sample_mvp=False,
+        consumers=("backfill-qualification",),
+        notes=(
+            "Patch-only recompute path for meddpicc_latest and "
+            "qualification_latest; avoids replacing restricted deal projections."
+        ),
+    ),
+    StorageMethodContract(
         name="upsert_analytics_snapshot",
         mode="write",
         local_sample_mvp=False,

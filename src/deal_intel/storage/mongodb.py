@@ -180,6 +180,27 @@ class MongoDBClient:
         db = self._get_db()
         db.deals.replace_one({"deal_id": deal["deal_id"]}, deal, upsert=True)
 
+    def update_deal_qualification_snapshots(
+        self,
+        deal_id: str,
+        *,
+        meddpicc_latest: dict,
+        qualification_latest: dict,
+        updated_at: str,
+    ) -> bool:
+        db = self._get_db()
+        result = db.deals.update_one(
+            with_unarchived_deal_filter({"deal_id": deal_id}),
+            {
+                "$set": {
+                    "meddpicc_latest": meddpicc_latest,
+                    "qualification_latest": qualification_latest,
+                    "updated_at": updated_at,
+                }
+            },
+        )
+        return bool(result.matched_count)
+
     def get_deal(self, deal_id: str) -> dict | None:
         db = self._get_db()
         return db.deals.find_one({"deal_id": deal_id}, {"_id": 0})

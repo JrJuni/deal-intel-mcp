@@ -6,7 +6,7 @@ from copy import deepcopy
 import pytest
 from typer.testing import CliRunner
 
-from deal_intel import _context
+from deal_intel import _context, mcp_server
 from deal_intel.cli import app
 from deal_intel.errors import ErrorCode, MCPError
 from deal_intel.providers.llm import LLMResponse
@@ -295,3 +295,51 @@ def test_reextract_cli_dry_run_json(monkeypatch) -> None:
     assert payload["dry_run"] is True
     assert payload["summary"]["candidate_count"] == 1
     assert "private raw content sentinel" not in result.stdout
+
+
+def test_reextract_mcp_dry_run_does_not_initialize_llm(monkeypatch) -> None:
+    mongo = FakeMongo([_deal(interactions=[_interaction()])])
+    monkeypatch.setattr(_context, "mongo", lambda: mongo)
+    monkeypatch.setattr(
+        _context,
+        "llm_provider",
+        lambda: (_ for _ in ()).throw(AssertionError("dry-run must not init llm")),
+    )
+    monkeypatch.setattr(
+        _context,
+        "config",
+        lambda: {"qualification": {"active_framework": "simple_b2b"}},
+    )
+
+    result = mcp_server.backfill_qualification_reextract()
+
+    assert result["ok"] is True
+    assert result["dry_run"] is True
+    assert result["llm_calls"] is False
+    assert result["summary"]["selected_count"] == 1
+    assert "private raw content sentinel" not in json.dumps(result)
+
+
+def test_reextract_mcp_apply_uses_confirmed_llm_and_cap(monkeypatch) -> None:
+    mongo = FakeMongo([_deal(interactions=[_interaction()])])
+    llm = FakeLLM()
+    monkeypatch.setattr(_context, "mongo", lambda: mongo)
+    monkeypatch.setattr(_context, "llm_provider", lambda: llm)
+    monkeypatch.setattr(
+        _context,
+        "config",
+        lambda: {"qualification": {"active_framework": "simple_b2b"}},
+    )
+
+    result = mcp_server.backfill_qualification_reextract(
+        dry_run=False,
+        confirmed_by_user=True,
+        max_llm_calls=1,
+    )
+
+    assert result["ok"] is True
+    assert result["dry_run"] is False
+    assert result["llm_calls"] is True
+    assert len(llm.calls) == 1
+    assert result["summary"]["applied_count"] == 1
+    assert mongo.updates[0]["qualification_latest"]["framework_key"] == "simple_b2b"

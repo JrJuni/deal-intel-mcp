@@ -6,7 +6,7 @@ from copy import deepcopy
 import pytest
 from typer.testing import CliRunner
 
-from deal_intel import _context
+from deal_intel import _context, mcp_server
 from deal_intel.cli import app
 from deal_intel.errors import ErrorCode, MCPError
 from deal_intel.tools import backfill_qualification
@@ -236,3 +236,25 @@ def test_backfill_qualification_cli_dry_run(monkeypatch) -> None:
     assert payload["dry_run"] is True
     assert payload["summary"]["candidate_count"] == 1
     assert "raw_content" not in result.stdout
+
+
+def test_backfill_qualification_mcp_wrapper_is_dry_run_and_llm_free(
+    monkeypatch,
+) -> None:
+    mongo = FakeMongo([_deal("d1", interactions=[_meddpicc_interaction()])])
+    monkeypatch.setattr(_context, "mongo", lambda: mongo)
+    monkeypatch.setattr(_context, "config", lambda: {"meddpicc": {"weights": {}}})
+
+    def fail_if_called():
+        raise AssertionError("recompute-only backfill must not initialize LLM")
+
+    monkeypatch.setattr(_context, "llm_provider", fail_if_called)
+
+    result = mcp_server.backfill_qualification()
+
+    assert result["ok"] is True
+    assert result["dry_run"] is True
+    assert result["llm_calls"] is False
+    assert result["summary"]["candidate_count"] == 1
+    assert mongo.snapshot_updates == []
+    assert "private raw content sentinel" not in json.dumps(result)

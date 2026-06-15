@@ -90,6 +90,9 @@ Why this matters:
 - `get_insights` and `get_customer_themes` still include legacy Mongo
   aggregation paths; sample mode should prefer shared metric/theme surfaces that
   use the local sample read contract.
+- `backfill_qualification` and `backfill_qualification_reextract` are real-data
+  maintenance tools for framework migrations. They are hidden from `sample`
+  because sample mode should not start with historical admin/backfill choices.
 
 ## Standard Surface
 
@@ -101,11 +104,17 @@ Why this matters:
 - BI/reporting tools,
 - customer-theme tools,
 - semantic search,
-- LLM deal analysis.
+- LLM deal analysis,
+- qualification framework backfill tools.
 
 `delete_deal` remains a standard admin tool because real operators need a
 cleanup path. Safety is enforced by the tool contract itself: dry-run defaults,
 exact company match, explicit confirmation, and archived-deal requirement.
+
+`backfill_qualification` and `backfill_qualification_reextract` are standard
+admin tools because framework changes are operator-facing. They remain
+dry-run-first; only `backfill_qualification_reextract` can call LLMs, and only
+in confirmed apply mode.
 
 `create_sample_data` and `delete_sample_data` are excluded from `standard`
 because they are demo-database maintenance helpers. They are useful, but they
@@ -143,8 +152,8 @@ Behavior:
 Current exposed counts:
 
 - `sample`: 23 tools
-- `standard`: 33 tools
-- `developer`: 36 tools
+- `standard`: 35 tools
+- `developer`: 38 tools
 
 Implementation notes:
 

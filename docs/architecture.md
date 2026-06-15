@@ -308,6 +308,9 @@ QF-v2 separates four concerns:
    documents. Apply mode uses the storage-level
    `update_deal_qualification_snapshots(...)` patch method so restricted BI
    projections cannot accidentally erase raw content, contacts, or embeddings.
+   It is exposed as the standard/developer MCP tool
+   `backfill_qualification` and as the CLI command
+   `deal-intel backfill-qualification`.
 7. Historical re-extraction:
    `tools/backfill_qualification_reextract.py` is the explicit maintenance
    path for old interactions that need active-framework evidence regenerated
@@ -316,7 +319,10 @@ QF-v2 separates four concerns:
    defaults to dry-run with a 30-call LLM cap. Apply mode patches interaction
    qualification fields plus current snapshots through
    `update_deal_qualification_reextraction(...)` and records usage under
-   `interaction.qualification_backfill_usage`.
+   `interaction.qualification_backfill_usage`. It is exposed as the
+   standard/developer MCP tool `backfill_qualification_reextract` and as the
+   CLI command `deal-intel backfill-qualification-reextract`. MCP dry-run does
+   not initialize the LLM provider; apply mode requires explicit confirmation.
 
 Current compatibility rule:
 

@@ -27,6 +27,8 @@
     {"name": "list_qualification_frameworks", "description": "List built-in and saved qualification frameworks and show which framework is active."},
     {"name": "set_active_qualification_framework", "description": "Dry-run-first config update that switches the active qualification framework without recomputing existing deals."},
     {"name": "delete_qualification_framework", "description": "Dry-run-first deletion for stored custom qualification frameworks; built-ins and active frameworks are protected."},
+    {"name": "backfill_qualification", "description": "Dry-run-first recompute of current qualification snapshots from stored evidence without raw-content reads or LLM calls."},
+    {"name": "backfill_qualification_reextract", "description": "Dry-run-first maintenance path that re-extracts active-framework evidence from historical interaction content and may call the configured LLM in apply mode."},
     {"name": "create_deal",   "description": "Create a new deal for a prospect company."},
     {"name": "add_meeting",   "description": "Deprecated developer-surface alias for add_interaction with interaction_type=meeting."},
     {"name": "add_interaction", "description": "Add a meeting, email, interview, call summary, or internal note with source-aware MEDDPICC extraction."},

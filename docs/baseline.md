@@ -57,13 +57,13 @@ available.
 
 ### MCP Tool Contracts
 
-The Python server keeps all 36 handler functions available internally, but MCP
+The Python server keeps all 38 handler functions available internally, but MCP
 clients see a config-filtered tool surface:
 
 - `tools.surface: auto` resolves from the effective profile.
 - `sample` exposes 23 tools for bundled/local personal sample mode.
-- `standard` exposes 33 tools for normal MongoDB-backed operation.
-- `developer` exposes all 36 tools, including demo database seed/cleanup.
+- `standard` exposes 35 tools for normal MongoDB-backed operation.
+- `developer` exposes all 38 tools, including demo database seed/cleanup.
 - Invalid `tools.surface` config exposes only `config_doctor` and
   `update_config` so setup can be diagnosed and repaired.
 
@@ -78,6 +78,8 @@ clients see a config-filtered tool surface:
 | `list_qualification_frameworks` | None | `include_dimensions` | `ok`, `active_framework`, `frameworks`, `warnings`, `usage_hint` | Read only; lists built-in and user-configured qualification frameworks. No DB access, LLM calls, config writes, or embedding work |
 | `set_active_qualification_framework` | `framework_key` | `dry_run`, `confirmed_by_user` | `ok`, `dry_run`, `framework_key`, `previous_framework`, `changed_fields`, `storage_written`, `backup_path`, `restart_required` | Dry-run-first local file write. Switches `qualification.active_framework`; real writes require `confirmed_by_user=true`; does not recompute historical deals, call LLMs, access MongoDB, or update embeddings |
 | `delete_qualification_framework` | `framework_key` | `dry_run`, `confirmed_by_user` | `ok`, `dry_run`, `framework_key`, `deleted_framework`, `changed_fields`, `storage_written`, `backup_path`, `restart_required` | Dry-run-first local file write. Deletes only stored custom frameworks; built-ins and active frameworks are protected; real writes require `confirmed_by_user=true`; does not recompute historical deals, call LLMs, access MongoDB, or update embeddings |
+| `backfill_qualification` | None | `limit`, `dry_run`, `confirmed_by_user` | `ok`, `dry_run`, `mode`, `llm_calls`, `storage_written`, `framework`, `summary`, `candidates`, `needs_reextraction`, `skipped`, `results`, `errors`, `warnings` | Dry-run-first maintenance tool. Recomputes current qualification snapshots from already stored scoring evidence; does not read raw interaction content or call LLMs. Real writes require `dry_run=false` and `confirmed_by_user=true` |
+| `backfill_qualification_reextract` | None | `limit`, `max_llm_calls`, `include_unconfirmed`, `include_unhashed`, `dry_run`, `confirmed_by_user` | `ok`, `dry_run`, `mode`, `llm_calls`, `storage_written`, `framework`, `summary`, `candidates`, `selected_candidates`, `skipped`, `results`, `errors`, `warnings` | Dry-run-first maintenance tool. Re-extracts active-framework evidence from historical interaction content only in apply mode; responses never include raw content; default apply cap is 30 LLM calls. Real writes require `dry_run=false` and `confirmed_by_user=true` |
 | `create_deal` | `company` | `industry`, `industry_tags`, `customer_segment`, `deal_size_amount`, `deal_size_currency`, `deal_size_status`, `deal_size_low_amount`, `deal_size_high_amount`, `deal_size_note`, `expected_close_date` | `ok`, `deal_id`, `company`, `industry`, `industry_tags`, `customer_segment`, deal value fields, `expected_close_date`, `expected_close_date_source`, `taxonomy_warnings`, optional `analytics_snapshot` | Validates the initial deal-value classification, normalizes industry metadata, applies the configured close-date default when omitted, upserts one deal, initializes `discovery` stage history, and attempts a non-blocking analytics snapshot |
 | `add_meeting` | `deal_id`, `date`, `raw_notes` | None | `ok`, `interaction_id`, `meeting_id`, `summary`, `meddpicc`, `meddpicc_latest`, `customer_themes`, `stage_suggestion`, `embedding_stored`, `usage`, `usage_summary`, optional `analytics_snapshot` | Deprecated developer-surface compatibility alias over `add_interaction` with `interaction_type: meeting`. Calls LLM, writes an `interaction_type: meeting` record under `deal.interactions`, stores `llm_usage` metadata, recalculates deal signals, optionally stores an embedding for MongoDB-backed data, upserts the deal, and attempts a non-blocking analytics snapshot. New clients should call `add_interaction` directly |
 | `add_interaction` | `deal_id`, `date`, `interaction_type`, `direction`, `content` | `participants`, `subject`, `source_confidence`, `custom_fields_json` | `ok`, `interaction_id`, `meeting_id`, `interaction_type`, `direction`, `source_confidence`, `source_policy`, `participants`, `subject`, `summary`, `meddpicc`, `unconfirmed_meddpicc`, `meddpicc_latest`, `customer_themes`, `unconfirmed_customer_themes`, `scoring_applied`, `stage_suggestion`, `embedding_stored`, `usage`, `usage_summary`, optional `analytics_snapshot` | Calls LLM, appends a canonical `deal.interactions` record, stores source metadata, `raw_content`, and `llm_usage` metadata, recalculates deal signals only when the source is scoring-eligible, optionally stores an embedding for MongoDB-backed data, upserts the deal, and attempts a non-blocking analytics snapshot. `source_policy` explains whether the input became confirmed scoring evidence or stored-unconfirmed context. `outbound_unconfirmed` and `internal` evidence is stored but does not update MEDDPICC health or customer-theme counts by default. Custom interaction types must be registered in config |
@@ -317,8 +319,8 @@ Before Milestone 1 started, all 28 findings were resolved. The current gate is:
 pytest -> 128 passed
 ruff check . -> All checks passed
 wheel build -> passed
-FastMCP runtime surface exposure -> sample 23 tools, standard 33 tools,
-developer 36 tools
+FastMCP runtime surface exposure -> sample 23 tools, standard 35 tools,
+developer 38 tools
 MongoDB Atlas read smoke -> passed
 ```
 

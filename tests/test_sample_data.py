@@ -263,5 +263,5 @@ def test_mcp_sample_data_wrappers_use_demo_database(monkeypatch) -> None:
     assert result["ok"] is True
     assert result["dry_run"] is True
     assert created_clients[0].database_name == "deal_intel_demo"
-    assert len(names) == 36
+    assert len(names) == 38
     assert {"create_sample_data", "delete_sample_data"}.issubset(names)

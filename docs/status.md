@@ -12,6 +12,41 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-16
 
+### QF-7c qualification backfill MCP surface
+
+Implemented:
+
+- Added MCP tool `backfill_qualification`.
+  - Standard/developer surface only.
+  - Dry-run by default.
+  - No LLM calls and no raw interaction content reads.
+  - Apply mode requires `dry_run=false` and `confirmed_by_user=true`.
+- Added MCP tool `backfill_qualification_reextract`.
+  - Standard/developer surface only.
+  - Dry-run by default and does not initialize the LLM provider in dry-run.
+  - Defaults to `max_llm_calls=30`.
+  - Apply mode may call the configured LLM once per selected interaction and
+    uses the dedicated raw-content maintenance read path.
+  - Responses never include raw interaction content.
+- Updated MCP tool-surface contracts and MCPB manifest tool declarations.
+- Current surface counts are `sample=23`, `standard=35`, `developer=38`.
+
+Validation:
+
+- `pytest tests/test_backfill_qualification.py tests/test_backfill_qualification_reextract.py tests/test_tool_surfaces.py tests/test_mcpb_manifest.py tests/test_config_doctor.py tests/test_sample_data.py -q --basetemp .tmp\pytest-qf7c-targeted`:
+  82 passed, 1 warning.
+- `pytest tests/test_backfill_qualification.py tests/test_backfill_qualification_reextract.py tests/test_tool_surfaces.py tests/test_mcpb_manifest.py tests/test_config_doctor.py tests/test_sample_data.py -q --basetemp .tmp\pytest-qf7c-targeted-rerun`:
+  82 passed, 1 warning.
+- `mcpb validate mcpb\manifest.json`:
+  passed.
+- `pytest -q --basetemp .tmp\pytest-qf7c-full`:
+  660 passed, 1 warning.
+- `ruff check .`:
+  passed.
+- Runtime registration smoke:
+  developer surface exposes 38 tools and includes `backfill_qualification` plus
+  `backfill_qualification_reextract`.
+
 ### QF-7b qualification LLM re-extraction backfill
 
 Implemented:

@@ -830,6 +830,63 @@ Corner cases:
 - Partial failure should return structured warnings.
 - User cancels after dry-run.
 
+#### QF-7c. MCP Backfill Surface
+
+Status:
+
+- Implemented.
+
+Purpose:
+
+- Let Claude, Codex, and other MCP hosts complete the same historical
+  qualification maintenance flow that the CLI supports, without forcing users
+  to leave the chat app for routine framework migration checks.
+
+Implemented:
+
+- Added MCP tool `backfill_qualification`.
+  - Exposed on the `standard` and `developer` surfaces.
+  - Hidden from `sample` to keep first-run zero-config mode simple.
+  - Defaults to dry-run.
+  - Performs no LLM calls and does not read `interaction.raw_content`.
+  - Apply mode patches only current qualification snapshots and requires
+    `dry_run=false` plus `confirmed_by_user=true`.
+- Added MCP tool `backfill_qualification_reextract`.
+  - Exposed on the `standard` and `developer` surfaces.
+  - Hidden from `sample`.
+  - Defaults to dry-run and does not initialize the LLM provider in dry-run.
+  - Defaults to `max_llm_calls=30`.
+  - Apply mode may read historical `interactions.raw_content` through the
+    dedicated maintenance storage path and call the configured LLM once per
+    selected interaction.
+  - Responses never include raw interaction content.
+- Updated tool-surface contracts and MCPB manifest tool declarations.
+- Current runtime tool counts:
+  - `sample=23`
+  - `standard=35`
+  - `developer=38`
+
+Recommended host flow:
+
+1. After framework changes, call `backfill_qualification` with defaults.
+2. If it reports `needs_reextraction`, call
+   `backfill_qualification_reextract` in dry-run mode.
+3. Review `selected_count`, `max_llm_calls`, warnings, and target rows.
+4. Apply only after user confirmation.
+5. Use `get_usage` afterward if the user wants cost/usage visibility.
+
+Verification:
+
+- MCP wrapper dry-run tests confirm no LLM initialization for both recompute
+  and re-extraction dry-runs.
+- MCP apply test confirms re-extraction uses the confirmed LLM path and
+  respects the one-run cap.
+- Tool surface tests confirm the new tools are hidden from `sample` and visible
+  in `standard`/`developer`.
+- MCPB manifest tests confirm package metadata matches runtime contracts.
+- Targeted QF-7c test gate:
+  `82 passed, 1 warning`.
+
 ### QF-8. Compatibility Cleanup
 
 Purpose:

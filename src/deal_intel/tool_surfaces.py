@@ -159,6 +159,31 @@ MCP_TOOL_SURFACE_CONTRACTS: tuple[MCPToolSurfaceContract, ...] = (
         ),
     ),
     MCPToolSurfaceContract(
+        name="backfill_qualification",
+        category="admin",
+        surfaces=_STANDARD,
+        user_facing=True,
+        db_writes=True,
+        llm_calls=False,
+        notes=(
+            "Dry-run-first recompute of current qualification snapshots from "
+            "stored evidence. Does not read raw content or call LLMs."
+        ),
+    ),
+    MCPToolSurfaceContract(
+        name="backfill_qualification_reextract",
+        category="admin",
+        surfaces=_STANDARD,
+        user_facing=True,
+        db_writes=True,
+        llm_calls=True,
+        notes=(
+            "Dry-run-first maintenance path that may read historical raw "
+            "interaction content and call LLMs in apply mode; responses never "
+            "return raw content."
+        ),
+    ),
+    MCPToolSurfaceContract(
         name="create_deal",
         category="core_write",
         surfaces=_SAMPLE,

@@ -355,6 +355,82 @@ def delete_qualification_framework(
 
 
 @app.tool()
+def backfill_qualification(
+    limit: int = 0,
+    dry_run: bool = True,
+    confirmed_by_user: bool = False,
+) -> dict:
+    """Recompute current deal qualification snapshots from stored evidence.
+
+    Use this after changing framework weights, thresholds, or the active
+    framework when historical interactions already contain evidence for that
+    framework. This is the safe maintenance path: dry-run is the default, it
+    does not read raw interaction content, does not call LLMs, and only patches
+    meddpicc_latest / qualification_latest in apply mode.
+
+    If the result reports needs_reextraction, use
+    backfill_qualification_reextract only after reviewing its dry-run LLM call
+    estimate and cost warning. Actual writes require dry_run=false and
+    confirmed_by_user=true.
+    """
+    try:
+        from deal_intel import _context
+        from deal_intel.tools import backfill_qualification as _t
+
+        return _t.handle(
+            mongo=_context.mongo(),
+            cfg=_context.config(),
+            limit=limit,
+            dry_run=dry_run,
+            confirmed_by_user=confirmed_by_user,
+        )
+    except Exception as exc:
+        return envelope_from_exception(exc, stage=Stage.STORAGE)
+
+
+@app.tool()
+def backfill_qualification_reextract(
+    limit: int = 0,
+    max_llm_calls: int = 30,
+    include_unconfirmed: bool = False,
+    include_unhashed: bool = False,
+    dry_run: bool = True,
+    confirmed_by_user: bool = False,
+) -> dict:
+    """Re-extract active-framework evidence from historical interaction content.
+
+    Use this only when backfill_qualification reports needs_reextraction after
+    the user changes the active qualification framework or extraction hints.
+    This is a maintenance/admin tool: dry-run is the default, responses never
+    return raw interaction content, and apply mode may call the configured LLM
+    once per selected interaction.
+
+    Defaults to max_llm_calls=30 per run. Actual LLM calls and DB writes require
+    dry_run=false and confirmed_by_user=true. Keep include_unconfirmed=false
+    unless the user intentionally wants internal or outbound-unconfirmed context
+    re-extracted into unconfirmed qualification fields.
+    """
+    try:
+        from deal_intel import _context
+        from deal_intel.tools import backfill_qualification_reextract as _t
+
+        llm = None if dry_run else _context.llm_provider()
+        return _t.handle(
+            mongo=_context.mongo(),
+            llm=llm,
+            cfg=_context.config(),
+            limit=limit,
+            max_llm_calls=max_llm_calls,
+            include_unconfirmed=include_unconfirmed,
+            include_unhashed=include_unhashed,
+            dry_run=dry_run,
+            confirmed_by_user=confirmed_by_user,
+        )
+    except Exception as exc:
+        return envelope_from_exception(exc, stage=Stage.LLM)
+
+
+@app.tool()
 def create_deal(
     company: str,
     industry: str = "",

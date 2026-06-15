@@ -258,6 +258,40 @@ def test_get_insights_and_mcp_forward_reporting_context(monkeypatch) -> None:
     assert via_mcp["as_of"] == "2026-06-08"
 
 
+def test_get_insights_pipeline_overview_uses_active_qualification_snapshot() -> None:
+    framework = get_qualification_template("simple_b2b")
+    deal = _deal(stage="proposal")
+    deal["meddpicc_latest"] = {"filled_count": 1, "health_pct": 95}
+    deal["qualification_latest"] = compute_qualification_latest(
+        [{"qualification": {"business_need": {"score": 1}}}],
+        framework=framework,
+        evidence_fields=("qualification",),
+        deal_stage="proposal",
+    )
+
+    class FakeInsightMongo:
+        def list_deals_for_metrics(self) -> list[dict]:
+            return [deepcopy(deal)]
+
+        def _get_db(self) -> None:
+            raise AssertionError("pipeline_overview should use metrics read path")
+
+    result = get_insights.handle(
+        mongo=FakeInsightMongo(),
+        cfg={},
+        query_type="pipeline_overview",
+        as_of="2026-06-08",
+    )
+
+    expected_health = deal["qualification_latest"]["health_pct"]
+    assert result["kpis"]["avg_health_pct"] == expected_health
+    assert result["health_bands"]["at_risk"] == 1
+    proposal = next(
+        row for row in result["stage_breakdown"] if row["stage"] == "proposal"
+    )
+    assert proposal["avg_health_pct"] == expected_health
+
+
 def test_get_insights_preflight_errors_happen_before_storage() -> None:
     class FailingMongo:
         def list_deals_for_metrics(self) -> list[dict]:

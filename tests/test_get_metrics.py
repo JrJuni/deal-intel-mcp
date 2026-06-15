@@ -7,6 +7,8 @@ import pytest
 
 from deal_intel import _context, mcp_server
 from deal_intel.errors import ErrorCode, MCPError
+from deal_intel.schema.qualification import compute_qualification_latest
+from deal_intel.schema.qualification_framework import get_qualification_template
 from deal_intel.tools import get_metrics
 
 
@@ -89,6 +91,22 @@ def _deal(
     }
 
 
+def _custom_qualification_deal() -> dict:
+    deal = _deal(
+        "custom",
+        stage="proposal",
+        amount=40,
+        health_pct=95,
+    )
+    deal["qualification_latest"] = compute_qualification_latest(
+        [{"qualification": {"business_need": {"score": 1}}}],
+        framework=get_qualification_template("simple_b2b"),
+        evidence_fields=("qualification",),
+        deal_stage="proposal",
+    )
+    return deal
+
+
 def _snapshot(
     event_id: str,
     deal_id: str,
@@ -141,6 +159,27 @@ def test_get_metrics_pipeline_health_returns_kpis_and_filters() -> None:
     assert "pipeline_values" in result
     assert "data_quality" in result
     assert mongo.read_count == 1
+
+
+def test_get_metrics_pipeline_health_uses_active_qualification_snapshot() -> None:
+    deal = _custom_qualification_deal()
+    mongo = FakeMongo([deal])
+
+    result = get_metrics.handle(
+        mongo=mongo,
+        cfg={},
+        metric_type="pipeline_health",
+        as_of="2026-06-09",
+    )
+
+    expected_health = deal["qualification_latest"]["health_pct"]
+    assert result["kpis"]["avg_health_pct"] == expected_health
+    assert result["health_bands"]["at_risk"] == 1
+    assert result["attention_reasons"]["at_risk_count"] == 1
+    proposal = next(
+        row for row in result["stage_breakdown"] if row["stage"] == "proposal"
+    )
+    assert proposal["avg_health_pct"] == expected_health
 
 
 def test_get_metrics_mcp_wrapper_forwards_defaults(monkeypatch) -> None:

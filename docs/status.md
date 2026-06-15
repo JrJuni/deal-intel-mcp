@@ -12,6 +12,42 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-15
 
+### QF-5c pipeline metrics qualification read path
+
+Implemented:
+
+- `build_pipeline_health_summary()` now selects the active qualification
+  snapshot through `schema/qualification_read.py` instead of reading
+  `meddpicc_latest` directly.
+- `get_metrics(metric_type="pipeline_health")` now reflects
+  `qualification_latest` when present, with `meddpicc_latest` preserved as the
+  legacy/sample fallback.
+- `get_insights(query_type="pipeline_overview")` also reflects the active
+  qualification snapshot because it uses the shared pipeline metric engine.
+- Existing metric field names such as `avg_health_pct`, `health_bands`, and
+  `health_coverage_pct` are intentionally preserved as compatibility aliases.
+
+Design notes:
+
+- This is intentionally scoped to the official pipeline-health metric surface.
+- Direct Mongo aggregation insight paths such as `win_patterns`,
+  `loss_patterns`, `compare_won_lost`, `gap_frequency`, and
+  `industry_benchmark` still use MEDDPICC compatibility fields and should be
+  migrated separately if they remain part of the v2 public surface.
+- Reports, exports, Atlas chart specs, and analytics snapshots remain QF-6
+  work.
+
+Validation:
+
+- `pytest tests/test_pipeline_metrics_summary.py tests/test_get_metrics.py tests/test_data_quality_reporting.py -q --basetemp .tmp\pytest-qf5c-targeted-rerun`:
+  31 passed, 1 warning.
+- `pytest tests/test_pipeline_metrics_summary.py tests/test_get_metrics.py tests/test_data_quality_reporting.py tests/test_dashboard_crosscheck.py tests/test_metric_contract.py tests/test_pipeline_timing.py tests/test_export_report.py -q --basetemp .tmp\pytest-qf5c-wide`:
+  119 passed, 1 warning.
+- `pytest -q --basetemp .tmp\pytest-qf5c-full`:
+  633 passed, 1 warning.
+- `ruff check .`:
+  passed.
+
 ### QF-5b deal gaps and list views qualification read path
 
 Implemented:

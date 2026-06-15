@@ -24,6 +24,7 @@ from deal_intel.schema.metrics import (
     summarize_pipeline_value,
     summarize_win_rate,
 )
+from deal_intel.schema.qualification_read import select_qualification_snapshot
 
 CANONICAL_STAGE_ORDER = (
     "discovery",
@@ -163,14 +164,13 @@ def _filter_deals(
 
 
 def _health_summary(deals: list[dict], thresholds: HealthBandThresholds) -> dict:
-    assessed_scores = [
-        float((deal.get("meddpicc_latest") or {})["health_pct"])
-        for deal in deals
-        if is_health_assessed(deal.get("meddpicc_latest"))
-    ]
     band_counts = _empty_band_counts()
+    assessed_scores = []
     for deal in deals:
-        band = classify_health(deal.get("meddpicc_latest"), thresholds)
+        snapshot = _health_snapshot(deal)
+        if is_health_assessed(snapshot):
+            assessed_scores.append(float(snapshot["health_pct"]))
+        band = classify_health(snapshot, thresholds)
         band_counts[band.value] += 1
 
     deal_count = len(deals)
@@ -204,7 +204,7 @@ def _timing_rows(
     rows = []
     for deal in deals:
         stage = deal.get("deal_stage")
-        band = classify_health(deal.get("meddpicc_latest"), health_thresholds)
+        band = classify_health(_health_snapshot(deal), health_thresholds)
         timing = assess_pipeline_timing(
             deal,
             as_of=as_of,
@@ -224,6 +224,10 @@ def _timing_rows(
             }
         )
     return rows
+
+
+def _health_snapshot(deal: dict) -> dict:
+    return select_qualification_snapshot(deal).snapshot
 
 
 def _attention_summary(rows: list[dict[str, Any]]) -> dict:

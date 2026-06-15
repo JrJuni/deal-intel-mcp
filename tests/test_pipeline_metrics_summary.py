@@ -13,6 +13,8 @@ from deal_intel.schema.pipeline_metrics import (
     CANONICAL_STAGE_ORDER,
     build_pipeline_health_summary,
 )
+from deal_intel.schema.qualification import compute_qualification_latest
+from deal_intel.schema.qualification_framework import get_qualification_template
 
 AS_OF = date(2026, 6, 8)
 
@@ -50,6 +52,21 @@ def _deal(
             else {}
         ),
     }
+
+
+def _custom_qualification_deal() -> dict:
+    deal = _deal(
+        "custom",
+        stage="proposal",
+        health_pct=95,
+    )
+    deal["qualification_latest"] = compute_qualification_latest(
+        [{"qualification": {"business_need": {"score": 1}}}],
+        framework=get_qualification_template("simple_b2b"),
+        evidence_fields=("qualification",),
+        deal_stage="proposal",
+    )
+    return deal
 
 
 def test_empty_summary_has_null_averages_and_zero_values() -> None:
@@ -123,6 +140,30 @@ def test_summary_separates_populations_health_and_current_pipeline_value() -> No
     assert result["stage_breakdown"][-2]["pipeline_value_amount"] == 0
     assert "missing_amount" in result["warnings"]
     assert "unassessed_health" in result["warnings"]
+
+
+def test_summary_uses_active_qualification_snapshot_before_legacy_meddpicc() -> None:
+    deal = _custom_qualification_deal()
+
+    result = build_pipeline_health_summary([deal], as_of=AS_OF)
+
+    expected_health = deal["qualification_latest"]["health_pct"]
+    assert expected_health < deal["meddpicc_latest"]["health_pct"]
+    assert result["kpis"]["avg_health_pct"] == expected_health
+    assert result["kpis"]["health_assessed_count"] == 1
+    assert result["health_bands"] == {
+        "healthy": 0,
+        "watch": 0,
+        "at_risk": 1,
+        "unassessed": 0,
+    }
+    assert result["attention_reasons"]["at_risk_count"] == 1
+    proposal = next(
+        row for row in result["stage_breakdown"] if row["stage"] == "proposal"
+    )
+    assert proposal["avg_health_pct"] == expected_health
+    assert proposal["health_bands"]["at_risk"] == 1
+    assert result["data_quality"]["field_coverage"]["health_assessment"]["valid"] == 1
 
 
 def test_health_band_boundaries_are_configurable() -> None:

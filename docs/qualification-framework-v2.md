@@ -598,11 +598,6 @@ Verification:
 - `ruff check .`:
   passed.
 
-Next:
-
-- QF-5b has migrated `get_deal_gaps` and `list_deals`. QF-5c should migrate
-  shared metrics and insight paths.
-
 #### QF-5b. Deal Gaps And List Views
 
 Status: implemented.
@@ -637,6 +632,43 @@ Verification:
 - `pytest tests/test_deal_gaps.py tests/test_get_deal_gaps.py tests/test_deal_review.py tests/test_data_quality_reporting.py tests/test_pipeline_timing.py tests/test_zero_config_sample_fixture.py tests/test_local_sample_backend.py -q --basetemp .tmp\pytest-qf5b-wide`:
   107 passed, 1 warning.
 - Targeted Ruff over touched files:
+  passed.
+
+#### QF-5c. Pipeline Metrics And Pipeline Overview
+
+Status: implemented.
+
+Implemented:
+
+- `schema/pipeline_metrics.py` now reads active health/quality state through
+  `schema/qualification_read.py`.
+- `get_metrics(metric_type="pipeline_health")` now prefers
+  `qualification_latest` and falls back to legacy `meddpicc_latest`.
+- `get_insights(query_type="pipeline_overview")` now reflects the same active
+  qualification snapshot because it delegates to the shared pipeline metric
+  engine.
+- Existing public metric aliases remain unchanged: `avg_health_pct`,
+  `health_coverage_pct`, `health_bands`, stage-level `avg_health_pct`, and
+  attention `at_risk` counts.
+
+Boundaries:
+
+- This unit does not migrate direct Mongo aggregation insight paths:
+  `win_patterns`, `loss_patterns`, `compare_won_lost`, `gap_frequency`, and
+  `industry_benchmark`.
+- This unit does not migrate report/export rows, Atlas specs, or analytics
+  snapshots.
+- Existing old/sample data with only `meddpicc_latest` remains readable.
+
+Verification:
+
+- `pytest tests/test_pipeline_metrics_summary.py tests/test_get_metrics.py tests/test_data_quality_reporting.py -q --basetemp .tmp\pytest-qf5c-targeted-rerun`:
+  31 passed, 1 warning.
+- `pytest tests/test_pipeline_metrics_summary.py tests/test_get_metrics.py tests/test_data_quality_reporting.py tests/test_dashboard_crosscheck.py tests/test_metric_contract.py tests/test_pipeline_timing.py tests/test_export_report.py -q --basetemp .tmp\pytest-qf5c-wide`:
+  119 passed, 1 warning.
+- `pytest -q --basetemp .tmp\pytest-qf5c-full`:
+  633 passed, 1 warning.
+- `ruff check .`:
   passed.
 
 ### QF-6. Reports, Data Exports, And Atlas Specs

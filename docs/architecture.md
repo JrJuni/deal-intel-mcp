@@ -179,7 +179,7 @@ model.
 | Namespace | User intent | Current tools | Main modules | Side effects | v2 notes |
 |---|---|---|---|---|---|
 | Config / Diagnostics | Setup, profile, tool discovery, safe config changes | `config_doctor`, `get_tool_catalog`, `update_config` | `config_doctor.py`, `config_writer.py`, `tool_surfaces.py`, `mcp_server.py` | `update_config` writes non-secret local config only | Keep these stable and visible in every profile; they are the first-run recovery path. |
-| Intake | Turn new customer evidence into structured deal intelligence | `create_deal`, `add_interaction`, developer-only `add_meeting` alias | `tools/create_deal.py`, `tools/add_interaction.py`, `schema/interactions.py`, `schema/qualification_extraction.py`, `schema/meddpicc.py`, `schema/customer_themes.py` | DB writes; `add_interaction` calls server-side LLM and may update embeddings in Mongo mode | Active framework extraction now happens here. Deal review, deal gaps, and list views now read `qualification_latest`; metric, report, export, snapshot, and chart paths still need later framework migration work. |
+| Intake | Turn new customer evidence into structured deal intelligence | `create_deal`, `add_interaction`, developer-only `add_meeting` alias | `tools/create_deal.py`, `tools/add_interaction.py`, `schema/interactions.py`, `schema/qualification_extraction.py`, `schema/meddpicc.py`, `schema/customer_themes.py` | DB writes; `add_interaction` calls server-side LLM and may update embeddings in Mongo mode | Active framework extraction now happens here. Deal review, deal gaps, list views, `get_metrics(pipeline_health)`, and `get_insights(pipeline_overview)` now read `qualification_latest`; reports, exports, analytics snapshots, chart specs, and MEDDPICC-specific insight aggregations still need later framework migration work. |
 | Lifecycle / CRUD | Correct, move, archive, restore, delete, or migrate deal records | `update_stage`, `update_deal`, `archive_deal`, `restore_deal`, `delete_deal`, `migrate_local_data` | `tools/update_stage.py`, `tools/update_deal.py`, `tools/deal_lifecycle.py`, `tools/migrate_local_data.py` | DB writes; destructive paths require confirmation/dry-run/audit constraints | Keep confirmation policy explicit. Framework abstraction should not weaken lifecycle safety gates. |
 | Read / Query | Answer routine deal, pipeline, gap, and usage questions | `get_deal`, `list_deals`, `get_metrics`, `get_deal_gaps`, `get_deal_review`, `get_usage`, legacy `get_insights` | `tools/get_*.py`, `schema/metrics.py`, `schema/pipeline_metrics.py`, `schema/deal_gaps.py`, `schema/deal_review.py`, `usage.py` | Read-only; no LLM calls | This is the default host-app answer surface. Keep deterministic and projection-safe. |
 | Export / Artifacts | Produce local report or spreadsheet files | `export_report`, `export_data` | `tools/export_report.py`, `tools/export_data.py`, `reports/*` | Local file writes; no DB writes; no LLM calls | `export_report` is human narrative/data-pack; `export_data` is CSV ledger. Do not collapse them back together. |
@@ -293,8 +293,11 @@ QF-v2 separates four concerns:
    `schema/qualification_read.py` owns active snapshot selection for read
    views. `schema/deal_review.py`, `schema/deal_gaps.py`, and
    `tools/list_deals.py` prefer `qualification_latest` when available and
-   fall back to `meddpicc_latest` for older data. They keep legacy MEDDPICC
-   aliases while adding generic `qualification` and `qualification_*` fields.
+   fall back to `meddpicc_latest` for older data. `schema/pipeline_metrics.py`
+   uses the same selector for `get_metrics(pipeline_health)` and
+   `get_insights(pipeline_overview)`. These paths keep legacy health aliases
+   while adding or preserving generic `qualification` metadata where the row
+   surface supports it.
 
 Current compatibility rule:
 
@@ -333,8 +336,11 @@ or embeddings.
 - `export_report`
 
 The shared metric engine lives in `deal_intel.schema.metrics` and
-`deal_intel.schema.pipeline_metrics`. CSV data exports, report data packs, and
-Atlas Charts should be cross-checked against the same metric contracts.
+`deal_intel.schema.pipeline_metrics`. `pipeline_metrics` reads active
+qualification snapshots through `schema.qualification_read`, so the official
+pipeline-health KPI surface follows the selected framework while preserving
+legacy health field names. CSV data exports, report data packs, and Atlas
+Charts should be cross-checked against the same metric contracts.
 
 #### Data Export Pipeline
 

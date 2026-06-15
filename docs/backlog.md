@@ -67,6 +67,8 @@ Recommended implementation order:
      treating missing evidence as neutral confidence.
    - Update extraction, health scoring, gap logic, reviews, reports, Atlas
      chart specs, smoke fixtures, and docs together.
+   - Detailed execution units and verification gates live in
+     [qualification-framework-v2.md](qualification-framework-v2.md).
 4. Tool namespace and customer-theme workflow cleanup.
    - Revisit the tool surface through user intent rather than internal module
      boundaries.
@@ -461,6 +463,12 @@ Deferred work:
 
 Goal: eventually allow teams to replace or extend the default MEDDPICC
 qualification model without forking the whole product.
+
+Detailed plan:
+
+- See [qualification-framework-v2.md](qualification-framework-v2.md) for the
+  active QF-0 through QF-9 execution plan, templates/wizard direction,
+  verification gates, and corner-case checklist.
 
 Timing:
 

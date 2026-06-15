@@ -12,6 +12,25 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-15
 
+### Qualification framework v2 execution plan
+
+Implemented:
+
+- Added [qualification-framework-v2.md](qualification-framework-v2.md) as the
+  execution plan for MEDDPICC abstraction / qualification framework v2.
+- Split the work into QF-0 through QF-9 units with design, implementation,
+  verification gates, and corner-case checks.
+- Included the revised UX direction that framework customization needs
+  templates and wizard-style assistance, not only schema constraints.
+- Linked the plan from [backlog.md](backlog.md).
+
+Notes:
+
+- This is a planning/documentation change only. No runtime framework behavior,
+  MCP tool contract, or storage schema changed.
+- The next recommended implementation unit is QF-1: framework contract,
+  built-in templates, and static validator.
+
 ### Architecture developer map kickoff
 
 Implemented:

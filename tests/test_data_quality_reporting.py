@@ -13,6 +13,8 @@ from deal_intel.schema.metrics import (
     assess_deal_data_quality,
     summarize_data_quality,
 )
+from deal_intel.schema.qualification import compute_qualification_latest
+from deal_intel.schema.qualification_framework import get_qualification_template
 from deal_intel.storage.mongodb import MongoDBClient
 from deal_intel.tools import get_insights, list_deals
 
@@ -163,6 +165,43 @@ def test_list_deals_returns_reporting_context_and_quality() -> None:
         "expected_close_date",
         "deal_value",
     ]
+
+
+def test_list_deals_uses_active_qualification_snapshot_for_health() -> None:
+    framework = get_qualification_template("simple_b2b")
+    deal = _deal(stage="proposal")
+    deal["meddpicc_latest"] = {}
+    deal["meetings"] = [{"date": "2026-06-01"}]
+    deal["qualification_latest"] = compute_qualification_latest(
+        [
+            {
+                "qualification": {
+                    "business_need": {"score": 5},
+                    "buyer_owner": {"score": 2},
+                }
+            }
+        ],
+        framework=framework,
+        evidence_fields=("qualification",),
+        deal_stage="proposal",
+    )
+
+    result = list_deals.handle(
+        mongo=FakeMongo([deal]),
+        cfg={},
+        stage=None,
+        limit=20,
+        as_of="2026-06-08",
+    )
+
+    row = result["deals"][0]
+    assert row["qualification"]["framework_key"] == "simple_b2b"
+    assert row["qualification_source_field"] == "qualification_latest"
+    assert row["health_pct"] == deal["qualification_latest"]["health_pct"]
+    assert row["filled_count"] == 2
+    assert row["gaps"] == ["next_step"]
+    assert row["qualification_gaps"] == ["next_step"]
+    assert row["data_quality"]["field_statuses"]["health_assessment"] == "valid"
 
 
 def test_list_deals_rejects_invalid_as_of_as_input_error() -> None:

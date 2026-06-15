@@ -12,6 +12,52 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-15
 
+### QF-5b deal gaps and list views qualification read path
+
+Implemented:
+
+- Added `src/deal_intel/schema/qualification_read.py` as the shared
+  deterministic read helper for selecting the active qualification snapshot.
+- `build_deal_review()`, `build_deal_gaps_summary()`, and `list_deals` now use
+  the same helper:
+  - prefer `qualification_latest` when valid;
+  - fall back to legacy `meddpicc_latest` for old/sample data.
+- `get_deal_gaps` now returns active-framework qualification metadata:
+  `qualification`, `qualification_framework`,
+  `qualification_framework_display_name`, `qualification_source_field`,
+  `qualification_health_pct`, `qualification_quality_pct`,
+  `qualification_coverage_pct`, `qualification_filled_count`,
+  `qualification_total_count`, and `qualification_gaps`.
+- `list_deals` now surfaces the same generic qualification fields while
+  preserving legacy-friendly aliases: `health_pct`, `filled_count`, and
+  `gaps`.
+- Custom-framework qualitative gaps are emitted as
+  `qualification.<dimension>` / `qualification:<dimension>` instead of
+  fabricating MEDDPICC fields.
+- `attention:at_risk` messaging now names the active framework instead of
+  hardcoding MEDDPICC.
+- Gap actionability treats `qualification.*` qualitative gaps the same way as
+  `meddpicc.*`: observation-only by default unless the gap is objective timing
+  or data-quality evidence.
+
+Design notes:
+
+- MEDDPICC payload compatibility is intentionally preserved. Existing
+  `meddpicc:*` gap IDs still appear for MEDDPICC data.
+- This subtask does not migrate pipeline metrics, insights, reports, exports,
+  Atlas chart specs, or analytics snapshots.
+- The shared helper is the future read-path anchor for the remaining QF
+  migration units.
+
+Validation:
+
+- `pytest tests/test_deal_gaps.py tests/test_data_quality_reporting.py tests/test_deal_review.py -q --basetemp .tmp\pytest-qf5b-targeted`:
+  38 passed, 1 warning.
+- `pytest tests/test_deal_gaps.py tests/test_get_deal_gaps.py tests/test_deal_review.py tests/test_data_quality_reporting.py tests/test_pipeline_timing.py tests/test_zero_config_sample_fixture.py tests/test_local_sample_backend.py -q --basetemp .tmp\pytest-qf5b-wide`:
+  107 passed, 1 warning.
+- `ruff check src/deal_intel/schema/deal_review.py src/deal_intel/schema/deal_gaps.py src/deal_intel/schema/qualification_read.py src/deal_intel/schema/gap_actionability.py src/deal_intel/tools/list_deals.py tests/test_deal_gaps.py tests/test_data_quality_reporting.py`:
+  passed.
+
 ### QF-5a deal review qualification read path
 
 Implemented:

@@ -3,7 +3,6 @@
 from collections import Counter
 from collections.abc import Iterable
 from datetime import date, datetime
-from typing import Any
 
 from deal_intel.schema.gap_actionability import (
     CTA_POLICY_ALLOWED,
@@ -25,33 +24,26 @@ from deal_intel.schema.metrics import (
     build_attention_reasons,
     classify_health,
 )
+from deal_intel.schema.qualification_read import (
+    MEDDPICC_FIELD_LABELS,
+    QUESTION_BY_MEDDPICC_GAP,
+    QualificationReadSnapshot,
+    dimension_label,
+    dimension_question,
+    qualification_summary,
+    select_qualification_snapshot,
+)
+
+__all__ = (
+    "MEDDPICC_FIELD_LABELS",
+    "QUESTION_BY_MEDDPICC_GAP",
+    "build_deal_gaps_summary",
+)
 
 PRIORITY_BANDS = ("low", "medium", "high")
 PRIORITY_RANK = {"low": 0, "medium": 1, "high": 2}
 DEFAULT_LIMIT = 10
 MAX_LIMIT = 50
-
-MEDDPICC_FIELD_LABELS = {
-    "metrics": "Metrics",
-    "economic_buyer": "Economic Buyer",
-    "decision_criteria": "Decision Criteria",
-    "decision_process": "Decision Process",
-    "paper_process": "Paper Process",
-    "identify_pain": "Identify Pain",
-    "champion": "Champion",
-    "competition": "Competition",
-}
-
-QUESTION_BY_MEDDPICC_GAP = {
-    "metrics": "고객이 기대하는 정량 효과와 성공 기준은 무엇인가요?",
-    "economic_buyer": "예산 최종 승인권자는 누구이며 직접 확인했나요?",
-    "decision_criteria": "벤더 선정 기준과 필수 통과 조건은 무엇인가요?",
-    "decision_process": "구매, 보안, 법무 승인 절차와 일정은 어떻게 되나요?",
-    "paper_process": "계약서, 보안 검토, 구매 발주에 필요한 문서 절차는 무엇인가요?",
-    "identify_pain": "지금 해결하지 않으면 고객에게 어떤 업무 또는 비용 문제가 생기나요?",
-    "champion": "고객 내부에서 우리 도입을 밀어줄 champion은 누구인가요?",
-    "competition": "경쟁사 또는 현 상태 유지와 비교해 무엇이 결정 변수인가요?",
-}
 
 FIELD_HINTS = {
     "company": {
@@ -100,8 +92,8 @@ FIELD_HINTS = {
     },
     "health_assessment": {
         "impact_area": "sales_action",
-        "reason": "Qualified-or-later deal has no usable MEDDPICC health assessment.",
-        "suggested_question": "MEDDPICC 기준으로 아직 확인하지 못한 항목은 무엇인가요?",
+        "reason": "Qualified-or-later deal has no usable qualification health assessment.",
+        "suggested_question": "현재 qualification 기준으로 아직 확인하지 못한 항목은 무엇인가요?",
         "recommended_action": "add_or_refresh_interaction_evidence",
     },
     "actual_close_date": {
@@ -217,8 +209,8 @@ def _build_deal_gap_row(
     timing_settings: PipelineTimingSettings,
 ) -> dict:
     stage = str(deal.get("deal_stage") or "")
-    meddpicc_latest = deal.get("meddpicc_latest") or {}
-    health_band = classify_health(meddpicc_latest, health_thresholds)
+    qualification = select_qualification_snapshot(deal)
+    health_band = classify_health(qualification.snapshot, health_thresholds)
     timing = assess_pipeline_timing(deal, as_of=as_of, settings=timing_settings)
     attention_reasons = build_attention_reasons(
         stage=stage,
@@ -246,15 +238,16 @@ def _build_deal_gap_row(
         )
     )
     gaps.extend(
-        _meddpicc_gaps(
+        _qualification_gaps(
             deal,
-            gaps=meddpicc_latest.get("gaps"),
+            qualification=qualification,
             attention_reasons=attention_reasons,
         )
     )
     gaps.extend(
         _attention_gaps(
             deal,
+            qualification=qualification,
             timing=timing,
             attention_reasons=attention_reasons,
         )
@@ -279,7 +272,17 @@ def _build_deal_gap_row(
         "deal_size_currency": deal.get("deal_size_currency") or "KRW",
         "deal_size_status": deal.get("deal_size_status"),
         "expected_close_date": deal.get("expected_close_date"),
-        "health_pct": meddpicc_latest.get("health_pct"),
+        "qualification": qualification_summary(qualification),
+        "qualification_framework": qualification.framework_key,
+        "qualification_framework_display_name": qualification.framework_display_name,
+        "qualification_source_field": qualification.source_field,
+        "qualification_health_pct": qualification.snapshot.get("health_pct"),
+        "qualification_quality_pct": qualification.quality_pct,
+        "qualification_coverage_pct": qualification.coverage_pct,
+        "qualification_filled_count": qualification.filled_count,
+        "qualification_total_count": qualification.total_count,
+        "qualification_gaps": qualification.gaps,
+        "health_pct": qualification.snapshot.get("health_pct"),
         "health_band": health_band.value,
         "attention_reasons": attention_reasons,
         "priority_score": priority_score,
@@ -358,35 +361,42 @@ def _unknown_value_gaps(
     ]
 
 
-def _meddpicc_gaps(
+def _qualification_gaps(
     deal: dict,
     *,
-    gaps: Any,
+    qualification: QualificationReadSnapshot,
     attention_reasons: list[str],
 ) -> list[dict]:
     if deal.get("deal_stage") not in ACTIVE_STAGES | {"stalled"}:
         return []
+    gaps = qualification.gaps
     if not isinstance(gaps, list):
         return []
     rows = []
     for raw_gap in gaps:
         gap_name = str(raw_gap)
-        label = MEDDPICC_FIELD_LABELS.get(gap_name, gap_name)
+        label = dimension_label(qualification, gap_name)
         stage = deal.get("deal_stage")
+        gap_id = f"{qualification.field_prefix}:{gap_name}"
+        field = f"{qualification.field_prefix}.{gap_name}"
         rows.append(
             _gap(
                 deal,
-                gap_id=f"meddpicc:{gap_name}",
-                field=f"meddpicc.{gap_name}",
+                gap_id=gap_id,
+                field=field,
                 status="missing",
                 impact_area="sales_action",
                 severity="high" if stage in {"proposal", "negotiation"} else None,
-                reason=f"MEDDPICC gap remains open: {label}.",
-                suggested_question=QUESTION_BY_MEDDPICC_GAP.get(
-                    gap_name,
-                    f"{label}에 대해 다음 미팅에서 무엇을 확인해야 하나요?",
+                reason=(
+                    f"{qualification.framework_display_name} qualification gap "
+                    f"remains open: {label}."
                 ),
-                recommended_action="ask_in_next_meeting",
+                suggested_question=dimension_question(qualification, gap_name),
+                recommended_action=(
+                    "ask_in_next_meeting"
+                    if qualification.is_meddpicc
+                    else "ask_in_next_interaction"
+                ),
                 base_score=55 if stage == "negotiation" else 50,
                 attention_reasons=attention_reasons,
             )
@@ -397,6 +407,7 @@ def _meddpicc_gaps(
 def _attention_gaps(
     deal: dict,
     *,
+    qualification: QualificationReadSnapshot,
     timing: PipelineTimingAssessment,
     attention_reasons: list[str],
 ) -> list[dict]:
@@ -464,9 +475,16 @@ def _attention_gaps(
                 field="health_assessment",
                 status="weak_signal",
                 impact_area="sales_action",
-                reason="MEDDPICC health is at risk.",
-                suggested_question="가장 큰 MEDDPICC 약점과 이를 보완할 다음 액션은 무엇인가요?",
-                recommended_action="review_meddpicc_gap_plan",
+                reason=f"{qualification.framework_display_name} health is at risk.",
+                suggested_question=(
+                    f"가장 큰 {qualification.framework_display_name} 약점과 "
+                    "이를 보완할 다음 액션은 무엇인가요?"
+                ),
+                recommended_action=(
+                    "review_meddpicc_gap_plan"
+                    if qualification.is_meddpicc
+                    else "review_qualification_gap_plan"
+                ),
                 base_score=45,
                 attention_reasons=attention_reasons,
             )

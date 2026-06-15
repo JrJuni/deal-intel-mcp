@@ -42,7 +42,12 @@ def classify_gap_actionability(gap: dict[str, Any]) -> str:
     gap_id = str(gap.get("gap_id") or "")
     field = str(gap.get("field") or "")
 
-    if gap_id.startswith("meddpicc:") or field.startswith("meddpicc."):
+    if (
+        gap_id.startswith("meddpicc:")
+        or field.startswith("meddpicc.")
+        or gap_id.startswith("qualification:")
+        or field.startswith("qualification.")
+    ):
         return ACTIONABILITY_NEEDS_HUMAN_JUDGMENT
     if gap_id == "attention:at_risk":
         return ACTIONABILITY_NEEDS_HUMAN_JUDGMENT

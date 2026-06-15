@@ -13,6 +13,10 @@ from deal_intel.schema.metrics import (
     classify_health,
     summarize_data_quality,
 )
+from deal_intel.schema.qualification_read import (
+    qualification_summary,
+    select_qualification_snapshot,
+)
 from deal_intel.storage.mongodb import MongoDBClient
 
 
@@ -63,14 +67,14 @@ def handle(
     for d in deals:
         interactions = iter_interactions(d)
         current_stage = d.get("deal_stage", "")
-        meddpicc_latest = d.get("meddpicc_latest") or {}
+        qualification = select_qualification_snapshot(d)
         timing = assess_pipeline_timing(
             d,
             as_of=reporting.as_of,
             settings=timing_settings,
         )
         health_band = classify_health(
-            meddpicc_latest,
+            qualification.snapshot,
             health_thresholds,
         )
         attention_reasons = build_attention_reasons(
@@ -90,10 +94,20 @@ def handle(
             "expected_close_date": d.get("expected_close_date"),
             "expected_close_date_source": d.get("expected_close_date_source"),
             "actual_close_date": d.get("actual_close_date"),
-            "health_pct": meddpicc_latest.get("health_pct"),
+            "qualification": qualification_summary(qualification),
+            "qualification_framework": qualification.framework_key,
+            "qualification_framework_display_name": qualification.framework_display_name,
+            "qualification_source_field": qualification.source_field,
+            "qualification_health_pct": qualification.snapshot.get("health_pct"),
+            "qualification_quality_pct": qualification.quality_pct,
+            "qualification_coverage_pct": qualification.coverage_pct,
+            "qualification_filled_count": qualification.filled_count,
+            "qualification_total_count": qualification.total_count,
+            "qualification_gaps": qualification.gaps,
+            "health_pct": qualification.snapshot.get("health_pct"),
             "health_band": health_band,
-            "filled_count": meddpicc_latest.get("filled_count"),
-            "gaps": meddpicc_latest.get("gaps", []),
+            "filled_count": qualification.filled_count,
+            "gaps": qualification.gaps,
             "meeting_count": len(interactions),
             "interaction_count": len(interactions),
             "days_in_stage": timing.days_in_stage,

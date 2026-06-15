@@ -7,6 +7,8 @@ import pytest
 
 from deal_intel.schema.deal_gaps import build_deal_gaps_summary
 from deal_intel.schema.metrics import HealthBandThresholds, PipelineTimingSettings
+from deal_intel.schema.qualification import compute_qualification_latest
+from deal_intel.schema.qualification_framework import get_qualification_template
 
 AS_OF = date(2026, 6, 9)
 
@@ -52,6 +54,32 @@ def _first_gap(row: dict, field: str) -> dict:
         if gap["field"] == field:
             return gap
     raise AssertionError(f"gap for {field!r} not found")
+
+
+def _custom_qualification_deal() -> dict:
+    framework = get_qualification_template("simple_b2b")
+    deal = _deal(
+        "custom",
+        stage="negotiation",
+        amount=120_000_000,
+        health_pct=None,
+        gaps=[],
+    )
+    deal["meddpicc_latest"] = {}
+    deal["qualification_latest"] = compute_qualification_latest(
+        [
+            {
+                "qualification": {
+                    "business_need": {"score": 5},
+                    "buyer_owner": {"score": 2},
+                }
+            }
+        ],
+        framework=framework,
+        evidence_fields=("qualification",),
+        deal_stage="negotiation",
+    )
+    return deal
 
 
 def test_discovery_unknown_amount_is_low_priority_by_default() -> None:
@@ -111,6 +139,29 @@ def test_negotiation_meddpicc_gap_is_high_priority() -> None:
     assert gap["cta_policy"] == "observation_only"
     assert row["actionable_gaps"] == []
     assert row["gap_observations"][0]["gap_id"] == "meddpicc:champion"
+
+
+def test_custom_qualification_gap_uses_active_framework_snapshot() -> None:
+    result = build_deal_gaps_summary(
+        [_custom_qualification_deal()],
+        as_of=AS_OF,
+        min_priority="high",
+    )
+
+    row = result["deals"][0]
+    gap = _first_gap(row, "qualification.next_step")
+    assert row["qualification"]["framework_key"] == "simple_b2b"
+    assert row["qualification_source_field"] == "qualification_latest"
+    assert row["health_pct"] == row["qualification_health_pct"]
+    assert row["priority_band"] == "high"
+    assert gap["gap_id"] == "qualification:next_step"
+    assert gap["severity"] == "high"
+    assert gap["recommended_action"] == "ask_in_next_interaction"
+    assert gap["suggested_question"] == "What is the next agreed action and by when?"
+    assert gap["actionability"] == "needs_human_judgment"
+    assert gap["cta_policy"] == "observation_only"
+    assert row["actionable_gaps"] == []
+    assert row["gap_observations"][0]["gap_id"] == "qualification:next_step"
 
 
 def test_overdue_deal_includes_suggested_question() -> None:

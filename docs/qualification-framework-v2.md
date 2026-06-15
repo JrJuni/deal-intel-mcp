@@ -600,8 +600,44 @@ Verification:
 
 Next:
 
-- QF-5b should migrate `get_deal_gaps` and `list_deals` so routine missing
-  information and list views stop assuming MEDDPICC-only fields.
+- QF-5b has migrated `get_deal_gaps` and `list_deals`. QF-5c should migrate
+  shared metrics and insight paths.
+
+#### QF-5b. Deal Gaps And List Views
+
+Status: implemented.
+
+Implemented:
+
+- Added `schema/qualification_read.py` as the shared active-framework snapshot
+  selector for deterministic read paths.
+- `get_deal_gaps` and `list_deals` now prefer canonical
+  `qualification_latest` when available and fall back to `meddpicc_latest` for
+  legacy/sample data.
+- `get_deal_gaps` emits custom-framework gaps as
+  `qualification.<dimension>` fields and `qualification:<dimension>` IDs while
+  preserving `meddpicc.*` / `meddpicc:*` compatibility for MEDDPICC data.
+- `list_deals` keeps existing `health_pct`, `filled_count`, and `gaps` aliases
+  but now sources them from the active qualification snapshot.
+- Both read views expose generic `qualification_*` metadata so host apps can
+  explain which framework produced the visible health/gap state.
+- Qualitative `qualification.*` gaps are observation-only by default, matching
+  the existing MEDDPICC CTA-safety policy.
+
+Boundaries:
+
+- This unit does not migrate `get_metrics`, `get_insights`, report/export
+  fields, Atlas chart specs, or analytics snapshots.
+- Existing old data with only `meddpicc_latest` remains readable.
+
+Verification:
+
+- `pytest tests/test_deal_gaps.py tests/test_data_quality_reporting.py tests/test_deal_review.py -q --basetemp .tmp\pytest-qf5b-targeted`:
+  38 passed, 1 warning.
+- `pytest tests/test_deal_gaps.py tests/test_get_deal_gaps.py tests/test_deal_review.py tests/test_data_quality_reporting.py tests/test_pipeline_timing.py tests/test_zero_config_sample_fixture.py tests/test_local_sample_backend.py -q --basetemp .tmp\pytest-qf5b-wide`:
+  107 passed, 1 warning.
+- Targeted Ruff over touched files:
+  passed.
 
 ### QF-6. Reports, Data Exports, And Atlas Specs
 

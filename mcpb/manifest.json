@@ -23,7 +23,7 @@
     {"name": "update_config", "description": "Preview or apply safe non-secret user-config changes such as LLM provider/model, report output directory, timezone, and tool surface."},
     {"name": "get_qualification_templates", "description": "List built-in qualification framework templates such as MEDDPICC, simple B2B, pilot/PoC, enterprise procurement, and product-led sales."},
     {"name": "validate_qualification_framework", "description": "Validate a candidate qualification framework template or JSON/YAML payload without writing config."},
-    {"name": "update_qualification_framework", "description": "Dry-run-first config update for qualification frameworks and active framework selection."},
+    {"name": "update_qualification_framework", "description": "Dry-run-first config update for custom qualification frameworks; built-in presets are immutable and can be copied with copy_as_key."},
     {"name": "list_qualification_frameworks", "description": "List built-in and saved qualification frameworks and show which framework is active."},
     {"name": "set_active_qualification_framework", "description": "Dry-run-first config update that switches the active qualification framework without recomputing existing deals."},
     {"name": "delete_qualification_framework", "description": "Dry-run-first deletion for stored custom qualification frameworks; built-ins and active frameworks are protected."},

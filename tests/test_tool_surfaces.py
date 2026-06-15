@@ -282,7 +282,11 @@ def test_high_traffic_tool_descriptions_guide_tool_selection(monkeypatch) -> Non
             "validate_qualification_framework",
         ],
         "validate_qualification_framework": ["candidate qualification framework", "no file writes"],
-        "update_qualification_framework": ["dry_run=true", "confirmed_by_user=true"],
+        "update_qualification_framework": [
+            "dry_run=true",
+            "confirmed_by_user=true",
+            "copy_as_key",
+        ],
         "list_qualification_frameworks": ["currently active", "read-only"],
         "set_active_qualification_framework": ["dry_run=true", "confirmed_by_user=true"],
         "delete_qualification_framework": ["built-in templates cannot be deleted", "dry_run=true"],

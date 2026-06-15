@@ -12,6 +12,41 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-15
 
+### QF-2c immutable qualification presets
+
+Implemented:
+
+- Protected built-in qualification framework keys from user-config overwrite.
+- `update_qualification_framework(template_key=<preset>)` now activates the
+  preset without storing a mutable copy under `qualification.frameworks`.
+- Added `copy_as_key` and `copy_display_name` to
+  `update_qualification_framework` so users can clone a preset before editing.
+- `framework_json` payloads that reuse built-in keys now fail with
+  `PRESET_FRAMEWORK_IMMUTABLE`.
+- `list_qualification_frameworks` marks stored preset-key overrides as ignored.
+- `delete_qualification_framework` can remove an ignored stored preset override
+  while preserving the active built-in preset.
+- Updated defaults comments to describe `meddpicc.weights` as legacy
+  compatibility config rather than the v2 framework customization path.
+
+Design notes:
+
+- Built-in templates are recoverable presets. Customization should create a new
+  framework key from a preset copy.
+- `qualification_latest` resolves active built-in keys from bundled templates
+  first. User-configured frameworks that reuse preset keys are ignored.
+- Legacy `meddpicc_latest` still honors the legacy `meddpicc.weights` and
+  `meddpicc.gap_threshold` path until that compatibility surface is retired.
+
+Validation:
+
+- `pytest tests/test_qualification_config.py tests/test_tool_surfaces.py tests/test_mcpb_manifest.py --basetemp .tmp\pytest-qf2c-targeted -q`:
+  65 passed, 1 warning.
+- `pytest -q --basetemp .tmp\pytest-qf2c-full`:
+  615 passed, 1 warning.
+- `ruff check .`:
+  passed.
+
 ### QF-2b qualification framework manager tools
 
 Implemented:
@@ -67,9 +102,6 @@ Implemented:
 Design notes:
 
 - Existing BI/report/review read paths continue to use `meddpicc_latest`.
-- Default MEDDPICC canonical snapshots mirror legacy `meddpicc.weights` and
-  `meddpicc.gap_threshold` unless an explicit `qualification.frameworks.meddpicc`
-  is configured.
 - Non-MEDDPICC frameworks consume `interaction.qualification` evidence only.
   MEDDPICC evidence is not force-mapped into unrelated custom frameworks.
 

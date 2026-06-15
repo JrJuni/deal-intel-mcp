@@ -190,10 +190,12 @@ Contract:
   - Side effects: none. No file writes, DB access, LLM calls, embeddings, or
     storage access.
 - `update_qualification_framework`
-  - Input: either `template_key` or `framework_json`, plus `dry_run`,
+  - Input: either `template_key` or `framework_json`, optional `copy_as_key`
+    and `copy_display_name` when copying a built-in template, plus `dry_run`,
     `confirmed_by_user`, and `set_active`.
   - Output: dry-run/apply result, changed fields, validation report, backup
-    path when applicable, and `restart_required`.
+    path when applicable, `preset_immutable`, `stores_framework`, and
+    `restart_required`.
   - Side effects: dry-run by default. Actual writes require
     `confirmed_by_user=true` and only update non-secret user config under
     `~/.deal-intel/config.yaml`.
@@ -205,12 +207,21 @@ Purpose:
 
 - Make framework customization usable for non-developers.
 - Let AI hosts help users design criteria without leaving them with raw YAML.
+- Keep bundled presets recoverable. Built-in templates such as `meddpicc`,
+  `simple_b2b`, and `pilot_poc` cannot be overwritten under their original
+  keys. Customization must copy a preset to a new framework key first.
 
 Implementation:
 
 - Add read-only `get_qualification_templates`.
 - Add deterministic `validate_qualification_framework`.
 - Add dry-run-first `update_qualification_framework`.
+  - Selecting a built-in template without `copy_as_key` only switches the
+    active preset; it does not store a mutable copy.
+  - Supplying `copy_as_key` clones the template into
+    `qualification.frameworks.<copy_as_key>`.
+  - Supplying `framework_json` with a built-in key is rejected with
+    `PRESET_FRAMEWORK_IMMUTABLE`.
 - Add optional `suggest_qualification_framework`.
   - This tool may call the configured server-side LLM.
   - It should clearly report that it is suggestion-only and may incur LLM cost.
@@ -233,6 +244,7 @@ Corner cases:
 - Wizard suggests overlapping dimensions.
 - Wizard suggests too many dimensions for a small team.
 - User wants to apply a framework change without confirmation.
+- User tries to mutate `meddpicc` directly and later wants the original back.
 
 ### QF-2b. Framework Manager Tools
 
@@ -270,6 +282,8 @@ Contract:
 Guardrails:
 
 - Built-in templates cannot be deleted.
+- Stored overrides using built-in keys are ignored so the original preset stays
+  recoverable.
 - The active framework cannot be deleted; switch active framework first.
 - Invalid configured frameworks can be listed with warnings but cannot be
   activated.
@@ -377,9 +391,12 @@ Contract:
   BI, reports, Atlas charts, and deal review.
 - `qualification_latest` is the new framework-aware snapshot for future read
   paths.
-- When no explicit `qualification.frameworks.meddpicc` is configured, the
-  default MEDDPICC framework mirrors legacy `meddpicc.weights` and
-  `meddpicc.gap_threshold` so the two snapshots do not drift.
+- Built-in qualification presets are immutable. `qualification_latest` resolves
+  active built-in keys from bundled templates first and ignores user-configured
+  frameworks that reuse preset keys.
+- Legacy `meddpicc.weights` and `meddpicc.gap_threshold` still feed the
+  compatibility `meddpicc_latest` read path until that path is retired or
+  migrated.
 - When a non-MEDDPICC framework is active, `qualification_latest` reads only
   `interaction.qualification` evidence. QF-4 will generate that evidence.
 - MEDDPICC evidence is not force-mapped into unrelated custom frameworks.

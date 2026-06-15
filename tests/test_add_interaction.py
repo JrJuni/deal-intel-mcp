@@ -124,7 +124,7 @@ def test_add_interaction_stores_canonical_customer_evidence() -> None:
     assert result["meddpicc_latest"]["filled_count"] == 1
     assert result["qualification_latest"]["framework_key"] == "meddpicc"
     assert result["qualification_latest"]["dimensions"]["identify_pain"]["score"] == 4.0
-    assert result["qualification_latest"]["coverage_pct"] == 14.3
+    assert result["qualification_latest"]["coverage_pct"] == 17.6
 
     assert mongo.saved is not None
     assert mongo.saved["qualification_latest"] == result["qualification_latest"]

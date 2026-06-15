@@ -29,9 +29,10 @@ reporting:
 deal_value:
   default_currency: KRW
 
-# MEDDPICC health score weights.
+# Legacy MEDDPICC compatibility health score weights.
 # health_pct = sum(score_i * weight_i) / sum(5 * weight_i) * 100
-# Override in ~/.deal-intel/config.yaml if your sales process needs different weighting.
+# For v2 qualification framework customization, copy a built-in preset into a
+# new framework key instead of mutating the preset.
 meddpicc:
   weights:
     metrics:          1.0

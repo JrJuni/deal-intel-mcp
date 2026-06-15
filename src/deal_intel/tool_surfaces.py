@@ -116,8 +116,8 @@ MCP_TOOL_SURFACE_CONTRACTS: tuple[MCPToolSurfaceContract, ...] = (
         llm_calls=False,
         local_file_writes=True,
         notes=(
-            "Dry-run-first user-config write for qualification.frameworks and "
-            "qualification.active_framework; does not recompute deals."
+            "Dry-run-first user-config write for custom qualification.frameworks "
+            "and qualification.active_framework; built-in presets are immutable."
         ),
     ),
     MCPToolSurfaceContract(

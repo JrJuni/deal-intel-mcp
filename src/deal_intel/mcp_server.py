@@ -249,17 +249,19 @@ def validate_qualification_framework(
 def update_qualification_framework(
     template_key: str = "",
     framework_json: str = "",
+    copy_as_key: str = "",
+    copy_display_name: str = "",
     dry_run: bool = True,
     confirmed_by_user: bool = False,
     set_active: bool = True,
 ) -> dict:
     """Preview or apply a qualification framework to user config.
 
-    Use this after the user approves a framework template or edited framework.
-    Defaults to dry_run=true. Actual config writes require confirmed_by_user=true.
-    This writes only non-secret framework config under
-    ~/.deal-intel/config.yaml: qualification.frameworks.<key> and, when
-    set_active=true, qualification.active_framework.
+    Use this after the user approves a framework copy or edited framework.
+    Built-in presets such as meddpicc are immutable: calling this with only
+    template_key activates the preset, while calling it with template_key plus
+    copy_as_key creates a user-configured copy under the new key. Defaults to
+    dry_run=true. Actual config writes require confirmed_by_user=true.
 
     It does not recompute existing deals, call LLMs, write MongoDB, or change
     current MEDDPICC runtime scoring yet. A restart is required for future
@@ -271,6 +273,8 @@ def update_qualification_framework(
         return update_qualification_framework_config(
             template_key=template_key or "",
             framework_json=framework_json or "",
+            copy_as_key=copy_as_key or "",
+            copy_display_name=copy_display_name or "",
             dry_run=dry_run,
             confirmed_by_user=confirmed_by_user,
             set_active=set_active,

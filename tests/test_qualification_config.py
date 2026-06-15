@@ -80,7 +80,7 @@ def test_resolve_active_qualification_framework_defaults_to_meddpicc() -> None:
     assert framework.display_name == "MEDDPICC"
 
 
-def test_resolve_active_meddpicc_applies_legacy_weight_overrides() -> None:
+def test_resolve_active_meddpicc_ignores_legacy_weight_overrides_for_preset() -> None:
     framework = resolve_active_qualification_framework(
         {
             "meddpicc": {
@@ -91,9 +91,9 @@ def test_resolve_active_meddpicc_applies_legacy_weight_overrides() -> None:
     )
 
     assert framework.key == "meddpicc"
-    assert framework.dimensions["champion"].weight == 3.0
+    assert framework.dimensions["champion"].weight == 2.0
     assert framework.dimensions["metrics"].weight == 1.0
-    assert {dimension.gap_threshold for dimension in framework.dimensions.values()} == {1}
+    assert {dimension.gap_threshold for dimension in framework.dimensions.values()} == {2}
 
 
 def test_resolve_active_qualification_framework_uses_built_in_active_template() -> None:
@@ -127,7 +127,7 @@ def test_resolve_active_qualification_framework_uses_configured_framework() -> N
     assert framework.display_name == "Custom Simple"
 
 
-def test_resolve_active_qualification_framework_keeps_explicit_framework_weights() -> None:
+def test_resolve_active_qualification_framework_ignores_preset_key_override() -> None:
     payload = validate_framework_input(template_key="meddpicc")["framework"]
     payload["dimensions"]["champion"]["weight"] = 4.0
 
@@ -142,7 +142,7 @@ def test_resolve_active_qualification_framework_keeps_explicit_framework_weights
     )
 
     assert framework.key == "meddpicc"
-    assert framework.dimensions["champion"].weight == 4.0
+    assert framework.dimensions["champion"].weight == 2.0
 
 
 def test_resolve_active_qualification_framework_rejects_missing_active_framework() -> None:
@@ -169,9 +169,10 @@ def test_update_qualification_framework_dry_run_does_not_write(tmp_path) -> None
     assert result["storage_written"] is False
     assert result["restart_required"] is True
     assert [change["field"] for change in result["changed_fields"]] == [
-        "qualification.frameworks.simple_b2b",
         "qualification.active_framework",
     ]
+    assert result["preset_immutable"] is True
+    assert result["stores_framework"] is False
     assert user_config.exists() is False
 
 
@@ -217,12 +218,44 @@ def test_update_qualification_framework_writes_and_backs_up_existing_config(tmp_
     assert backup.exists()
     assert data["custom"]["keep"] is True
     assert data["qualification"]["active_framework"] == "pilot_poc"
-    assert data["qualification"]["frameworks"]["pilot_poc"]["display_name"] == (
-        "Pilot / PoC Qualification"
+    assert data["qualification"]["frameworks"] == {}
+    assert result["preset_immutable"] is True
+    assert result["stores_framework"] is False
+
+
+def test_update_qualification_framework_can_copy_template_to_custom_framework(
+    tmp_path,
+) -> None:
+    result = update_qualification_framework_config(
+        config_path=tmp_path / "config.yaml",
+        template_key="enterprise_procurement",
+        copy_as_key="custom_enterprise_procurement",
+        copy_display_name="Custom Enterprise Procurement",
+        dry_run=False,
+        confirmed_by_user=True,
     )
 
+    data = _load(tmp_path / "config.yaml")
+    assert result["ok"] is True
+    assert result["changed_fields"] == [
+        {
+            "field": "qualification.frameworks.custom_enterprise_procurement",
+            "changed": True,
+        },
+        {"field": "qualification.active_framework", "changed": True},
+    ]
+    assert result["source"] == "template_copy"
+    assert result["template_key"] == "enterprise_procurement"
+    assert result["copy_as_key"] == "custom_enterprise_procurement"
+    assert data["qualification"]["active_framework"] == "custom_enterprise_procurement"
+    assert data["qualification"]["frameworks"]["custom_enterprise_procurement"][
+        "display_name"
+    ] == "Custom Enterprise Procurement"
 
-def test_update_qualification_framework_can_store_without_setting_active(tmp_path) -> None:
+
+def test_update_qualification_framework_noops_when_template_not_activated(
+    tmp_path,
+) -> None:
     result = update_qualification_framework_config(
         config_path=tmp_path / "config.yaml",
         template_key="enterprise_procurement",
@@ -231,12 +264,28 @@ def test_update_qualification_framework_can_store_without_setting_active(tmp_pat
         confirmed_by_user=True,
     )
 
-    data = _load(tmp_path / "config.yaml")
     assert result["ok"] is True
-    assert result["changed_fields"] == [
-        {"field": "qualification.frameworks.enterprise_procurement", "changed": True}
-    ]
-    assert "active_framework" not in data["qualification"]
+    assert result["changed_fields"] == []
+    assert result["stores_framework"] is False
+    assert (tmp_path / "config.yaml").exists() is False
+
+
+def test_update_qualification_framework_rejects_preset_key_framework_json(
+    tmp_path,
+) -> None:
+    framework = validate_framework_input(template_key="meddpicc")["framework"]
+    framework["display_name"] = "Mutated MEDDPICC"
+
+    result = update_qualification_framework_config(
+        config_path=tmp_path / "config.yaml",
+        framework_json=json.dumps(framework),
+    )
+
+    assert result["ok"] is False
+    assert result["error_code"] == "PRESET_FRAMEWORK_IMMUTABLE"
+    assert result["framework_key"] == "meddpicc"
+    assert "copy_as_key" in result["copy_hint"]
+    assert (tmp_path / "config.yaml").exists() is False
 
 
 def test_update_qualification_framework_rejects_invalid_payload_without_echoing_secret(
@@ -318,6 +367,30 @@ def test_list_qualification_frameworks_includes_saved_custom_framework() -> None
     assert saved["active"] is True
     assert saved["valid"] is True
     assert "dimensions" in saved
+
+
+def test_list_qualification_frameworks_marks_preset_overrides_as_ignored() -> None:
+    override = validate_framework_input(template_key="meddpicc")["framework"]
+    override["display_name"] = "Mutated MEDDPICC"
+
+    result = list_qualification_frameworks_config(
+        cfg={
+            "qualification": {
+                "active_framework": "meddpicc",
+                "frameworks": {"meddpicc": override},
+            }
+        },
+    )
+
+    meddpicc = next(
+        framework for framework in result["frameworks"] if framework["key"] == "meddpicc"
+    )
+    assert meddpicc["source"] == "built_in"
+    assert meddpicc["display_name"] == "MEDDPICC"
+    assert meddpicc["stored_override_ignored"] is True
+    assert {
+        warning["code"] for warning in result["warnings"]
+    } == {"preset_overrides_ignored"}
 
 
 def test_set_active_qualification_framework_dry_run_and_apply(tmp_path) -> None:
@@ -438,6 +511,40 @@ def test_delete_qualification_framework_rejects_built_in_or_active_custom(tmp_pa
     assert built_in["error_code"] == "BUILT_IN_FRAMEWORK_NOT_DELETABLE"
     assert active_custom["ok"] is False
     assert active_custom["error_code"] == "ACTIVE_FRAMEWORK_NOT_DELETABLE"
+
+
+def test_delete_qualification_framework_can_remove_stored_preset_override(
+    tmp_path,
+) -> None:
+    override = validate_framework_input(template_key="meddpicc")["framework"]
+    override["display_name"] = "Mutated MEDDPICC"
+    user_config = tmp_path / "config.yaml"
+    user_config.write_text(
+        yaml.safe_dump(
+            {
+                "qualification": {
+                    "active_framework": "meddpicc",
+                    "frameworks": {"meddpicc": override},
+                }
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+    result = delete_qualification_framework_config(
+        config_path=user_config,
+        framework_key="meddpicc",
+        dry_run=False,
+        confirmed_by_user=True,
+    )
+
+    data = _load(user_config)
+    assert result["ok"] is True
+    assert result["active_framework_preserved"] is True
+    assert result["deleted_framework"]["display_name"] == "Mutated MEDDPICC"
+    assert "meddpicc" not in data["qualification"]["frameworks"]
+    assert data["qualification"]["active_framework"] == "meddpicc"
 
 
 def test_mcp_qualification_framework_wrappers_use_shared_helpers(

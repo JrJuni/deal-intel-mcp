@@ -98,6 +98,10 @@ def resolve_active_qualification_framework(cfg: dict[str, Any] | None) -> Qualif
     if not isinstance(configured_frameworks, dict):
         raise ValueError("qualification.frameworks must be a mapping")
 
+    built_ins = built_in_qualification_templates()
+    if active_key in built_ins:
+        return built_ins[active_key]
+
     if active_key in configured_frameworks:
         payload = configured_frameworks[active_key]
         if not isinstance(payload, dict):
@@ -110,33 +114,7 @@ def resolve_active_qualification_framework(cfg: dict[str, Any] | None) -> Qualif
         raise ValueError(
             f"qualification.active_framework {active_key!r} is not defined"
         ) from exc
-    if active_key == "meddpicc":
-        return _apply_legacy_meddpicc_overrides(framework, config)
     return framework
-
-
-def _apply_legacy_meddpicc_overrides(
-    framework: QualificationFramework,
-    cfg: dict[str, Any],
-) -> QualificationFramework:
-    meddpicc_cfg = cfg.get("meddpicc", {})
-    if not isinstance(meddpicc_cfg, dict):
-        return framework
-
-    target = framework.model_copy(deep=True)
-    weights = meddpicc_cfg.get("weights", {})
-    if "weights" in meddpicc_cfg:
-        if not isinstance(weights, dict):
-            raise ValueError("meddpicc.weights must be a mapping")
-        for key, dimension in target.dimensions.items():
-            dimension.weight = weights.get(key, 1.0)
-
-    if "gap_threshold" in meddpicc_cfg:
-        threshold = meddpicc_cfg["gap_threshold"]
-        for dimension in target.dimensions.values():
-            dimension.gap_threshold = threshold
-
-    return QualificationFramework.model_validate(target.model_dump(mode="python"))
 
 
 def update_qualification_framework_config(
@@ -144,6 +122,8 @@ def update_qualification_framework_config(
     config_path: Path | None = None,
     template_key: str = "",
     framework_json: str = "",
+    copy_as_key: str = "",
+    copy_display_name: str = "",
     dry_run: bool = True,
     confirmed_by_user: bool = False,
     set_active: bool = True,
@@ -154,6 +134,8 @@ def update_qualification_framework_config(
     parsed = _framework_from_input(
         template_key=template_key,
         framework_json=framework_json,
+        copy_as_key=copy_as_key,
+        copy_display_name=copy_display_name,
     )
     if not parsed["ok"]:
         return _update_error(
@@ -181,6 +163,26 @@ def update_qualification_framework_config(
         )
 
     framework = QualificationFramework.model_validate(validation["framework"])
+    built_in_keys = set(built_in_qualification_templates())
+    preset_activation_only = parsed["source"] == "template" and framework.key in built_in_keys
+    if framework.key in built_in_keys and not preset_activation_only:
+        return _update_error(
+            path=path,
+            dry_run=dry_run,
+            confirmed_by_user=confirmed_by_user,
+            code="PRESET_FRAMEWORK_IMMUTABLE",
+            message=(
+                "Built-in qualification frameworks are immutable presets. "
+                "Copy the preset to a new framework key before editing it."
+            ),
+            extra={
+                "framework_key": framework.key,
+                "copy_hint": (
+                    "Call update_qualification_framework with template_key="
+                    f"{framework.key!r} and copy_as_key set to a new snake_case key."
+                ),
+            },
+        )
     exists = path.exists()
     if exists:
         existing = _read_yaml_config(path)
@@ -215,11 +217,18 @@ def update_qualification_framework_config(
             message="qualification.frameworks must be a YAML mapping.",
         )
 
-    frameworks[framework.key] = framework.model_dump(mode="json")
+    if not preset_activation_only:
+        frameworks[framework.key] = framework.model_dump(mode="json")
     if set_active:
         qualification["active_framework"] = framework.key
 
-    changed_fields = _qualification_changes(existing, target, framework.key, set_active=set_active)
+    changed_fields = _qualification_changes(
+        existing,
+        target,
+        framework.key,
+        set_active=set_active,
+        store_framework=not preset_activation_only,
+    )
     backup_path = _backup_path(path, timestamp=timestamp) if exists and changed_fields else None
     payload = {
         "ok": True,
@@ -235,8 +244,11 @@ def update_qualification_framework_config(
         "restart_required": bool(changed_fields),
         "source": parsed["source"],
         "template_key": parsed.get("template_key"),
+        "copy_as_key": parsed.get("copy_as_key"),
         "framework_key": framework.key,
         "set_active": set_active,
+        "preset_immutable": framework.key in built_in_keys,
+        "stores_framework": not preset_activation_only,
         "changed_fields": changed_fields,
         "framework": framework.model_dump(mode="json"),
         "validation": validation,
@@ -355,6 +367,18 @@ def list_qualification_frameworks_config(
                 "framework_keys": invalid_keys,
             }
         )
+    ignored_preset_overrides = sorted(set(configured_frameworks) & set(built_ins))
+    if ignored_preset_overrides:
+        warnings.append(
+            {
+                "code": "preset_overrides_ignored",
+                "message": (
+                    "Stored frameworks using built-in preset keys are ignored "
+                    "so presets remain recoverable."
+                ),
+                "framework_keys": ignored_preset_overrides,
+            }
+        )
 
     return {
         "ok": True,
@@ -420,7 +444,7 @@ def set_active_qualification_framework_config(
             message="Unknown qualification framework.",
             extra={"available_frameworks": available},
         )
-    if requested_key in configured_frameworks:
+    if requested_key in configured_frameworks and requested_key not in built_ins:
         validation = validate_qualification_framework(configured_frameworks[requested_key])
         if not validation["ok"]:
             return _update_error(
@@ -545,7 +569,8 @@ def delete_qualification_framework_config(
             extra={"available_custom_frameworks": sorted(configured_frameworks)},
         )
     active_key = _active_framework_key(qualification)
-    if active_key == requested_key:
+    deleting_preset_override = requested_key in built_ins
+    if active_key == requested_key and not deleting_preset_override:
         return _update_error(
             path=path,
             dry_run=dry_run,
@@ -581,6 +606,7 @@ def delete_qualification_framework_config(
                 deleted_payload,
                 include_dimensions=False,
             ),
+            "active_framework_preserved": active_key == requested_key,
             "restart_required": True,
         },
     )
@@ -611,6 +637,8 @@ def _framework_from_input(
     *,
     template_key: str,
     framework_json: str,
+    copy_as_key: str = "",
+    copy_display_name: str = "",
 ) -> dict[str, Any]:
     requested_template = template_key.strip()
     raw = framework_json.strip()
@@ -619,6 +647,13 @@ def _framework_from_input(
             "ok": False,
             "error_code": "INVALID_INPUT",
             "message": "Provide either template_key or framework_json, not both.",
+        }
+    requested_copy_key = copy_as_key.strip()
+    if requested_copy_key and not requested_template:
+        return {
+            "ok": False,
+            "error_code": "INVALID_INPUT",
+            "message": "copy_as_key can only be used with template_key.",
         }
     if requested_template:
         try:
@@ -630,11 +665,21 @@ def _framework_from_input(
                 "message": "Unknown qualification framework template.",
                 "available_templates": sorted(built_in_qualification_templates()),
             }
+        payload = framework.model_dump(mode="json")
+        source = "template"
+        if requested_copy_key:
+            payload["key"] = requested_copy_key
+            payload["display_name"] = (
+                copy_display_name.strip()
+                or f"{framework.display_name} Copy"
+            )
+            source = "template_copy"
         return {
             "ok": True,
-            "source": "template",
+            "source": source,
             "template_key": requested_template,
-            "payload": framework.model_dump(mode="json"),
+            "copy_as_key": requested_copy_key or None,
+            "payload": payload,
         }
     if not raw:
         return {
@@ -660,6 +705,7 @@ def _framework_from_input(
         "ok": True,
         "source": "framework_json",
         "template_key": None,
+        "copy_as_key": None,
         "payload": parsed,
     }
 
@@ -692,6 +738,19 @@ def _framework_listing(
     active_key: str,
     include_dimensions: bool,
 ) -> dict[str, Any]:
+    if key in built_ins:
+        summary = _template_summary(built_ins[key], include_dimensions=include_dimensions)
+        summary.update(
+            {
+                "source": "built_in",
+                "overrides_built_in": False,
+                "stored_override_ignored": key in configured_frameworks,
+                "active": key == active_key,
+                "valid": True,
+            }
+        )
+        return summary
+
     if key in configured_frameworks:
         summary = _safe_framework_summary(
             key,
@@ -706,17 +765,6 @@ def _framework_listing(
             }
         )
         return summary
-
-    summary = _template_summary(built_ins[key], include_dimensions=include_dimensions)
-    summary.update(
-        {
-            "source": "built_in",
-            "overrides_built_in": False,
-            "active": key == active_key,
-            "valid": True,
-        }
-    )
-    return summary
 
 
 def _safe_framework_summary(
@@ -764,8 +812,11 @@ def _qualification_changes(
     framework_key: str,
     *,
     set_active: bool,
+    store_framework: bool = True,
 ) -> list[dict[str, Any]]:
-    paths = [("qualification", "frameworks", framework_key)]
+    paths = []
+    if store_framework:
+        paths.append(("qualification", "frameworks", framework_key))
     if set_active:
         paths.append(("qualification", "active_framework"))
 

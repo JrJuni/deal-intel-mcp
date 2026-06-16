@@ -120,6 +120,16 @@ Recommended implementation order:
      startup.
    - Do not ship a thin `npx` wrapper as the main post-v1 answer if it still
      requires users to manually understand the Python install path.
+10. Post-v2 workspace/project profiles.
+   - Support multiple sales workspaces without editing global config by hand.
+   - A workspace should bundle at least MongoDB database name, optional URI
+     reference, default currency, qualification framework, reporting output
+     path, and product/solution context pointers.
+   - Keep project switching explicit, e.g. `workspace list/add/switch`, so a
+     user managing multiple products or client projects does not accidentally
+     mix deal records, charts, reports, embeddings, or tuning preferences.
+   - Treat this as post-v2 because the qualification framework and tool surface
+     need to stabilize first.
 
 MongoDB feature placement rule:
 

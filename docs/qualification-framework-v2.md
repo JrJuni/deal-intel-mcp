@@ -1036,6 +1036,54 @@ Compatibility rules:
   being fabricated from unrelated dimensions.
 - Existing MEDDPICC-compatible sample data remains valid.
 
+### QF-11. Custom Framework End-to-End Smoke
+
+Status:
+
+- Implemented.
+
+Purpose:
+
+- Prove that a non-MEDDPICC active framework can move through the main read and
+  reporting surfaces without being silently converted back to MEDDPICC.
+- Keep this as a thin integration smoke, not a replacement for the detailed
+  unit tests in review, gaps, metrics, reports, search, and analytics snapshot
+  modules.
+
+Covered surfaces:
+
+- `get_qualification_templates` / `update_qualification_framework`
+- `list_qualification_frameworks`
+- `set_active_qualification_framework`
+- `delete_qualification_framework`
+- `add_interaction`
+- `backfill_qualification_reextract`
+- `get_deal_review`
+- `get_deal_gaps`
+- `get_metrics(metric_type="pipeline_health")`
+- `export_report(report_type="weekly_pipeline")`
+- `search_deals` with Python cosine search
+- `build_analytics_snapshot`
+
+Regression guarded:
+
+- `qualification_latest` remains the source of truth when present.
+- Built-in templates can be copied to custom framework keys, activated, used by
+  interaction extraction, revised, and safely removed after switching away.
+- Updating a custom framework changes its extraction fingerprint and causes
+  historical interactions with the old hash to appear in the re-extraction
+  dry-run plan.
+- Compatibility aliases such as `health_pct` / `gaps` stay populated from the
+  active framework.
+- Non-MEDDPICC snapshots do not fabricate `meddpicc_*` analytics fields from
+  unrelated custom dimensions.
+- Public responses do not expose raw notes, raw interaction content, contacts,
+  or embeddings.
+
+Test:
+
+- `tests/test_qualification_framework_e2e.py`
+
 ## Gate Policy
 
 Every QF unit should close with:

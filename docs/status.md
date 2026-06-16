@@ -12,6 +12,39 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-16
 
+### QF-11 custom framework end-to-end smoke
+
+Implemented:
+
+- Added `tests/test_qualification_framework_e2e.py` as a thin integration
+  smoke for custom qualification framework behavior.
+- Added config lifecycle coverage:
+  copy a built-in template to a custom key, store it in user config, activate
+  it, use it in `add_interaction`, revise the framework, detect stale
+  interaction framework hashes through `backfill_qualification_reextract`, and
+  delete the inactive custom framework safely.
+- The smoke runs the same custom-framework deal through:
+  `get_deal_review`, `get_deal_gaps`, `get_metrics`, `export_report`,
+  `search_deals`, and `build_analytics_snapshot`.
+- The test intentionally includes a high-scoring `meddpicc_latest`
+  compatibility snapshot to verify active-framework paths do not accidentally
+  fall back to MEDDPICC values.
+- The test also asserts public payloads do not expose raw notes, raw
+  interaction content, contacts, or embeddings.
+
+Validation so far:
+
+- `pytest tests/test_qualification_framework_e2e.py -q -p no:cacheprovider --basetemp .tmp\pytest-qf11-e2e`:
+  2 passed.
+- `pytest tests/test_qualification_framework.py tests/test_qualification_config.py tests/test_qualification_extraction.py tests/test_qualification_snapshot.py tests/test_qualification_framework_e2e.py tests/test_add_interaction.py tests/test_backfill_qualification.py tests/test_backfill_qualification_reextract.py tests/test_deal_review.py tests/test_deal_gaps.py tests/test_get_metrics.py tests/test_weekly_pipeline_report.py tests/test_weekly_pipeline_markdown.py tests/test_export_report.py tests/test_search_deals_startup.py tests/test_analytics_snapshots.py tests/test_data_quality_reporting.py -q -p no:cacheprovider --basetemp .tmp\pytest-qf11-targeted`:
+  209 passed, 1 warning.
+- `pytest -q -p no:cacheprovider --basetemp .tmp\pytest-qf11-full`:
+  668 passed, 1 warning.
+- `ruff check .`:
+  passed.
+- `deal-intel smoke-natural-questions --as-of 2026-06-10`:
+  OK true, 12/12 questions passed.
+
 ### QF-10 generic qualification compatibility sweep
 
 Implemented:

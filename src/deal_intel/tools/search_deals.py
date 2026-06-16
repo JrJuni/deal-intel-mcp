@@ -2,6 +2,7 @@
 
 from deal_intel.atlas_vector_indexes import deal_summary_vector_index_name
 from deal_intel.errors import ErrorCode, MCPError, Stage
+from deal_intel.schema.qualification_read import select_qualification_snapshot
 from deal_intel.storage.mongodb import MongoDBClient
 
 
@@ -99,7 +100,8 @@ def _search_python_cosine(
 
     results = []
     for score, deal in scored[:limit]:
-        meddpicc = deal.get("meddpicc_latest") or {}
+        qualification = select_qualification_snapshot(deal)
+        qualification_gaps = _safe_gap_list(qualification.gaps)
         result: dict = {
             "deal_id": deal["deal_id"],
             "company": deal["company"],
@@ -110,13 +112,19 @@ def _search_python_cosine(
             "deal_size_amount": deal.get("deal_size_amount"),
             "deal_size_currency": deal.get("deal_size_currency") or "KRW",
             "score": round(score, 4),
+            "qualification_framework": qualification.framework_key,
+            "qualification_framework_display_name": (
+                qualification.framework_display_name
+            ),
+            "qualification_source_field": qualification.source_field,
+            "qualification_gaps": qualification_gaps,
+            "gaps": qualification_gaps,
         }
-        hp = meddpicc.get("health_pct")
+        hp = qualification.snapshot.get("health_pct")
         if hp is not None:
-            result["health_pct"] = round(hp, 1)
-        gaps = meddpicc.get("gaps")
-        if gaps is not None:
-            result["gaps"] = gaps
+            rounded_health = round(hp, 1)
+            result["qualification_health_pct"] = rounded_health
+            result["health_pct"] = rounded_health
         results.append(result)
 
     return {"ok": True, "query": query, "result_count": len(results), "results": results}
@@ -153,6 +161,19 @@ def _search_atlas(
             r["score"] = round(r["score"], 4)
         if r.get("health_pct") is not None:
             r["health_pct"] = round(r["health_pct"], 1)
+        if r.get("qualification_health_pct") is not None:
+            r["qualification_health_pct"] = round(
+                r["qualification_health_pct"],
+                1,
+            )
+        r["qualification_gaps"] = _safe_gap_list(r.get("qualification_gaps"))
+        r["gaps"] = _safe_gap_list(r.get("gaps"))
         r["industry_tags"] = r.get("industry_tags") or []
 
     return {"ok": True, "query": query, "result_count": len(results), "results": results}
+
+
+def _safe_gap_list(value) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value if str(item).strip()]

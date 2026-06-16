@@ -970,6 +970,72 @@ Corner cases:
 - A renamed tool breaks an external prompt/tutorial.
 - Customer-theme evidence and framework evidence become confused.
 
+### QF-10. Generic Qualification Default With MEDDPICC Compatibility
+
+Status:
+
+- Implemented.
+
+Purpose:
+
+- Make `qualification_latest` and generic qualification language the default
+  architecture while preserving MEDDPICC as the bundled default framework and
+  legacy compatibility surface.
+- Do not remove tools, fields, sample data, chart ids, or legacy insight modes
+  in this unit.
+
+Audit commands:
+
+```bash
+rg -n "meddpicc_latest|meddpicc_|MEDDPICC" src tests docs/architecture.md docs/baseline.md docs/qualification-framework-v2.md
+rg -n "meddpicc_latest|meddpicc_|MEDDPICC" src/deal_intel/tools src/deal_intel/storage src/deal_intel/resources
+rg -n "qualification_latest|qualification_framework|framework_scope" src tests docs
+```
+
+Classification summary:
+
+| Classification | References | Action |
+| --- | --- | --- |
+| `generic_migration_needed` | `tools/analytics_snapshot.py`, `tools/search_deals.py`, `storage/mongodb.py` search and snapshot projections, `resources/mongo/analytics_snapshots.v1.json` | Prefer `qualification_latest` through `select_qualification_snapshot(...)`; keep legacy aliases. |
+| `legacy_mark_only` | `tools/get_insights.py` modes `win_patterns`, `loss_patterns`, `compare_won_lost`, `gap_frequency`, `industry_benchmark` | Keep existing MEDDPICC aggregation logic but return `framework_scope: meddpicc_legacy` and a compatibility note. |
+| `compatibility_keep` | `schema/qualification_read.py`, `schema/qualification_framework.py`, `tools/qualification_snapshot.py`, `resources/defaults.yaml`, `resources/mongo/deals.v1.json`, Atlas chart ids, public docs that mention MEDDPICC as the default framework | Preserve because MEDDPICC is still the default built-in framework or an old-record compatibility field. |
+| `test_fixture_only` | MEDDPICC fixtures in unit tests and sample data builders | Keep unless the specific test now targets generic qualification behavior. |
+
+Implementation split:
+
+- QF-10a: tracked audit and classification only.
+- QF-10b: analytics snapshot generic qualification fields.
+- QF-10c: search result generic qualification metadata.
+- QF-10d: legacy insight labeling.
+- QF-10e: wording and docs cleanup.
+- QF-10f: regression gate.
+
+Implemented:
+
+- `build_analytics_snapshot(...)` now selects the active qualification snapshot
+  through `select_qualification_snapshot(...)`.
+- Analytics snapshots include `qualification_framework`,
+  `qualification_framework_display_name`, `qualification_source_field`,
+  `qualification_health_pct`, `qualification_coverage_pct`,
+  `qualification_quality_pct`, `qualification_gap_count`, and
+  `qualification_gaps`.
+- Search results include active-framework qualification metadata and preserve
+  `health_pct` / `gaps` compatibility aliases.
+- Atlas vector search projection mirrors the same result field names where the
+  MongoDB aggregation can derive them.
+- MEDDPICC-only `get_insights` aggregation modes now self-label as
+  `framework_scope: meddpicc_legacy`.
+- `pipeline_overview` remains the generic framework-aware insight path.
+
+Compatibility rules:
+
+- `meddpicc_latest` is not removed.
+- `health_pct`, `health_band`, and existing report/search aliases remain.
+- For a non-MEDDPICC active framework, new generic fields use the active
+  framework while `meddpicc_*` compatibility fields are empty/null instead of
+  being fabricated from unrelated dimensions.
+- Existing MEDDPICC-compatible sample data remains valid.
+
 ## Gate Policy
 
 Every QF unit should close with:

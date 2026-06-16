@@ -30,6 +30,11 @@ VALID_QUERY_TYPES = frozenset({
 
 _TERMINAL_STAGES = ["won", "lost"]
 _ACTIVE_STAGES = {"$nin": _TERMINAL_STAGES}
+_MEDDPICC_LEGACY_WARNING = "meddpicc_legacy_insight"
+_MEDDPICC_LEGACY_NOTE = (
+    "This insight mode uses MEDDPICC compatibility fields. Use "
+    "pipeline_overview for framework-aware pipeline metrics."
+)
 
 
 def _clean(doc: dict) -> dict:
@@ -42,6 +47,18 @@ def _round_dict(d: dict, keys: list[str], ndigits: int = 1) -> dict:
         if d.get(k) is not None:
             d[k] = round(d[k], ndigits)
     return d
+
+
+def _mark_meddpicc_legacy(result: dict) -> dict:
+    warnings = list(result.get("warnings") or [])
+    if _MEDDPICC_LEGACY_WARNING not in warnings:
+        warnings.append(_MEDDPICC_LEGACY_WARNING)
+    return {
+        **result,
+        "framework_scope": "meddpicc_legacy",
+        "compatibility_note": _MEDDPICC_LEGACY_NOTE,
+        "warnings": warnings,
+    }
 
 
 # ── aggregation helpers ────────────────────────────────────────────────────────
@@ -113,12 +130,12 @@ def _pipeline_overview(
 
 def _win_patterns(col) -> dict:
     r = _meddpicc_profile(col, "won")
-    return {"query": "win_patterns", **r}
+    return _mark_meddpicc_legacy({"query": "win_patterns", **r})
 
 
 def _loss_patterns(col) -> dict:
     r = _meddpicc_profile(col, "lost")
-    return {"query": "loss_patterns", **r}
+    return _mark_meddpicc_legacy({"query": "loss_patterns", **r})
 
 
 def _compare_won_lost(col) -> dict:
@@ -139,13 +156,13 @@ def _compare_won_lost(col) -> dict:
             ),
         }
 
-    return {
+    return _mark_meddpicc_legacy({
         "won_count": won.get("count", 0),
         "lost_count": lost.get("count", 0),
         "won_avg_health_pct": won.get("avg_health_pct"),
         "lost_avg_health_pct": lost.get("avg_health_pct"),
         "dimensions": comparison,
-    }
+    })
 
 
 def _gap_frequency(col) -> dict:
@@ -164,7 +181,10 @@ def _gap_frequency(col) -> dict:
     ]
     active_res = list(col.aggregate(active_count_pipeline))
     active_deals = active_res[0]["n"] if active_res else 0
-    return {"active_deal_count": active_deals, "gap_frequency": rows}
+    return _mark_meddpicc_legacy({
+        "active_deal_count": active_deals,
+        "gap_frequency": rows,
+    })
 
 
 def _industry_benchmark(
@@ -243,7 +263,7 @@ def _industry_benchmark(
             "mixed_total_size_currency": amount_summary["mixed_currency"],
             "total_size_by_currency": amount_summary["amount_by_currency"],
         })
-    return {"industries": rows}
+    return _mark_meddpicc_legacy({"industries": rows})
 
 
 def _summarize_amounts_by_currency(amounts: list[dict]) -> dict:

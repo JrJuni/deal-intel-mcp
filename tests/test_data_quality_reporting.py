@@ -292,6 +292,57 @@ def test_get_insights_pipeline_overview_uses_active_qualification_snapshot() -> 
     assert proposal["avg_health_pct"] == expected_health
 
 
+def test_get_insights_legacy_modes_self_label_meddpicc_scope() -> None:
+    class FakeCollection:
+        def aggregate(self, _pipeline):
+            return [
+                {
+                    "_id": None,
+                    "count": 1,
+                    "avg_health_pct": 80.0,
+                    "metrics": 4.0,
+                }
+            ]
+
+    class FakeDB:
+        deals = FakeCollection()
+
+    class FakeInsightMongo:
+        def _get_db(self):
+            return FakeDB()
+
+    result = get_insights.handle(
+        mongo=FakeInsightMongo(),
+        cfg={},
+        query_type="win_patterns",
+        as_of="2026-06-08",
+    )
+
+    assert result["ok"] is True
+    assert result["framework_scope"] == "meddpicc_legacy"
+    assert "MEDDPICC compatibility fields" in result["compatibility_note"]
+    assert "meddpicc_legacy_insight" in result["warnings"]
+
+
+def test_get_insights_pipeline_overview_does_not_mark_legacy_scope() -> None:
+    class FakeInsightMongo:
+        def list_deals_for_metrics(self) -> list[dict]:
+            return [_deal()]
+
+        def _get_db(self) -> None:
+            raise AssertionError("pipeline_overview should use metrics read path")
+
+    result = get_insights.handle(
+        mongo=FakeInsightMongo(),
+        cfg={},
+        query_type="pipeline_overview",
+        as_of="2026-06-08",
+    )
+
+    assert "framework_scope" not in result
+    assert "compatibility_note" not in result
+
+
 def test_get_insights_preflight_errors_happen_before_storage() -> None:
     class FailingMongo:
         def list_deals_for_metrics(self) -> list[dict]:

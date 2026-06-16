@@ -5,6 +5,7 @@ import pytest
 from deal_intel import _context, mcp_server
 from deal_intel.errors import MCPError
 from deal_intel.providers.embedding import SentenceTransformerProvider
+from deal_intel.storage.mongodb import MongoDBClient
 from deal_intel.tools import search_deals as search_tool
 
 
@@ -199,7 +200,57 @@ def test_search_deals_returns_industry_tags_from_python_cosine() -> None:
     )
 
     assert result["results"][0]["industry_tags"] == ["SaaS", "Insurance"]
+    assert result["results"][0]["qualification_framework"] == "meddpicc"
+    assert result["results"][0]["qualification_source_field"] == "meddpicc_latest"
     assert result["results"][0]["health_pct"] == 88.9
+    assert result["results"][0]["qualification_health_pct"] == 88.9
+    assert "summary_embedding" not in result["results"][0]
+
+
+def test_search_deals_prefers_custom_qualification_from_python_cosine() -> None:
+    class Embedding:
+        def embed(self, _query: str) -> list[float]:
+            return [1.0, 0.0]
+
+    class Mongo:
+        def get_deals_for_search(self) -> list[dict]:
+            return [
+                {
+                    "deal_id": "d1",
+                    "company": "Custom Framework Co",
+                    "deal_stage": "proposal",
+                    "industry": "SaaS",
+                    "summary_embedding": [1.0, 0.0],
+                    "qualification_latest": {
+                        "framework_key": "mutual_action_plan",
+                        "framework_display_name": "Mutual Action Plan",
+                        "health_pct": 51.23,
+                        "filled_count": 2,
+                        "total_count": 3,
+                        "dimensions": {"owner": {"score": 3}},
+                        "dimension_metadata": {"owner": {"label": "Owner"}},
+                        "gaps": ["timeline"],
+                    },
+                    "meddpicc_latest": {"health_pct": 90.0, "gaps": []},
+                }
+            ]
+
+    result = search_tool.handle(
+        Mongo(),
+        Embedding(),
+        cfg={"mongodb": {"vector_search": "python_cosine"}},
+        query="mutual close plan",
+    )
+
+    row = result["results"][0]
+    assert row["qualification_framework"] == "mutual_action_plan"
+    assert row["qualification_framework_display_name"] == "Mutual Action Plan"
+    assert row["qualification_source_field"] == "qualification_latest"
+    assert row["qualification_health_pct"] == 51.2
+    assert row["health_pct"] == 51.2
+    assert row["qualification_gaps"] == ["timeline"]
+    assert row["gaps"] == ["timeline"]
+    assert "summary_embedding" not in row
 
 
 def test_search_deals_normalizes_missing_industry_tags_from_atlas() -> None:
@@ -216,6 +267,9 @@ def test_search_deals_normalizes_missing_industry_tags_from_atlas() -> None:
                     "company": "No Tag Co",
                     "score": 0.98765,
                     "health_pct": 81.23,
+                    "qualification_health_pct": 81.23,
+                    "qualification_gaps": ["owner"],
+                    "gaps": ["owner"],
                 }
             ]
 
@@ -229,6 +283,36 @@ def test_search_deals_normalizes_missing_industry_tags_from_atlas() -> None:
 
     assert result["results"][0]["industry_tags"] == []
     assert result["results"][0]["score"] == 0.9877
+    assert result["results"][0]["qualification_health_pct"] == 81.2
+    assert result["results"][0]["qualification_gaps"] == ["owner"]
+
+
+def test_get_deals_for_search_projection_includes_generic_qualification_fields() -> None:
+    class FakeDeals:
+        def __init__(self) -> None:
+            self.query = None
+            self.projection = None
+
+        def find(self, query, projection):
+            self.query = query
+            self.projection = projection
+            return []
+
+    class FakeDB:
+        def __init__(self) -> None:
+            self.deals = FakeDeals()
+
+    mongo = MongoDBClient(uri="mongodb://unused")
+    mongo._db = FakeDB()
+
+    assert mongo.get_deals_for_search() == []
+
+    projection = mongo._db.deals.projection
+    assert projection["qualification_latest.framework_key"] == 1
+    assert projection["qualification_latest.health_pct"] == 1
+    assert projection["qualification_latest.gaps"] == 1
+    assert projection["meddpicc_latest.health_pct"] == 1
+    assert projection["summary_embedding"] == 1
 
 
 def test_search_deals_rejects_invalid_vector_search_mode() -> None:

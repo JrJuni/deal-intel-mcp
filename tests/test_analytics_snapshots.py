@@ -138,6 +138,14 @@ def test_build_analytics_snapshot_is_safe_and_metric_shaped() -> None:
     assert snapshot["industry_tags"] == ["IT"]
     assert snapshot["customer_segment"] == "enterprise"
     assert snapshot["deal_size_currency"] == "KRW"
+    assert snapshot["qualification_framework"] == "meddpicc"
+    assert snapshot["qualification_framework_display_name"] == "MEDDPICC"
+    assert snapshot["qualification_source_field"] == "meddpicc_latest"
+    assert snapshot["qualification_health_pct"] == 75.0
+    assert snapshot["qualification_coverage_pct"] == 57.1
+    assert snapshot["qualification_gap_count"] == 1
+    assert snapshot["qualification_gaps"] == ["champion"]
+    assert snapshot["health_pct"] == 75.0
     assert snapshot["health_band"] == "healthy"
     assert snapshot["meddpicc_gap_count"] == 1
     assert snapshot["meddpicc_gaps"] == ["champion"]
@@ -147,6 +155,54 @@ def test_build_analytics_snapshot_is_safe_and_metric_shaped() -> None:
     assert "secret raw notes" not in serialized
     assert "private contact" not in serialized
     assert "summary_embedding" not in serialized
+
+
+def test_build_analytics_snapshot_custom_qualification_keeps_meddpicc_alias_empty() -> None:
+    snapshot = build_analytics_snapshot(
+        cfg={},
+        event_type="add_interaction",
+        event_id="event-custom",
+        deal=_deal(
+            qualification_latest={
+                "framework_key": "mutual_action_plan",
+                "framework_display_name": "Mutual Action Plan",
+                "health_pct": 42.5,
+                "coverage_pct": 66.7,
+                "quality_pct": 55.0,
+                "filled_count": 2,
+                "total_count": 3,
+                "dimensions": {
+                    "next_step": {"score": 4, "label": "Next Step"},
+                    "owner": {"score": 3, "label": "Owner"},
+                },
+                "dimension_metadata": {
+                    "next_step": {"label": "Next Step"},
+                    "owner": {"label": "Owner"},
+                    "timeline": {"label": "Timeline"},
+                },
+                "gaps": ["timeline"],
+            },
+            meddpicc_latest={
+                "health_pct": 91.0,
+                "filled_count": 7,
+                "gaps": ["competition"],
+            },
+        ),
+        occurred_at=datetime(2026, 6, 9, 12, 0, tzinfo=UTC),
+    )
+
+    assert snapshot["qualification_framework"] == "mutual_action_plan"
+    assert snapshot["qualification_framework_display_name"] == "Mutual Action Plan"
+    assert snapshot["qualification_source_field"] == "qualification_latest"
+    assert snapshot["qualification_health_pct"] == 42.5
+    assert snapshot["qualification_coverage_pct"] == 66.7
+    assert snapshot["qualification_quality_pct"] == 55.0
+    assert snapshot["qualification_gap_count"] == 1
+    assert snapshot["qualification_gaps"] == ["timeline"]
+    assert snapshot["health_pct"] == 42.5
+    assert snapshot["meddpicc_filled_count"] is None
+    assert snapshot["meddpicc_gap_count"] is None
+    assert snapshot["meddpicc_gaps"] == []
 
 
 def test_mongodb_snapshot_upsert_is_idempotent_by_event_id() -> None:
@@ -184,6 +240,9 @@ def test_mongodb_lists_analytics_snapshots_with_safe_projection() -> None:
     assert projection["industry_tags"] == 1
     assert projection["customer_segment"] == 1
     assert projection["deal_size_currency"] == 1
+    assert projection["qualification_framework"] == 1
+    assert projection["qualification_health_pct"] == 1
+    assert projection["qualification_gaps"] == 1
     assert "raw_notes" not in projection
     assert "contacts" not in projection
     assert "summary_embedding" not in projection

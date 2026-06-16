@@ -12,6 +12,7 @@ from deal_intel.schema.metrics import (
     build_attention_reasons,
     classify_health,
 )
+from deal_intel.schema.qualification_read import select_qualification_snapshot
 
 SNAPSHOT_SCHEMA_VERSION = 1
 SNAPSHOT_SOURCE = "deal_intel_mcp"
@@ -75,8 +76,24 @@ def build_analytics_snapshot(
     health_thresholds = HealthBandThresholds.from_config(cfg)
     timing_settings = PipelineTimingSettings.from_config(cfg)
 
+    qualification = select_qualification_snapshot(deal)
+    qualification_gaps = _safe_list(qualification.gaps)
+    health_band = classify_health(
+        {
+            "filled_count": qualification.filled_count,
+            "health_pct": qualification.snapshot.get("health_pct"),
+        },
+        health_thresholds,
+    )
     meddpicc_latest = deal.get("meddpicc_latest") or {}
-    health_band = classify_health(meddpicc_latest, health_thresholds)
+    if qualification.is_meddpicc:
+        meddpicc_filled_count = meddpicc_latest.get("filled_count")
+        meddpicc_gaps = _safe_gap_list(meddpicc_latest)
+        meddpicc_gap_count = len(meddpicc_gaps)
+    else:
+        meddpicc_filled_count = None
+        meddpicc_gaps = []
+        meddpicc_gap_count = None
     timing = assess_pipeline_timing(
         deal,
         as_of=reporting.as_of,
@@ -114,11 +131,19 @@ def build_analytics_snapshot(
         "expected_close_date_source": deal.get("expected_close_date_source"),
         "actual_close_date": deal.get("actual_close_date"),
         "close_reason_present": bool(str(deal.get("close_reason") or "").strip()),
-        "health_pct": meddpicc_latest.get("health_pct"),
+        "qualification_framework": qualification.framework_key,
+        "qualification_framework_display_name": qualification.framework_display_name,
+        "qualification_source_field": qualification.source_field,
+        "qualification_health_pct": qualification.snapshot.get("health_pct"),
+        "qualification_coverage_pct": qualification.coverage_pct,
+        "qualification_quality_pct": qualification.quality_pct,
+        "qualification_gap_count": len(qualification_gaps),
+        "qualification_gaps": qualification_gaps,
+        "health_pct": qualification.snapshot.get("health_pct"),
         "health_band": health_band.value,
-        "meddpicc_filled_count": meddpicc_latest.get("filled_count"),
-        "meddpicc_gap_count": len(_safe_gap_list(meddpicc_latest)),
-        "meddpicc_gaps": _safe_gap_list(meddpicc_latest),
+        "meddpicc_filled_count": meddpicc_filled_count,
+        "meddpicc_gap_count": meddpicc_gap_count,
+        "meddpicc_gaps": meddpicc_gaps,
         "days_in_stage": timing.days_in_stage,
         "stuck_threshold_days": timing.stuck_threshold_days,
         "is_stuck": timing.is_stuck,
@@ -143,6 +168,12 @@ def _safe_gap_list(meddpicc_latest: dict) -> list[str]:
     if not isinstance(gaps, list):
         return []
     return [str(gap) for gap in gaps]
+
+
+def _safe_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value if str(item).strip()]
 
 
 def _safe_string_list(value: Any) -> list[str]:

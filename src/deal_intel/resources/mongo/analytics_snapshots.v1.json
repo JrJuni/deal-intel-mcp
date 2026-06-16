@@ -113,6 +113,30 @@
         "close_reason_present": {
           "bsonType": ["bool", "null"]
         },
+        "qualification_framework": {
+          "bsonType": ["string", "null"]
+        },
+        "qualification_framework_display_name": {
+          "bsonType": ["string", "null"]
+        },
+        "qualification_source_field": {
+          "bsonType": ["string", "null"]
+        },
+        "qualification_health_pct": {
+          "bsonType": ["int", "long", "double", "decimal", "null"]
+        },
+        "qualification_coverage_pct": {
+          "bsonType": ["int", "long", "double", "decimal", "null"]
+        },
+        "qualification_quality_pct": {
+          "bsonType": ["int", "long", "double", "decimal", "null"]
+        },
+        "qualification_gap_count": {
+          "bsonType": ["int", "long", "null"]
+        },
+        "qualification_gaps": {
+          "bsonType": ["array", "null"]
+        },
         "health_pct": {
           "bsonType": ["int", "long", "double", "decimal", "null"]
         },

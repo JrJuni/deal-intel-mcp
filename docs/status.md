@@ -12,6 +12,48 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-16
 
+### QF-10 generic qualification compatibility sweep
+
+Implemented:
+
+- Added a tracked QF-10 audit/classification section to
+  [qualification-framework-v2.md](qualification-framework-v2.md).
+- Moved analytics snapshot creation to `select_qualification_snapshot(...)`.
+  New snapshots now include generic `qualification_*` fields while preserving
+  `health_pct`/`health_band` aliases.
+- Kept MEDDPICC snapshot aliases, but for non-MEDDPICC active frameworks
+  `meddpicc_*` snapshot fields are empty/null rather than fabricated from
+  unrelated dimensions.
+- Added generic qualification metadata to semantic search results and MongoDB
+  search projections while keeping `health_pct`/`gaps` aliases.
+- Marked MEDDPICC-specific `get_insights` modes as legacy compatibility paths
+  with `framework_scope: meddpicc_legacy`; `pipeline_overview` remains generic.
+- Updated architecture and baseline docs for the new generic snapshot/search
+  behavior.
+
+Validation:
+
+- `pytest tests/test_analytics_snapshots.py -q -p no:cacheprovider`:
+  10 passed.
+- `pytest tests/test_search_deals_startup.py -q -p no:cacheprovider`:
+  14 passed, 1 warning.
+- `pytest tests/test_data_quality_reporting.py -q -p no:cacheprovider`:
+  16 passed, 1 warning.
+- `pytest tests/test_analytics_snapshots.py tests/test_search_deals_startup.py tests/test_data_quality_reporting.py tests/test_mongo_contracts.py tests/test_archived_read_paths.py tests/test_pipeline_timing.py tests/test_get_metrics.py tests/test_pipeline_metrics_summary.py tests/test_pipeline_trends.py -q -p no:cacheprovider --basetemp .tmp\pytest-qf10-targeted`:
+  128 passed, 1 warning.
+- `pytest -q -p no:cacheprovider --basetemp .tmp\pytest-qf10-full`:
+  666 passed, 1 warning.
+- `ruff check .`:
+  passed.
+- `deal-intel smoke-natural-questions --as-of 2026-06-10`:
+  OK true, 12/12 questions passed.
+
+Notes:
+
+- `tests/test_mongo_contracts.py -q -p no:cacheprovider` initially hit the
+  known Windows temp permission issue under `%LOCALAPPDATA%\Temp`; rerunning
+  with repo-local `--basetemp .tmp\pytest-qf10-mongo-contracts` passed.
+
 ### Architecture developer map expansion
 
 Implemented:

@@ -921,6 +921,14 @@ Any deals with a pattern similar to Hyundai Precision'
 
 **When to use**: To group meeting evidence across deals and see the topics customers worry about most. It counts by unique deal (not by meeting) and returns representative companies and evidence.
 
+Customer themes are intentionally a 3-step workflow:
+
+1. `get_customer_themes` ranks recurring concerns or decision criteria.
+2. `get_customer_theme_breakdown` compares those themes by stage, primary
+   industry, industry tag, or theme dimension.
+3. `get_customer_theme_evidence` shows privacy-safe snippets for one known
+   `theme_key`.
+
 For "show me examples" follow up with `get_customer_theme_evidence`. For
 stage/industry/tag comparison, use `get_customer_theme_breakdown`.
 

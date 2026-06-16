@@ -12,6 +12,35 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-16
 
+### QF-9 tool namespace / customer theme cleanup
+
+Implemented:
+
+- Kept existing customer-theme tool names for compatibility.
+- Added user-intent grouping and tool-selection guidance to `get_tool_catalog`.
+- Added customer-theme workflow hints to ranking, comparison, and evidence
+  responses.
+- Moved `get_customer_themes` from the legacy Mongo aggregation path onto the
+  restricted `list_deals_for_metrics()` read path.
+- Exposed `get_customer_themes` in sample mode so customer-theme ranking starts
+  from the same tool in sample/full profiles. Current counts are `sample=24`,
+  `standard=35`, `developer=38`.
+
+Validation:
+
+- `pytest tests/test_tool_surfaces.py tests/test_customer_themes.py tests/test_customer_theme_insights.py tests/test_mcpb_manifest.py tests/test_storage_backend_contract.py -q --basetemp .tmp\pytest-qf9-targeted`:
+  70 passed, 1 warning.
+- `mcpb validate mcpb\manifest.json`:
+  passed.
+- `pytest tests/test_cli_config_profiles.py tests/test_tool_surfaces.py -q --basetemp .tmp\pytest-qf9-counts`:
+  37 passed, 1 warning.
+- `pytest -q --basetemp .tmp\pytest-qf9-full-rerun`:
+  660 passed, 1 warning.
+- `ruff check .`:
+  passed.
+- `deal-intel smoke-natural-questions --as-of 2026-06-10`:
+  OK true, 12/12 questions passed.
+
 ### QF-8 compatibility cleanup
 
 Implemented:
@@ -59,7 +88,7 @@ Implemented:
     uses the dedicated raw-content maintenance read path.
   - Responses never include raw interaction content.
 - Updated MCP tool-surface contracts and MCPB manifest tool declarations.
-- Current surface counts are `sample=23`, `standard=35`, `developer=38`.
+- Current surface counts are `sample=24`, `standard=35`, `developer=38`.
 
 Validation:
 

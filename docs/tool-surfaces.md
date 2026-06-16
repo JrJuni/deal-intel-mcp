@@ -59,6 +59,7 @@ without MongoDB today. It is not the full operating surface:
 - `export_data`
 - `get_user_memory`
 - `record_user_memory`
+- `get_customer_themes`
 - `get_customer_theme_breakdown`
 - `get_customer_theme_evidence`
 
@@ -87,9 +88,9 @@ Why this matters:
   not the bundled zero-config local sample dataset. The current demo dataset
   contains 22 fictional generated deals and is never auto-seeded into the
   primary `full` database.
-- `get_insights` and `get_customer_themes` still include legacy Mongo
-  aggregation paths; sample mode should prefer shared metric/theme surfaces that
-  use the local sample read contract.
+- `get_insights` still includes legacy Mongo aggregation paths outside
+  `pipeline_overview`; sample mode should prefer shared metric/theme surfaces
+  that use the local sample read contract.
 - `backfill_qualification` and `backfill_qualification_reextract` are real-data
   maintenance tools for framework migrations. They are hidden from `sample`
   because sample mode should not start with historical admin/backfill choices.
@@ -151,7 +152,7 @@ Behavior:
 
 Current exposed counts:
 
-- `sample`: 23 tools
+- `sample`: 24 tools
 - `standard`: 35 tools
 - `developer`: 38 tools
 

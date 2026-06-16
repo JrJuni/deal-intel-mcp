@@ -47,6 +47,9 @@ class FakeMongo:
         deals = deepcopy(self.deals)
         return deals[:limit] if limit > 0 else deals
 
+    def list_deals_for_metrics(self):
+        return deepcopy(self.deals)
+
     def count_deals(self, query: dict) -> int:
         self.count_queries.append(deepcopy(query))
         return self.count_results.pop(0)
@@ -276,19 +279,61 @@ def test_add_interaction_meeting_omits_suggestion_when_signal_matches_current_st
 
 
 def test_get_customer_themes_counts_unique_deals_and_adds_shares() -> None:
-    mongo = FakeMongo()
-    mongo.count_results = [10, 8]
-    mongo.aggregate_result = [
-        {
-            "theme_key": "operational_efficiency",
-            "label": "운영 효율·자동화",
-            "deal_count": 4,
-            "avg_importance": 4.5,
-            "companies": ["A", "B"],
-            "evidence_samples": [],
-        }
-    ]
-
+    mongo = FakeMongo(
+        [
+            {
+                "deal_id": "d1",
+                "company": "A",
+                "deal_stage": "discovery",
+                "customer_themes": [
+                    {
+                        "theme_key": "operational_efficiency",
+                        "dimension": "decision_criteria",
+                        "evidence": "manual reporting takes too long",
+                        "importance": 5,
+                    },
+                    {
+                        "theme_key": "operational_efficiency",
+                        "dimension": "decision_criteria",
+                        "evidence": "same deal second signal",
+                        "importance": 4,
+                    },
+                ],
+            },
+            {
+                "deal_id": "d2",
+                "company": "B",
+                "deal_stage": "proposal",
+                "customer_themes": [
+                    {
+                        "theme_key": "operational_efficiency",
+                        "dimension": "decision_criteria",
+                        "evidence": "approval workflow is slow",
+                        "importance": 4,
+                    }
+                ],
+            },
+            {
+                "deal_id": "d3",
+                "company": "NoThemes",
+                "deal_stage": "proposal",
+                "customer_themes": [],
+            },
+            {
+                "deal_id": "d4",
+                "company": "Closed",
+                "deal_stage": "won",
+                "customer_themes": [
+                    {
+                        "theme_key": "cost_reduction",
+                        "dimension": "metrics",
+                        "evidence": "reduce reporting cost",
+                        "importance": 5,
+                    }
+                ],
+            },
+        ]
+    )
     result = get_customer_themes.handle(
         mongo,
         dimension="decision_criteria",
@@ -297,44 +342,86 @@ def test_get_customer_themes_counts_unique_deals_and_adds_shares() -> None:
     )
 
     assert result["coverage"] == {
-        "deals_analyzed": 10,
-        "deals_with_evidence": 8,
-        "coverage_pct": 80.0,
+        "deals_analyzed": 3,
+        "deals_with_evidence": 2,
+        "coverage_pct": 66.7,
     }
-    assert result["themes"][0]["share_of_evidenced_pct"] == 50.0
-    assert result["themes"][0]["share_of_all_deals_pct"] == 40.0
-    assert mongo.pipeline[0]["$match"]["archived"] == {"$ne": True}
-    assert mongo.pipeline[0]["$match"]["deal_stage"] == {"$nin": ["won", "lost"]}
-    assert {"$match": {"customer_themes.dimension": "decision_criteria"}} in mongo.pipeline
+    assert result["workflow"]["current_step"] == "ranking"
+    assert result["workflow"]["current_tool"] == "get_customer_themes"
+    assert {
+        next_step["tool"] for next_step in result["workflow"]["next_tools"]
+    } == {"get_customer_theme_breakdown", "get_customer_theme_evidence"}
+    assert result["themes"][0]["theme_key"] == "operational_efficiency"
+    assert result["themes"][0]["deal_count"] == 2
+    assert result["themes"][0]["avg_importance"] == 4.5
+    assert result["themes"][0]["companies"] == ["A", "B"]
+    assert len(result["themes"][0]["evidence_samples"]) == 3
+    assert result["themes"][0]["share_of_evidenced_pct"] == 100.0
+    assert result["themes"][0]["share_of_all_deals_pct"] == 66.7
 
 
 def test_get_customer_themes_industry_filter_matches_primary_or_tags() -> None:
-    mongo = FakeMongo()
-    mongo.count_results = [3, 2]
-    mongo.aggregate_result = []
-
+    mongo = FakeMongo(
+        [
+            {
+                "deal_id": "d1",
+                "company": "Insurance Primary",
+                "industry": "Insurance",
+                "industry_tags": ["Insurance"],
+                "deal_stage": "discovery",
+                "customer_themes": [
+                    {
+                        "theme_key": "compliance_security",
+                        "dimension": "decision_criteria",
+                        "evidence": "audit logs required",
+                        "importance": 5,
+                    }
+                ],
+            },
+            {
+                "deal_id": "d2",
+                "company": "Insurance Tag",
+                "industry": "Finance",
+                "industry_tags": ["Insurance", "Finance"],
+                "deal_stage": "proposal",
+                "customer_themes": [
+                    {
+                        "theme_key": "compliance_security",
+                        "dimension": "decision_criteria",
+                        "evidence": "security review",
+                        "importance": 4,
+                    }
+                ],
+            },
+            {
+                "deal_id": "d3",
+                "company": "Retail",
+                "industry": "Retail",
+                "industry_tags": ["Retail"],
+                "deal_stage": "proposal",
+                "customer_themes": [
+                    {
+                        "theme_key": "operational_efficiency",
+                        "dimension": "decision_criteria",
+                        "evidence": "ops reporting",
+                        "importance": 3,
+                    }
+                ],
+            },
+        ]
+    )
     result = get_customer_themes.handle(
         mongo,
         dimension="all",
         stage="active",
-        industry="보험",
+        industry="Insurance",
         top_k=5,
     )
 
-    expected_scope = {
-        "archived": {"$ne": True},
-        "deal_stage": {"$nin": ["won", "lost"]},
-        "$or": [
-            {"industry": {"$in": ["Insurance"]}},
-            {"industry_tags": {"$in": ["Insurance"]}},
-        ],
-    }
-    assert result["filters"]["industry"] == "보험"
-    assert mongo.count_queries[0] == expected_scope
-    assert mongo.pipeline[0]["$match"] == {
-        **expected_scope,
-        "customer_themes.0": {"$exists": True},
-    }
+    assert result["filters"]["industry"] == "Insurance"
+    assert result["coverage"]["deals_analyzed"] == 2
+    assert result["themes"][0]["theme_key"] == "compliance_security"
+    assert result["themes"][0]["deal_count"] == 2
 
 
 def test_backfill_is_idempotent_and_rebuilds_deal_themes() -> None:

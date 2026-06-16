@@ -65,6 +65,7 @@ This contract supports the first zero-config read stack:
 - `get_metrics(metric_type="pipeline_trend")` with sparse-history warnings
 - `get_deal_gaps`
 - `get_deal_review`
+- `get_customer_themes`
 - `get_customer_theme_breakdown`
 - `get_customer_theme_evidence`
 - `export_report(report_type="weekly_pipeline")`
@@ -166,8 +167,8 @@ The sample/local-personal backend does not need to implement:
 
 - Mongo aggregation compatibility: `aggregate_deals`,
   `aggregate_analytics_snapshots`
-- Legacy aggregate-heavy tools: `get_customer_themes`,
-  non-`pipeline_overview` `get_insights` query types
+- Legacy aggregate-heavy tools: non-`pipeline_overview` `get_insights` query
+  types
 - Semantic/vector search: `get_deals_for_search`, `search_by_embedding`
 - Atlas demo database writes: `upsert_deals`, `delete_sample_deals`
 - Admin paths: `ensure_indexes`, `ensure_vector_index`

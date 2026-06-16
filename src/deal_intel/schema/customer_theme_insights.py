@@ -52,6 +52,17 @@ def validate_breakdown_inputs(
     _validate_int_range("top_k", top_k, minimum=1, maximum=MAX_TOP_K)
 
 
+def validate_ranking_inputs(
+    *,
+    dimension: str,
+    stage: str,
+    top_k: int,
+) -> None:
+    _validate_dimension(dimension)
+    _validate_stage(stage)
+    _validate_int_range("top_k", top_k, minimum=1, maximum=MAX_TOP_K)
+
+
 def validate_evidence_inputs(
     *,
     theme_key: str,
@@ -74,6 +85,112 @@ def validate_evidence_inputs(
         valid_interaction_types=valid_interaction_types,
     )
     _validate_source_confidence_filter(source_confidence)
+
+
+def build_customer_theme_ranking(
+    deals: Iterable[dict],
+    *,
+    dimension: str = "all",
+    stage: str = "active",
+    industry: str | None = None,
+    top_k: int = 5,
+) -> dict:
+    """Rank recurring customer themes by unique deal count."""
+    validate_ranking_inputs(dimension=dimension, stage=stage, top_k=top_k)
+    scoped_deals = _filter_deals(deals, stage=stage, industry=industry)
+    scoped_deal_ids = {str(deal.get("deal_id") or "") for deal in scoped_deals}
+    scoped_deal_ids.discard("")
+
+    evidenced_deal_ids: set[str] = set()
+    per_deal_theme_importance: dict[tuple[str, str], int] = {}
+    theme_companies: dict[str, set[str]] = defaultdict(set)
+    theme_evidence: dict[str, list[dict]] = defaultdict(list)
+
+    for deal in scoped_deals:
+        deal_id = str(deal.get("deal_id") or "")
+        company = str(deal.get("company") or "")
+        records = _theme_records(deal, dimension=dimension)
+        if records and deal_id:
+            evidenced_deal_ids.add(deal_id)
+        for record in records:
+            theme_key = record["theme_key"]
+            if deal_id:
+                key = (theme_key, deal_id)
+                per_deal_theme_importance[key] = max(
+                    per_deal_theme_importance.get(key, 0),
+                    record["importance"],
+                )
+            if company:
+                theme_companies[theme_key].add(company)
+            theme_evidence[theme_key].append(
+                {
+                    "company": company,
+                    "dimension": record["dimension"],
+                    "evidence": record["evidence"],
+                    "importance": record["importance"],
+                    "interaction_type": record.get("interaction_type"),
+                    "source_confidence": record.get("source_confidence"),
+                    "source_label": evidence_source_label(record),
+                }
+            )
+
+    importances_by_theme: dict[str, list[int]] = defaultdict(list)
+    for (theme_key, _deal_id), importance in per_deal_theme_importance.items():
+        importances_by_theme[theme_key].append(importance)
+
+    themes = []
+    for theme_key, importances in importances_by_theme.items():
+        evidence_samples = sorted(
+            theme_evidence.get(theme_key, []),
+            key=lambda item: (
+                -int(item.get("importance") or 0),
+                str(item.get("company") or ""),
+                str(item.get("evidence") or ""),
+            ),
+        )[:3]
+        deal_count = len(importances)
+        themes.append(
+            {
+                "theme_key": theme_key,
+                "label": THEME_TAXONOMY[theme_key],
+                "deal_count": deal_count,
+                "avg_importance": round(sum(importances) / deal_count, 1),
+                "companies": sorted(theme_companies.get(theme_key, set()))[:5],
+                "evidence_samples": evidence_samples,
+                "share_of_evidenced_pct": _pct(
+                    deal_count,
+                    len(evidenced_deal_ids),
+                ),
+                "share_of_all_deals_pct": _pct(deal_count, len(scoped_deal_ids)),
+            }
+        )
+
+    themes.sort(
+        key=lambda item: (
+            -int(item["deal_count"]),
+            -float(item["avg_importance"]),
+            str(item["theme_key"]),
+        )
+    )
+
+    return {
+        "filters": {
+            "dimension": dimension,
+            "stage": stage,
+            "industry": industry,
+            "top_k": top_k,
+        },
+        "coverage": {
+            "deals_analyzed": len(scoped_deal_ids),
+            "deals_with_evidence": len(evidenced_deal_ids),
+            "coverage_pct": _pct(len(evidenced_deal_ids), len(scoped_deal_ids)),
+        },
+        "themes": themes[:top_k],
+        "warnings": _warnings(
+            deals_analyzed=len(scoped_deal_ids),
+            deals_with_evidence=len(evidenced_deal_ids),
+        ),
+    }
 
 
 def build_customer_theme_breakdown(

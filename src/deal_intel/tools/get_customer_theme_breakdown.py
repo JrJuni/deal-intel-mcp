@@ -8,6 +8,7 @@ from deal_intel.schema.customer_theme_insights import (
     build_customer_theme_breakdown,
     validate_breakdown_inputs,
 )
+from deal_intel.schema.customer_theme_workflow import customer_theme_workflow_step
 from deal_intel.storage.mongodb import MongoDBClient
 
 
@@ -59,4 +60,8 @@ def handle(
         group_by=group_by,
         top_k=top_k,
     )
-    return {"ok": True, **result}
+    return {
+        "ok": True,
+        "workflow": customer_theme_workflow_step("comparison"),
+        **result,
+    }

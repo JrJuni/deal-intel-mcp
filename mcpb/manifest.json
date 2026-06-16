@@ -51,9 +51,9 @@
     {"name": "export_data", "description": "Export spreadsheet-ready CSV datasets such as open_deals, all_deals, or closed_deals without raw notes or LLM calls."},
     {"name": "get_user_memory", "description": "Read constrained user-memory Markdown files for assistant context loading."},
     {"name": "record_user_memory", "description": "Append durable user feedback to safe user-memory Markdown files after secret/path checks."},
-    {"name": "get_customer_themes", "description": "Rank recurring customer concerns by unique deal count, with coverage and evidence samples."},
-    {"name": "get_customer_theme_breakdown", "description": "Compare customer themes by stage, industry, or dimension."},
-    {"name": "get_customer_theme_evidence", "description": "Return theme evidence snippets with privacy-safe projections."},
+    {"name": "get_customer_themes", "description": "Rank recurring customer concerns by unique deal count; the first step in the customer-theme workflow."},
+    {"name": "get_customer_theme_breakdown", "description": "Compare customer themes by stage, primary industry, industry tag, or dimension after ranking."},
+    {"name": "get_customer_theme_evidence", "description": "Return privacy-safe evidence snippets for one known customer theme key."},
     {"name": "search_deals",  "description": "Semantic search - find deals similar to a natural language query (M0 uses local Python cosine; Atlas search is optional on M10+)."},
     {"name": "analyze_deal",  "description": "Optional server-side LLM tool that generates and persists BD strategy recommendations for one deal."}
   ],

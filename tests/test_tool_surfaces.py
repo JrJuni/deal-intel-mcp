@@ -74,6 +74,7 @@ def test_sample_surface_is_zero_config_safe_local_personal() -> None:
         "export_data",
         "get_user_memory",
         "record_user_memory",
+        "get_customer_themes",
         "get_customer_theme_breakdown",
         "get_customer_theme_evidence",
     }
@@ -107,7 +108,6 @@ def test_sample_surface_is_zero_config_safe_local_personal() -> None:
         "analyze_deal",
         "add_meeting",
         "get_insights",
-        "get_customer_themes",
         "get_qualification_templates",
         "validate_qualification_framework",
         "update_qualification_framework",
@@ -276,8 +276,16 @@ def test_high_traffic_tool_descriptions_guide_tool_selection(monkeypatch) -> Non
         "export_data": ["spreadsheet-ready", "export_report"],
         "get_usage": ["token usage", "pricing"],
         "get_customer_themes": ["customers worry", "get_customer_theme_evidence"],
-        "get_customer_theme_breakdown": ["industry tag", "get_customer_theme_evidence"],
-        "get_customer_theme_evidence": ["show examples/evidence", "get_customer_themes"],
+        "get_customer_theme_breakdown": [
+            "customer-theme workflow",
+            "industry tag",
+            "get_customer_theme_evidence",
+        ],
+        "get_customer_theme_evidence": [
+            "evidence-drilldown",
+            "show examples/evidence",
+            "get_customer_themes",
+        ],
         "search_deals": ["similar past deals", "get_customer_themes"],
         "analyze_deal": ["optional", "server-side llm", "get_deal_review"],
         "add_interaction": [
@@ -331,6 +339,21 @@ def test_get_tool_catalog_reports_visible_surface(monkeypatch) -> None:
     )
     assert all(tool["visible"] is True for tool in result["tools"])
     assert "tool search returns only" in result["usage_hint"]
+    assert "customer_theme_analysis" in result["intent_groups"]
+    assert result["intent_groups"]["customer_theme_analysis"]["tools"] == [
+        "get_customer_themes",
+        "get_customer_theme_breakdown",
+        "get_customer_theme_evidence",
+    ]
+    guide_by_intent = {
+        item["intent"]: item for item in result["tool_selection_guide"]
+    }
+    assert guide_by_intent["customer_theme_ranking"]["primary_tool"] == (
+        "get_customer_themes"
+    )
+    assert guide_by_intent["customer_theme_comparison"]["primary_tool"] == (
+        "get_customer_theme_breakdown"
+    )
 
 
 def test_get_tool_catalog_can_include_hidden_tools(monkeypatch) -> None:
@@ -349,6 +372,17 @@ def test_get_tool_catalog_can_include_hidden_tools(monkeypatch) -> None:
     assert any(
         tool["name"] == "search_deals" and tool["visible"] is False
         for tool in result["tools"]
+    )
+    assert result["intent_groups"]["customer_theme_analysis"]["tools"] == [
+        "get_customer_themes",
+        "get_customer_theme_breakdown",
+        "get_customer_theme_evidence",
+    ]
+    guide_by_intent = {
+        item["intent"]: item for item in result["tool_selection_guide"]
+    }
+    assert guide_by_intent["customer_theme_ranking"]["primary_tool"] == (
+        "get_customer_themes"
     )
 
 

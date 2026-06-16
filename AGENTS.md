@@ -95,11 +95,17 @@ Preferred maintainer loop:
 
 ## Current MCP Tool Surface
 
-Source of truth: `src/deal_intel/mcp_server.py`.
+Source of truth:
 
-Current tool count: 28.
+- registration: `src/deal_intel/mcp_server.py`
+- profile filtering and user-intent grouping: `src/deal_intel/tool_surfaces.py`
+- runtime escape hatch: call `get_tool_catalog`
+
+Avoid hardcoding current tool counts in agent-facing docs unless a test updates
+the number in the same change.
 
 - Config/readiness: `config_doctor`, `update_config`
+- Discovery: `get_tool_catalog`
 - Write/lifecycle: `create_deal`, `add_interaction`, `update_stage`,
   `update_deal`, `archive_deal`, `restore_deal`, `delete_deal`
 - Deprecated compatibility: `add_meeting` (developer surface only; use
@@ -109,6 +115,12 @@ Current tool count: 28.
 - Read/review: `get_deal`, `list_deals`, `get_deal_gaps`,
   `get_deal_review`
 - BI/reporting: `get_insights`, `get_metrics`, `get_usage`, `export_report`
+- Data export: `export_data`
+- Qualification framework admin: `get_qualification_templates`,
+  `validate_qualification_framework`, `update_qualification_framework`,
+  `list_qualification_frameworks`, `set_active_qualification_framework`,
+  `delete_qualification_framework`, `backfill_qualification`,
+  `backfill_qualification_reextract`
 - User memory: `get_user_memory`, `record_user_memory`
 - Customer themes: `get_customer_themes`, `get_customer_theme_breakdown`,
   `get_customer_theme_evidence`

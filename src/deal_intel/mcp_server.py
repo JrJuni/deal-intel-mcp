@@ -93,6 +93,8 @@ def get_tool_catalog(include_hidden: bool = False) -> dict:
     try:
         from deal_intel import _context
         from deal_intel.tool_surfaces import (
+            build_tool_intent_groups,
+            build_tool_selection_guide,
             list_tool_surface_contracts,
             resolve_tool_surface,
             surface_names,
@@ -124,6 +126,11 @@ def get_tool_catalog(include_hidden: bool = False) -> dict:
             if include_hidden
             else {resolved_surface: sorted(visible_names)}
         )
+        catalog_names = (
+            {contract.name for contract in contracts}
+            if include_hidden
+            else visible_names
+        )
 
         return {
             "ok": True,
@@ -133,12 +140,16 @@ def get_tool_catalog(include_hidden: bool = False) -> dict:
             "include_hidden": include_hidden,
             "tools": tools,
             "categories": categories,
+            "intent_groups": build_tool_intent_groups(catalog_names),
+            "tool_selection_guide": build_tool_selection_guide(catalog_names),
             "surfaces": surfaces_payload,
             "usage_hint": (
                 "Use this catalog when the host app's tool search returns only "
                 "a few matching tools. For setup, start with config_doctor. "
                 "For one-deal status, use get_deal_review. For reports, use "
-                "export_report; for spreadsheet ledgers, use export_data."
+                "export_report; for spreadsheet ledgers, use export_data. "
+                "For customer themes, start with get_customer_themes, then "
+                "use breakdown or evidence only when the user asks for that depth."
             ),
         }
     except Exception as exc:
@@ -1252,10 +1263,11 @@ def get_customer_themes(
     """Rank recurring customer concerns by unique deal count with evidence.
 
     Use this for questions like "what do customers worry about most?" or "what
-    decision criteria appear most often?" This is the main entry point for
-    theme ranking. Do not use it for stage/industry comparison tables; use
-    get_customer_theme_breakdown. Do not use it when the user asks for concrete
-    quotes/snippets for one known theme; use get_customer_theme_evidence.
+    decision criteria appear most often?" This is the main customer theme entry
+    point and the ranking step in the customer-theme workflow. Do not use it
+    for stage/industry comparison tables; use get_customer_theme_breakdown. Do
+    not use it when the user asks for concrete quotes/snippets for one known
+    theme; use get_customer_theme_evidence.
 
     dimension: all | identify_pain | decision_criteria | metrics
     stage: active | all | discovery | qualification | proposal | negotiation | won | lost | stalled
@@ -1288,7 +1300,8 @@ def get_customer_theme_breakdown(
 
     Use this after or alongside get_customer_themes when the user wants to
     compare theme patterns by stage, primary industry, industry tag, or theme
-    dimension. Do not use it as the default "top customer concerns" tool; use
+    dimension. This is the comparison step in the customer-theme workflow. Do
+    not use it as the default "top customer concerns" tool; use
     get_customer_themes for ranking. For representative snippets, use
     get_customer_theme_evidence.
 
@@ -1330,8 +1343,9 @@ def get_customer_theme_evidence(
     """Return curated evidence examples for one customer theme.
 
     Use this when the user asks "show examples/evidence" for one known theme
-    key. Do not use it to rank themes from scratch; use get_customer_themes
-    first. Do not use it for stage/industry comparison tables; use
+    key. This is the evidence-drilldown step in the customer-theme workflow. Do
+    not use it to rank themes from scratch; use get_customer_themes first. Do
+    not use it for stage/industry comparison tables; use
     get_customer_theme_breakdown.
 
     Read-only. Evidence is the structured snippet already extracted into

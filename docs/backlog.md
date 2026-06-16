@@ -311,11 +311,15 @@ v1 polish:
 Post-v1:
 
 1. Consolidate customer theme tools after observing real host usage:
-   - Keep `get_customer_themes` as the workflow-oriented entry point.
+   - Keep `get_customer_themes` as the ranking-oriented entry point.
+   - Current QF-9 direction keeps existing names and adds workflow hints instead
+     of a hard rename.
    - Add optional depth controls such as `include_breakdown` /
-     `include_evidence` or a small `detail_level` enum.
-   - Preserve current lower-level tools temporarily as compatibility aliases
-     only if needed.
+     `include_evidence` or a small `detail_level` enum only if host tool choice
+     remains noisy after description, response workflow metadata, and catalog
+     improvements.
+   - Preserve current lower-level tools temporarily as compatibility aliases if
+     a future unified theme tool is added.
 2. Audit `update_deal` field groups:
    - Keep it if all fields remain "confirmed deal metadata correction."
    - Split only if future fields introduce distinct workflows such as

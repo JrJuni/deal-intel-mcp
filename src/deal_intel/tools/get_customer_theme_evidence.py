@@ -8,6 +8,7 @@ from deal_intel.schema.customer_theme_insights import (
     build_customer_theme_evidence,
     validate_evidence_inputs,
 )
+from deal_intel.schema.customer_theme_workflow import customer_theme_workflow_step
 from deal_intel.schema.customer_themes import THEME_TAXONOMY
 from deal_intel.schema.interactions import interaction_types_from_config
 from deal_intel.storage.mongodb import MongoDBClient
@@ -80,4 +81,8 @@ def handle(
         source_confidence=source_confidence,
         valid_interaction_types=interaction_types_from_config(cfg),
     )
-    return {"ok": True, **result}
+    return {
+        "ok": True,
+        "workflow": customer_theme_workflow_step("evidence"),
+        **result,
+    }

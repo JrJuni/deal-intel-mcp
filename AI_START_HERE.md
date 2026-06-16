@@ -125,7 +125,7 @@ When installing the MCPB, recommend:
 
 Expected visible tool counts:
 
-- `sample`: 23 tools
+- `sample`: 24 tools
 - `standard` / `full`: 35 tools
 - `developer`: 38 tools
 
@@ -158,9 +158,9 @@ Prefer deterministic read tools for normal questions:
 - Manager/team meeting report -> `export_report`
 - Excel/CSV-ready deal ledger -> `export_data`
 - Server-side LLM usage / rough cost check -> `get_usage`
-- Customer concern or decision-criteria ranking -> `get_customer_themes`
-- Stage/industry/tag theme comparison -> `get_customer_theme_breakdown`
-- Evidence snippets for one theme -> `get_customer_theme_evidence`
+- Customer concern or decision-criteria ranking -> start with `get_customer_themes`
+- Stage/industry/tag theme comparison -> then use `get_customer_theme_breakdown`
+- Evidence snippets for one known theme -> then use `get_customer_theme_evidence`
 
 Use LLM/write tools only when the user intent requires them:
 

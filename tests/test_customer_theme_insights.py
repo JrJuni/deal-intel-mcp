@@ -405,9 +405,13 @@ def test_customer_theme_tool_handlers_return_expected_shape() -> None:
     )
 
     assert breakdown["ok"] is True
+    assert breakdown["workflow"]["current_step"] == "comparison"
+    assert breakdown["workflow"]["current_tool"] == "get_customer_theme_breakdown"
     assert breakdown["filters"]["group_by"] == "industry"
     assert breakdown["groups"]
     assert evidence["ok"] is True
+    assert evidence["workflow"]["current_step"] == "evidence_drilldown"
+    assert evidence["workflow"]["current_tool"] == "get_customer_theme_evidence"
     assert evidence["summary"]["returned_count"] == 3
     assert evidence["filters"]["interaction_type"] == "meeting"
 

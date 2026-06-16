@@ -862,7 +862,7 @@ Implemented:
   - Responses never include raw interaction content.
 - Updated tool-surface contracts and MCPB manifest tool declarations.
 - Current runtime tool counts:
-  - `sample=23`
+  - `sample=24`
   - `standard=35`
   - `developer=38`
 
@@ -939,6 +939,19 @@ Implementation:
   - consider `get_customer_themes` with detail/depth options.
 - Revisit tool descriptions and names only after framework field names settle.
 - Preserve `get_tool_catalog` as the discovery escape hatch.
+
+Current implementation direction:
+
+- Keep the existing customer-theme tool names for compatibility.
+- Add user-intent workflow metadata to `get_tool_catalog` so host apps can
+  group tools by setup, intake, deal review, customer themes, reports,
+  framework admin, usage/memory, optional LLM/search, and sample/admin flows.
+- Add `workflow` metadata to customer-theme responses:
+  - `get_customer_themes` = ranking step;
+  - `get_customer_theme_breakdown` = comparison step;
+  - `get_customer_theme_evidence` = evidence drill-down step.
+- Defer hard renames or a single replacement theme tool until real host usage
+  proves the 3-tool workflow still causes confusion.
 
 Verification gate:
 

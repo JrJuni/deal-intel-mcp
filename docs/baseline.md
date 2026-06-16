@@ -61,7 +61,7 @@ The Python server keeps all 38 handler functions available internally, but MCP
 clients see a config-filtered tool surface:
 
 - `tools.surface: auto` resolves from the effective profile.
-- `sample` exposes 23 tools for bundled/local personal sample mode.
+- `sample` exposes 24 tools for bundled/local personal sample mode.
 - `standard` exposes 35 tools for normal MongoDB-backed operation.
 - `developer` exposes all 38 tools, including demo database seed/cleanup.
 - Invalid `tools.surface` config exposes only `config_doctor` and
@@ -70,7 +70,7 @@ clients see a config-filtered tool surface:
 | Tool | Required inputs | Optional inputs | Success response | Persistence or external effects |
 |---|---|---|---|---|
 | `config_doctor` | None | `offline` | `ok`, `profile`, `generated_at`, `summary`, `checks`, `next_actions` | Read only; checks config, storage readiness, vector-search mode, and LLM provider readiness without LLM calls, embeddings, or writes. The default path may perform a bounded storage ping; `offline=true` skips it |
-| `get_tool_catalog` | None | `include_hidden` | `ok`, `resolved_tool_surface`, `visible_tool_count`, `registered_tool_count`, `tools`, `categories`, `surfaces`, `usage_hint` | Read only; lists the current profile-filtered tool surface and optional hidden/developer-only tools. Use when host tool search returns only a truncated subset |
+| `get_tool_catalog` | None | `include_hidden` | `ok`, `resolved_tool_surface`, `visible_tool_count`, `registered_tool_count`, `tools`, `categories`, `intent_groups`, `tool_selection_guide`, `surfaces`, `usage_hint` | Read only; lists the current profile-filtered tool surface and optional hidden/developer-only tools. Also groups tools by user intent so host apps can recover when tool search returns only a truncated subset |
 | `update_config` | None | `dry_run`, `confirmed_by_user`, `llm_provider`, `chatgpt_oauth_model`, `openai_api_model`, `reporting_output_dir`, `reporting_timezone`, `reporting_language`, `tools_surface` | `ok`, `command`, `user_config_path`, `dry_run`, `changed_fields`, `doctor`, `storage_written`, `backup_path` | Dry-run-first local file write. Applies only allowlisted non-secret settings to `~/.deal-intel/config.yaml`; real writes require `confirmed_by_user=true`; rejects MongoDB URIs and API-key shaped values |
 | `get_qualification_templates` | None | `template_key`, `include_dimensions` | `ok`, `templates`, `count`, `usage_hint` | Read only; returns bundled qualification framework templates and validation guidance. No DB access, LLM calls, config writes, or embedding work |
 | `validate_qualification_framework` | None | `template_key`, `framework_json` | `ok`, `source`, `framework`, `errors`, `warnings`, `usage_hint` | Read only; validates a built-in or user-provided qualification framework payload using the static validator. No file writes, DB access, LLM calls, or embedding work. Secret-shaped strings are rejected without echoing the raw input |
@@ -102,9 +102,9 @@ clients see a config-filtered tool surface:
 | `get_user_memory` | None | `category`, `custom_doc_slug`, `limit` | `ok`, `memory_dir`, `filters`, `documents`, `summary`, `warnings` | Read only; reads safe Markdown files from `user_docs/` or configured `user_memory.dir` for assistant context loading. Excludes sample templates from broad reads |
 | `record_user_memory` | `content` | `category`, `custom_doc_slug`, `title`, `source`, `importance`, `tags` | `ok`, `entry_id`, `memory_dir`, `path`, `category`, `document`, `is_custom_document`, `bytes_written`, `secret_scan` | Appends durable user feedback to safe Markdown files under `user_docs/` or configured `user_memory.dir`; rejects unsafe paths, non-Markdown custom slugs, and secret-shaped content before writing |
 | `get_insights` | `query_type` | `as_of` | `ok`, `query_type`, `as_of`, `timezone`, `generated_at`, query-specific aggregate fields | Read only over the current collection snapshot |
-| `get_customer_themes` | None | `dimension`, `stage`, `industry`, `top_k` | `ok`, `filters`, `coverage`, `themes` | Read-only MongoDB counts and aggregation. The `industry` filter matches primary `industry` or `industry_tags` |
-| `get_customer_theme_breakdown` | None | `dimension`, `stage`, `industry`, `group_by`, `top_k` | `ok`, `filters`, `summary`, `groups`, `warnings` | Read only; compares curated customer themes by stage, primary industry, industry tag, or dimension using the restricted metric projection. The `industry` filter matches primary `industry` or `industry_tags` |
-| `get_customer_theme_evidence` | `theme_key` | `dimension`, `stage`, `industry`, `limit`, `min_importance`, `interaction_type`, `source_confidence` | `ok`, `filters`, `summary`, `evidence`, `warnings` | Read only; returns curated customer-theme evidence snippets plus safe source metadata (`industry_tags`, `interaction_type`, `source_confidence`, `source_label`, `subject`), can filter by source type/confidence and primary-or-tag industry, treats legacy meeting evidence as `interaction_type=meeting`, and excludes raw notes, raw interaction content, contacts, and embeddings |
+| `get_customer_themes` | None | `dimension`, `stage`, `industry`, `top_k` | `ok`, `workflow`, `filters`, `coverage`, `themes` | Read-only MongoDB counts and aggregation. This is the ranking step in the customer-theme workflow. The `industry` filter matches primary `industry` or `industry_tags` |
+| `get_customer_theme_breakdown` | None | `dimension`, `stage`, `industry`, `group_by`, `top_k` | `ok`, `workflow`, `filters`, `summary`, `groups`, `warnings` | Read only; compares curated customer themes by stage, primary industry, industry tag, or dimension using the restricted metric projection. This is the comparison step in the customer-theme workflow. The `industry` filter matches primary `industry` or `industry_tags` |
+| `get_customer_theme_evidence` | `theme_key` | `dimension`, `stage`, `industry`, `limit`, `min_importance`, `interaction_type`, `source_confidence` | `ok`, `workflow`, `filters`, `summary`, `evidence`, `warnings` | Read only; returns curated customer-theme evidence snippets plus safe source metadata (`industry_tags`, `interaction_type`, `source_confidence`, `source_label`, `subject`), can filter by source type/confidence and primary-or-tag industry, treats legacy meeting evidence as `interaction_type=meeting`, and excludes raw notes, raw interaction content, contacts, and embeddings |
 | `search_deals` | `query` | `limit` | `ok`, `query`, `result_count`, `results` | Generates a local query embedding and reads deal embeddings; may return a structured warmup response before search |
 | `analyze_deal` | `deal_id` | None | `ok`, `deal_id`, `analysis`, `usage`, `usage_summary` | Calls LLM and attempts to persist `bd_strategy` plus `bd_strategy_usage`; analysis still returns if that save fails |
 
@@ -319,7 +319,7 @@ Before Milestone 1 started, all 28 findings were resolved. The current gate is:
 pytest -> 128 passed
 ruff check . -> All checks passed
 wheel build -> passed
-FastMCP runtime surface exposure -> sample 23 tools, standard 35 tools,
+FastMCP runtime surface exposure -> sample 24 tools, standard 35 tools,
 developer 38 tools
 MongoDB Atlas read smoke -> passed
 ```

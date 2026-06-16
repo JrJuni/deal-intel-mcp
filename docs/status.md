@@ -18,6 +18,9 @@ Implemented:
 
 - Kept existing customer-theme tool names for compatibility.
 - Added user-intent grouping and tool-selection guidance to `get_tool_catalog`.
+- Added short intent alias metadata to `get_tool_catalog` tool rows:
+  `canonical_tool`, `namespace`, and `intent_alias`. These aliases are
+  discovery hints only, not alternate callable MCP tool names.
 - Added customer-theme workflow hints to ranking, comparison, and evidence
   responses.
 - Moved `get_customer_themes` from the legacy Mongo aggregation path onto the

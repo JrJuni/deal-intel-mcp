@@ -197,6 +197,47 @@ TOOL_SELECTION_GUIDE: tuple[dict, ...] = (
     },
 )
 
+TOOL_INTENT_ALIASES: dict[str, tuple[str, str]] = {
+    "config_doctor": ("config", "config.doctor"),
+    "get_tool_catalog": ("catalog", "catalog.tools"),
+    "update_config": ("config", "config.update"),
+    "get_qualification_templates": ("framework", "framework.templates"),
+    "validate_qualification_framework": ("framework", "framework.validate"),
+    "update_qualification_framework": ("framework", "framework.update"),
+    "list_qualification_frameworks": ("framework", "framework.list"),
+    "set_active_qualification_framework": ("framework", "framework.activate"),
+    "delete_qualification_framework": ("framework", "framework.delete"),
+    "backfill_qualification": ("framework", "framework.backfill"),
+    "backfill_qualification_reextract": ("framework", "framework.reextract"),
+    "create_deal": ("deal", "deal.create"),
+    "add_meeting": ("compat", "compat.add_meeting"),
+    "add_interaction": ("interaction", "interaction.add"),
+    "update_stage": ("deal", "deal.stage.update"),
+    "update_deal": ("deal", "deal.update"),
+    "archive_deal": ("deal", "deal.archive"),
+    "restore_deal": ("deal", "deal.restore"),
+    "delete_deal": ("deal", "deal.delete"),
+    "migrate_local_data": ("data", "data.migrate"),
+    "create_sample_data": ("sample", "sample.create"),
+    "delete_sample_data": ("sample", "sample.delete"),
+    "get_deal": ("deal", "deal.get"),
+    "list_deals": ("deal", "deal.list"),
+    "get_insights": ("pipeline", "pipeline.insights"),
+    "get_metrics": ("pipeline", "pipeline.metrics"),
+    "get_deal_gaps": ("deal", "deal.gaps"),
+    "get_deal_review": ("deal", "deal.review"),
+    "get_usage": ("usage", "usage.cost"),
+    "export_report": ("report", "report.export"),
+    "export_data": ("data", "data.export"),
+    "get_user_memory": ("memory", "memory.get"),
+    "record_user_memory": ("memory", "memory.record"),
+    "get_customer_themes": ("theme", "theme.rank"),
+    "get_customer_theme_breakdown": ("theme", "theme.compare"),
+    "get_customer_theme_evidence": ("theme", "theme.evidence"),
+    "search_deals": ("search", "search.deals"),
+    "analyze_deal": ("strategy", "strategy.analyze"),
+}
+
 
 @dataclass(frozen=True)
 class MCPToolSurfaceContract:
@@ -723,6 +764,7 @@ def build_tool_selection_guide(tool_names: set[str] | frozenset[str]) -> list[di
         guide.append(
             {
                 **entry,
+                "intent_alias": tool_intent_metadata(primary_tool)["intent_alias"],
                 "primary_tool_visible": True,
                 "related_visible_tools": [
                     tool_name for tool_name in _tools_mentioned(entry) if tool_name in visible
@@ -730,6 +772,25 @@ def build_tool_selection_guide(tool_names: set[str] | frozenset[str]) -> list[di
             }
         )
     return guide
+
+
+def tool_intent_metadata(tool_name: str) -> dict:
+    namespace, intent_alias = TOOL_INTENT_ALIASES.get(
+        tool_name, ("uncategorized", tool_name)
+    )
+    return {
+        "canonical_tool": tool_name,
+        "namespace": namespace,
+        "intent_alias": intent_alias,
+    }
+
+
+def build_tool_alias_map(tool_names: set[str] | frozenset[str]) -> dict[str, str]:
+    aliases: dict[str, str] = {}
+    for tool_name in sorted(tool_names):
+        metadata = tool_intent_metadata(tool_name)
+        aliases[metadata["intent_alias"]] = metadata["canonical_tool"]
+    return aliases
 
 
 def sample_local_personal_target_tool_names() -> tuple[str, ...]:

@@ -85,19 +85,23 @@ def get_tool_catalog(include_hidden: bool = False) -> dict:
 
     Use this when a host app's tool search shows only a truncated subset of
     tools. Read-only: no storage access, no LLM calls, no file writes.
+    Intent alias: catalog.tools.
 
     By default, returns only tools visible in the current resolved surface.
     Set include_hidden=true to also show developer-only or profile-hidden tools
-    with visibility metadata.
+    with visibility metadata. Intent aliases are discovery metadata, not
+    alternate callable tool names.
     """
     try:
         from deal_intel import _context
         from deal_intel.tool_surfaces import (
+            build_tool_alias_map,
             build_tool_intent_groups,
             build_tool_selection_guide,
             list_tool_surface_contracts,
             resolve_tool_surface,
             surface_names,
+            tool_intent_metadata,
             tool_names_for_surface,
         )
 
@@ -112,6 +116,7 @@ def get_tool_catalog(include_hidden: bool = False) -> dict:
         tools = [
             {
                 **contract.to_dict(),
+                **tool_intent_metadata(contract.name),
                 "visible": contract.name in visible_names,
             }
             for contract in contracts
@@ -140,6 +145,7 @@ def get_tool_catalog(include_hidden: bool = False) -> dict:
             "include_hidden": include_hidden,
             "tools": tools,
             "categories": categories,
+            "tool_aliases": build_tool_alias_map(catalog_names),
             "intent_groups": build_tool_intent_groups(catalog_names),
             "tool_selection_guide": build_tool_selection_guide(catalog_names),
             "surfaces": surfaces_payload,
@@ -460,6 +466,7 @@ def create_deal(
 
     Use this only for a new customer opportunity. For correcting an existing
     deal's amount, industry, dates, or close metadata, use update_deal instead.
+    Intent alias: deal.create.
 
     deal_size_status can be: unknown, rough_estimate, customer_budget,
     quoted, or strategic_zero. A zero amount is valid only with
@@ -547,8 +554,9 @@ def add_interaction(
 
     Use this when the user provides new evidence such as a meeting note,
     customer email reply, user interview, call summary, or internal note. This
-    is one of the few write tools that calls the configured server-side LLM
-    because active-framework qualification scoring and customer themes are
+    is the interaction.add intent and one of the few write tools that calls the
+    configured server-side LLM because active-framework qualification scoring
+    and customer themes are
     persisted as deal data. MEDDPICC is the default built-in framework.
 
     interaction_type: meeting, email_thread, user_interview, call_summary,
@@ -600,6 +608,7 @@ def update_stage(
     Use this only after the user confirms a real stage transition. Do not infer
     and apply stage changes from add_interaction content automatically; surface
     the stage_suggestion first, then call this tool after confirmation.
+    Intent alias: deal.stage.update.
 
     Valid stages: discovery, qualification, proposal, negotiation, won, lost, stalled.
     For won/lost, actual_close_date is an optional ISO date (YYYY-MM-DD). It
@@ -646,7 +655,7 @@ def update_deal(
     Use this for confirmed corrections to amount, currency, industry,
     industry_tags, customer_segment, close dates, or close reason. Do not use
     it for stage transitions; use update_stage. Do not use it to add new
-    evidence; use add_interaction.
+    evidence; use add_interaction. Intent alias: deal.update.
 
     Requires confirmed_by_user=true. Value updates require deal_size_status and
     deal_size_note. Metadata updates require update_note or deal_size_note.
@@ -885,7 +894,8 @@ def get_deal(deal_id: str) -> dict:
 
     Use this when the user asks to inspect the raw stored deal record or history.
     For synthesized risk/action review, prefer get_deal_review. For missing
-    information across one or many deals, use get_deal_gaps.
+    information across one or many deals, use get_deal_gaps. Intent alias:
+    deal.get.
     """
     try:
         from deal_intel import _context
@@ -902,7 +912,7 @@ def list_deals(stage: str = "", limit: int = 20, as_of: str = "") -> dict:
 
     Use this for a quick pipeline table or to find which deals need attention at
     a glance. Do not use it for KPI totals; use get_metrics. Do not use it for a
-    single-deal review; use get_deal_review.
+    single-deal review; use get_deal_review. Intent alias: deal.list.
 
     Optionally filter by stage (discovery/qualification/proposal/negotiation/won/lost/stalled).
     as_of accepts YYYY-MM-DD for reproducible date-based calculations.
@@ -971,7 +981,8 @@ def get_metrics(
     Use this for numeric KPI questions such as current pipeline health, stage
     value, win rate, attention counts, or pipeline trend. This is LLM-free and
     should be preferred over get_insights for pipeline health. For per-deal
-    risk/action review, use get_deal_review or get_deal_gaps.
+    risk/action review, use get_deal_review or get_deal_gaps. Intent alias:
+    pipeline.metrics.
 
     Supported metric_type values: pipeline_health, pipeline_trend.
     Optional filters:
@@ -1011,7 +1022,7 @@ def get_deal_gaps(
     Use this when the user asks what is missing, what to confirm next, or which
     deals have sales/forecast information gaps. It returns prioritized hints,
     not generated strategy prose. For a full one-deal review, use
-    get_deal_review.
+    get_deal_review. Intent alias: deal.gaps.
 
     Read-only. Uses the shared metric projection and does not call LLM,
     embeddings, or write to MongoDB.
@@ -1048,6 +1059,7 @@ def get_deal_review(deal_id: str, as_of: str = "") -> dict:
 
     This is the default tool for one-deal status, risk, uncertainty, and next
     questions/actions. It is LLM-free and safer for routine deal review.
+    Intent alias: deal.review.
     Prefer this over analyze_deal for ordinary questions such as "how is this
     deal going?", "what should I check next?", or "why is this deal risky?".
     Use analyze_deal only when the user explicitly asks for generated BD
@@ -1083,6 +1095,7 @@ def get_usage(since: str = "", until: str = "") -> dict:
     keys, OAuth tokens, or MongoDB URIs. Cost is estimated only when safe:
     ChatGPT OAuth is reported as zero incremental API cost, and API-provider
     pricing is calculated only if usage.pricing is configured.
+    Intent alias: usage.cost.
 
     since/until accept YYYY-MM-DD and filter persisted usage metadata.
     """
@@ -1114,7 +1127,8 @@ def export_report(
     Use this when the user asks for a manager/team meeting report, weekly
     pipeline narrative, or a document-style summary. For spreadsheet-ready CSV
     ledgers, use export_data instead. For chat-only KPI answers, use
-    get_metrics. For one-deal review, use get_deal_review.
+    get_metrics. For one-deal review, use get_deal_review. Intent alias:
+    report.export.
 
     Supported report_type values: weekly_pipeline, pipeline_trend.
     Current implementation writes Markdown plus compatibility CSV artifacts;
@@ -1162,7 +1176,7 @@ def export_data(
     table, a closed deal ledger, monthly/quarterly records, or raw-but-safe
     reporting data for their own analysis. For manager/team meeting narrative
     reports, use export_report instead. For chat-only KPI answers, use
-    get_metrics.
+    get_metrics. Intent alias: data.export.
 
     Supported dataset values:
     - open_deals: active/stalled pipeline ledger with health, timing, gaps
@@ -1267,7 +1281,7 @@ def get_customer_themes(
     point and the ranking step in the customer-theme workflow. Do not use it
     for stage/industry comparison tables; use get_customer_theme_breakdown. Do
     not use it when the user asks for concrete quotes/snippets for one known
-    theme; use get_customer_theme_evidence.
+    theme; use get_customer_theme_evidence. Intent alias: theme.rank.
 
     dimension: all | identify_pain | decision_criteria | metrics
     stage: active | all | discovery | qualification | proposal | negotiation | won | lost | stalled
@@ -1303,7 +1317,7 @@ def get_customer_theme_breakdown(
     dimension. This is the comparison step in the customer-theme workflow. Do
     not use it as the default "top customer concerns" tool; use
     get_customer_themes for ranking. For representative snippets, use
-    get_customer_theme_evidence.
+    get_customer_theme_evidence. Intent alias: theme.compare.
 
     Read-only. Uses curated customer_themes only; does not return raw meeting
     notes, contacts, or embeddings.
@@ -1346,7 +1360,7 @@ def get_customer_theme_evidence(
     key. This is the evidence-drilldown step in the customer-theme workflow. Do
     not use it to rank themes from scratch; use get_customer_themes first. Do
     not use it for stage/industry comparison tables; use
-    get_customer_theme_breakdown.
+    get_customer_theme_breakdown. Intent alias: theme.evidence.
 
     Read-only. Evidence is the structured snippet already extracted into
     customer_themes; raw meeting notes, raw interaction content, contacts, and
@@ -1389,7 +1403,7 @@ def search_deals(query: str, limit: int = 5) -> dict:
     Use this for natural-language reference search in Mongo-backed mode, such
     as finding similar past deals or similar customer situations. Do not use it
     for frequency/ranking questions; use get_customer_themes or get_metrics.
-    This tool is hidden in sample mode.
+    This tool is hidden in sample mode. Intent alias: search.deals.
 
     Examples:
     - "deals where the customer struggles with cost reduction"
@@ -1487,6 +1501,7 @@ def analyze_deal(deal_id: str) -> dict:
     deal. For routine status/risk/uncertainty review, use get_deal_review. For
     missing-info prioritization, use get_deal_gaps. Do not call this just
     because the user asks "how is this deal going?"; start with get_deal_review.
+    Intent alias: strategy.analyze.
     """
     try:
         from deal_intel import _context

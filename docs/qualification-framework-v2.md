@@ -946,6 +946,9 @@ Current implementation direction:
 - Add user-intent workflow metadata to `get_tool_catalog` so host apps can
   group tools by setup, intake, deal review, customer themes, reports,
   framework admin, usage/memory, optional LLM/search, and sample/admin flows.
+- Add short `namespace` / `intent_alias` metadata to catalog rows for
+  developer and host-model readability. These are not callable alias tools;
+  canonical MCP tool names remain unchanged.
 - Add `workflow` metadata to customer-theme responses:
   - `get_customer_themes` = ranking step;
   - `get_customer_theme_breakdown` = comparison step;

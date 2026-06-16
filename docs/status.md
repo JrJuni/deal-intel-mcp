@@ -12,6 +12,32 @@ than loaded wholesale.
 
 ## Latest Update - 2026-06-16
 
+### Architecture developer map expansion
+
+Implemented:
+
+- Expanded [architecture.md](architecture.md) with a developer navigation map.
+- Added runtime entry point ownership for MCP server, CLI, context, config
+  loading, MCPB launcher, and packaged resources.
+- Added CLI command family mapping for config, smoke, Mongo operations, local
+  data, taxonomy cleanup, qualification maintenance, Atlas dashboards, and QA
+  smoke commands.
+- Added an MCP tool ownership index covering canonical tools, intent aliases,
+  owner modules, inputs, outputs/side effects, adjacent tests, and "do not
+  break" notes.
+- Added a major internal engine index for config/profile, tool surface,
+  storage, qualification, interaction extraction, metrics, review/gaps,
+  reports, Atlas dashboards, customer themes, search/vector, usage, user
+  memory, and Mongo operations.
+- Added change playbooks that map common edits to the files and tests that
+  should be checked before closing the work.
+
+Validation:
+
+- Documentation-only change.
+- Verified new architecture headings with `rg`.
+- Spot-checked the rendered Markdown source around the new tables.
+
 ### QF-9 tool namespace / customer theme cleanup
 
 Implemented:

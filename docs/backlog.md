@@ -202,9 +202,9 @@ Deferred after v2 closure:
    - Do not build a maintainer-operated cloud service until real usage justifies
      tenant isolation, billing, JWT/OAuth lifecycle, support, incident response,
      and data protection responsibilities.
-6. MongoDB Atlas Terraform PoC template.
-   - Add a small, repeatable Infrastructure-as-Code template for the `full` and
-     `pro` Atlas setup path.
+6. MongoDB Atlas Terraform PoC template: done on 2026-06-21.
+   - Added a small, repeatable Infrastructure-as-Code template for the `full`
+     and `pro` Atlas setup path.
    - Suggested location:
      `infra/mongodb-atlas/versions.tf`, `provider.tf`, `variables.tf`,
      `main.tf`, `outputs.tf`, and `README.md`.

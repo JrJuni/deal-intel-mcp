@@ -10,7 +10,31 @@ Read the newest section first. Older sections are retained as an archive for
 traceability and should be searched by topic, milestone, or file path rather
 than loaded wholesale.
 
-## Latest Update - 2026-06-19
+## Latest Update - 2026-06-21
+
+### MongoDB Atlas Terraform PoC template
+
+Completed:
+
+- Added `infra/mongodb-atlas/` as a small Terraform template for the optional
+  Atlas `full`/`pro` setup path.
+- The template creates an Atlas project, cost-safe M0 tenant cluster by
+  default, app database user, optional CIDR access list entries, and sensitive
+  SRV connection string output.
+- Kept Terraform responsible for infrastructure only; app data, sample data,
+  schema application, chart-ready refresh, product-context indexing, and Atlas
+  Vector Search indexing remain CLI/app responsibilities.
+- Added repo ignore rules for Terraform local state, `.tfvars`, and local
+  override files, and linked the new runbook from the documentation map.
+
+Validation:
+
+- `terraform fmt -check` from `infra/mongodb-atlas/` -> passed.
+- `terraform init -backend=false` from `infra/mongodb-atlas/` -> passed after
+  allowing registry network access; locked `mongodb/mongodbatlas` v2.12.0.
+- `terraform validate` from `infra/mongodb-atlas/` -> passed.
+
+## Previous Update - 2026-06-19
 
 ### V3 Step 1 HubSpot Deal import CSV
 

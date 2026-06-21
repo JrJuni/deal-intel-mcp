@@ -30,6 +30,19 @@ outputs/*
 reports_preview/
 .tmp-product-context/
 
+# Terraform local state and secret-bearing inputs
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
 # Throwaway / experimental rendered JSON (e.g. ad-hoc Atlas Charts renders)
 scripts/tmp/
 

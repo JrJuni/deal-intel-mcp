@@ -44,6 +44,7 @@ These are active source-adjacent contracts.
 | `bootstrapper-contract.md` | Designing or changing the future dependency-inclusive npx/bootstrapper runtime |
 | `bootstrapper-fresh-smoke.md` | Running pre-publish and post-publish fresh-install bootstrapper smoke checks |
 | `release-publish-checklist.md` | Maintainer-only npm/PyPI/MCPB publication checklist |
+| `../infra/mongodb-atlas/README.md` | Creating the optional MongoDB Atlas Terraform PoC infrastructure |
 | `atlas-charts.md` | Changing Atlas dashboard aggregation specs or UI runbooks |
 | `mongodb-atlas-pro.md` | Planning chart-ready Mongo collections, Mongo doctor, and Pro Atlas Vector Search |
 | `query-audit.md` | Auditing MongoDB read paths, projections, and index implications |

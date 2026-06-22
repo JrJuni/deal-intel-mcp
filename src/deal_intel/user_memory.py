@@ -10,6 +10,8 @@ from typing import Any
 from deal_intel.errors import ErrorCode, MCPError, Stage
 
 DEFAULT_CATEGORY = "general"
+DEFAULT_USER_MEMORY_DIR = "~/.deal-intel/user-memory"
+USER_MEMORY_HOME_ROOT = "~/.deal-intel"
 BUILT_IN_CATEGORIES: dict[str, str] = {
     "operating_preferences": "operating-preferences.md",
     "metric_tuning": "metric-tuning-feedback.md",
@@ -164,12 +166,12 @@ def resolve_user_memory_dir(cfg: dict[str, Any]) -> Path:
     configured = (
         user_memory.get("dir")
         if isinstance(user_memory, dict) and user_memory.get("dir")
-        else "user_docs"
+        else DEFAULT_USER_MEMORY_DIR
     )
     raw = os.path.expandvars(str(configured))
-    path = Path(raw).expanduser()
+    path = _expand_home_path(raw)
     if not path.is_absolute():
-        path = Path.cwd() / path
+        path = _expand_home_path(USER_MEMORY_HOME_ROOT) / path
     return path.resolve()
 
 
@@ -208,6 +210,14 @@ def normalize_custom_doc_slug(value: str) -> str:
 
 def detect_secret_patterns(text: str) -> list[str]:
     return [name for name, pattern in _SECRET_PATTERNS if pattern.search(text)]
+
+
+def _expand_home_path(value: str) -> Path:
+    if value == "~":
+        return Path.home()
+    if value.startswith("~/") or value.startswith("~\\"):
+        return Path.home() / value[2:]
+    return Path(value).expanduser()
 
 
 def _safe_target(

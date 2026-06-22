@@ -9,6 +9,7 @@ from deal_intel import _context, mcp_server
 from deal_intel.errors import MCPError
 from deal_intel.tools import get_user_memory, record_user_memory
 from deal_intel.user_memory import (
+    DEFAULT_USER_MEMORY_DIR,
     detect_secret_patterns,
     normalize_custom_doc_slug,
     resolve_user_memory_dir,
@@ -17,6 +18,23 @@ from deal_intel.user_memory import (
 
 def _cfg(tmp_path: Path) -> dict:
     return {"user_memory": {"dir": str(tmp_path / "memory")}}
+
+
+def test_default_user_memory_dir_is_home_scoped_not_cwd(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    fake_home = tmp_path / "home"
+    fake_cwd = tmp_path / "System32"
+    fake_cwd.mkdir()
+    monkeypatch.setattr(Path, "home", lambda: fake_home)
+    monkeypatch.chdir(fake_cwd)
+
+    assert resolve_user_memory_dir({}) == fake_home / ".deal-intel" / "user-memory"
+    assert resolve_user_memory_dir({"user_memory": {"dir": "user_docs"}}) == (
+        fake_home / ".deal-intel" / "user_docs"
+    )
+    assert DEFAULT_USER_MEMORY_DIR == "~/.deal-intel/user-memory"
 
 
 def test_record_user_memory_appends_to_builtin_category(tmp_path: Path) -> None:

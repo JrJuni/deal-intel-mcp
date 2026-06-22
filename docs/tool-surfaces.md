@@ -81,7 +81,8 @@ Why this matters:
   personal deals to MongoDB after connecting a URI. It is dry-run-first and
   never migrates bundled fixture records.
 - `get_user_memory` and `record_user_memory` support user-owned operating
-  notes under `user_docs/` or configured `user_memory.dir`; writes are
+  notes under `~/.deal-intel/user-memory` or configured `user_memory.dir`;
+  relative configured paths resolve under `~/.deal-intel`; writes are
   constrained to safe Markdown slugs and reject secret-shaped content.
 - `search_deals` currently needs Mongo-backed embeddings or Atlas Vector Search.
 - `get_deal` is a safe detail read; raw notes, raw interaction content,

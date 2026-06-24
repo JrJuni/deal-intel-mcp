@@ -78,6 +78,7 @@ These files are useful but should be searched, not loaded wholesale.
 | `backlog.md` | Read the top current backlog index first; older milestone notes are archive |
 | `status.md` | Read latest sections first; older sections are archive |
 | `lesson-learned.md` | Search by failure symptom, date, or file path |
+| `public-posting-notes.md` | Source-safe launch/posting notes and development-retrospective angles |
 | `../user_docs/samples/*.sample.md` | Legacy sample operating notes; copy relevant content into `~/.deal-intel/user-memory` or configured `user_memory.dir` |
 
 ## User Memory Boundary

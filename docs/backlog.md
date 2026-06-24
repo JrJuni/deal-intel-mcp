@@ -15,7 +15,95 @@ When this file conflicts with code, tests, or contract docs, prefer:
 3. `docs/baseline.md` and area contract docs,
 4. this backlog.
 
-## Current Active Streams
+## Current Launch Backlog
+
+Last reviewed: 2026-06-24.
+
+This index is the current source of truth for "what is still worth doing before
+more public storytelling." Older roadmap sections below are preserved for
+traceability, but they should not be treated as active work unless listed here.
+
+### Before LinkedIn / Public Storytelling
+
+1. Positioning cleanup - done on 2026-06-24.
+   - State the best-fit sales motion clearly: complex, conversation-heavy B2B
+     deals where qualification evidence, stakeholders, buying process, risk,
+     and next actions matter.
+   - State poor-fit motions honestly: SKU-led wholesale, sample-to-reorder
+     retail distribution, commodity trading, and trade-promotion allocation
+     workflows where sell-through or channel ROI matters more than buying
+     committee qualification.
+2. Public posting notes - done on 2026-06-24.
+   - Keep a concise, source-safe patch-note style summary of the post-v2 work:
+     safety/cost guardrails, prompt-injection hardening, safer user-memory
+     paths, product context, HubSpot CSV export, CI/CD smoke evidence, and
+     launch-readiness scope.
+3. Optional launch hygiene.
+   - Run the launch-hygiene gate only before a package publish, MCPB rebuild,
+     major install-doc refresh, or external evaluator handoff. A normal
+     LinkedIn development post does not require a full package gate.
+
+### Active Product-Quality Backlog
+
+1. Deal Review Quality v2.
+   - Usage-driven quality work remains the most relevant product backlog item.
+   - Improve separation between evidence-rich risky deals and evidence-poor
+     uncertain deals.
+   - Preserve the CTA vs observation distinction: objective missing items can
+     produce actions; subjective gaps often belong in observations unless
+     evidence supports action.
+2. Report Quality v2.
+   - Continue only where real weekly-report traces show readability or meeting
+     handoff friction.
+   - Keep deterministic metrics as the source of truth and let the host app
+     handle narration unless a user explicitly wants cost-visible server-side
+     prose.
+3. User-memory context pack design.
+   - Keep current `record_user_memory` append-only.
+   - If implemented, keep it as a small preference layer, not a general memory
+     platform: workflow allowlists, bounded context, conflict warnings, and
+     fallback to built-in tool policy when memory conflicts are unresolved.
+
+### Completed Or Monitor-Only Decisions
+
+- Tool namespace and customer-theme workflow cleanup: completed in QF-9, monitor
+  only.
+  - Existing callable names were kept for compatibility.
+  - `get_tool_catalog` exposes intent aliases such as `theme.rank`,
+    `theme.compare`, and `theme.evidence`.
+  - Customer-theme tools remain split into ranking, comparison, and evidence.
+  - Broad namespace renames are deferred to a future breaking-version cleanup
+    only if real host-agent traces show confusion.
+- MCP safety and cost guardrails: completed.
+  - Safe default reads, raw developer escape hatch, `add_interaction` duplicate
+    and size guards, `analyze_deal` preview/cache behavior, and durable usage
+    limits are in place.
+- Prompt-injection hardening: completed.
+  - LLM prompts for interaction extraction, strategy analysis, historical
+    re-extraction, and product-context snippets now mark source text as
+    untrusted and ignore embedded instructions.
+- User-memory path safety: completed.
+  - Default memory now resolves under `~/.deal-intel/user-memory`; relative
+    configured paths resolve under `~/.deal-intel`, not the MCP host working
+    directory.
+- CI/CD MVP: completed.
+  - Basic CI, production tag guard, manual installed-package smoke evidence,
+    npm rerun guard, and CI triage protocol are in place.
+- HubSpot Deal import CSV: completed as v3 step 1.
+  - Manual HubSpot Deal create/import CSV export exists; CRM sync, Contacts,
+    Companies, Salesforce, and account/person graph remain intentionally
+    deferred.
+
+### Deferred Big Bets
+
+- Tool-call audit trail and workflow trace.
+- Product-context parser expansion for PPTX/XLSX and cache-health UX.
+- Bootstrapper/fresh-machine install polish beyond current package smoke.
+- Workspace/project profiles for multiple products or clients.
+- Dockerized self-hosted remote kit.
+- MongoDB/Atlas/embedding cost accounting beyond current LLM usage reporting.
+
+## Historical Active Streams
 
 ### Post-v1 / v2 Roadmap
 
@@ -95,11 +183,8 @@ Immediate post-v2 quality order:
    - Add corner-case synthetic datasets from realistic meetings, emails, and
      user interviews to stress the review engine.
 3. Tool namespace and customer-theme workflow cleanup.
-   - Keep broad renaming deferred until real host-agent confusion appears.
-   - Continue strengthening tool descriptions and catalog workflow hints.
-   - Revisit `get_customer_themes`, `get_customer_theme_breakdown`, and
-     `get_customer_theme_evidence` only if smoke traces show unnecessary
-     multi-tool friction.
+   - Completed in QF-9; see the current launch backlog above for the active
+     monitor-only stance.
 4. Usage and cost tracking v2.
    - Extend the v1 usage tool beyond LLM calls when useful: report generation,
      embedding/search work, MongoDB/Atlas assumptions, and maintenance

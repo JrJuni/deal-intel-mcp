@@ -16,6 +16,13 @@ memory, it can act as a lightweight first CRM-like layer: your data, your
 MongoDB or local storage, your LLM provider, queried from Claude Desktop,
 Codex, or another MCP-capable host.
 
+The best fit is complex, conversation-heavy B2B sales: SaaS, AI tools,
+security, data products, consulting, SI, professional services, enterprise
+software, and high-consideration industrial or procurement-led deals. It is less
+suited to SKU-led wholesale, sample-to-reorder retail distribution, commodity
+trading, or trade-promotion allocation workflows where sell-through, channel
+ROI, and inventory velocity matter more than stakeholder qualification.
+
 The default operating path is MongoDB Atlas-backed `full` mode, including the
 free/M0 tier. A bundled no-MongoDB `sample` mode exists for AI agents, quick
 evaluation, and demos, but real team use should start from `full`.
